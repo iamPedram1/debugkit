@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import '../models/debug_log_entry.dart';
+import '../models/debug_log_level.dart';
 
 class DebugLogStore extends ChangeNotifier {
   final int maxLogs;
@@ -10,6 +11,9 @@ class DebugLogStore extends ChangeNotifier {
   DebugLogStore({this.maxLogs = 300});
 
   UnmodifiableListView<DebugLogEntry> get logs => UnmodifiableListView(_logs);
+
+  int get errorCount =>
+      _logs.where((e) => e.level == DebugLogLevel.error).length;
 
   void addLog(DebugLogEntry entry) {
     if (_logs.length >= maxLogs) {

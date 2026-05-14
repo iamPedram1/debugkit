@@ -58,11 +58,25 @@ void main() {
       controller.info('Should not be stored');
       expect(controller.store.logs.length, 0);
     });
+
+    test('logging stores sanitized entries', () {
+      final controller = DebugKitController();
+      controller.init(enabled: true);
+      controller.info(
+          'App started with key=0x1234567890123456789012345678901234567890123456789012345678901234');
+
+      expect(controller.store.logs.length, 1);
+      final entry = controller.store.logs.first;
+      expect(entry.message, contains('[REDACTED PRIVATE KEY]'));
+      expect(entry.level, DebugLogLevel.info);
+      expect(entry.source, DebugLogSource.app);
+    });
   });
 
   group('DebugLogSanitizer', () {
     test('masks bearer tokens', () {
-      final sanitized = DebugLogSanitizer.sanitizeMessage('Authorization: Bearer eyJhYmNkZWZ0aGlzaXNhdmVyeWxvbmf0b2tlbiJ9');
+      final sanitized = DebugLogSanitizer.sanitizeMessage(
+          'Authorization: Bearer eyJhYmNkZWZ0aGlzaXNhdmVyeWxvbmf0b2tlbiJ9');
       expect(sanitized, contains('eyJh***biJ9'));
     });
 
@@ -79,12 +93,14 @@ void main() {
     });
 
     test('masks passwords', () {
-      final sanitized = DebugLogSanitizer.sanitizeMessage('password: secret123');
+      final sanitized =
+          DebugLogSanitizer.sanitizeMessage('password: secret123');
       expect(sanitized, contains('password:sec***123'));
     });
 
     test('fully redacts private keys', () {
-      const key = '0x1234567890123456789012345678901234567890123456789012345678901234';
+      const key =
+          '0x1234567890123456789012345678901234567890123456789012345678901234';
       final sanitized = DebugLogSanitizer.sanitizeMessage('My key is $key');
       expect(sanitized, contains('[REDACTED PRIVATE KEY]'));
     });
@@ -94,6 +110,15 @@ void main() {
           'apple banana cherry dog elephant fish goat house ice jump kite lemon';
       final sanitized = DebugLogSanitizer.sanitizeMessage('Seed: $mnemonic');
       expect(sanitized, 'Seed: [REDACTED MNEMONIC]');
+    });
+
+    test('trims stack traces', () {
+      final longStackTrace = List.generate(50, (i) => 'line $i').join('\n');
+      final trimmed =
+          DebugLogSanitizer.trimStackTrace(longStackTrace, maxLines: 5);
+      expect(trimmed, contains('line 4'));
+      expect(trimmed, isNot(contains('line 5')));
+      expect(trimmed, contains('45 lines trimmed'));
     });
   });
 

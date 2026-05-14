@@ -1,6 +1,7 @@
 name: debug_kit
 description: "A mobile-first in-app DevTools/log console for Flutter apps."
 version: 0.1.0
+repository: https://github.com/iamPedram1/debug_kit
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

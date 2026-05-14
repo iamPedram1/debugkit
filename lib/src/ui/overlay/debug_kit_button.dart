@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/controller/debug_kit_controller.dart';
-import '../../core/models/debug_log_level.dart';
 import '../screens/debug_kit_console_screen.dart';
 
 class DebugKitButton extends StatefulWidget {
@@ -18,9 +17,8 @@ class _DebugKitButtonState extends State<DebugKitButton> {
     return ListenableBuilder(
       listenable: DebugKitController().store,
       builder: (context, _) {
-        final logs = DebugKitController().store.logs;
-        final errorCount =
-            logs.where((e) => e.level == DebugLogLevel.error).length;
+        final store = DebugKitController().store;
+        final errorCount = store.errorCount;
 
         return Transform.translate(
           offset: _offset,
@@ -28,6 +26,15 @@ class _DebugKitButtonState extends State<DebugKitButton> {
             onPanUpdate: (details) {
               setState(() {
                 _offset += details.delta;
+                // Simple clamping logic
+                final size = MediaQuery.of(context).size;
+                // Assuming button is roughly 50x50 and positioned at (right: 20, bottom: 100)
+                // We clamp _offset to stay within reasonable bounds
+                // This is a basic implementation; a more robust one would use global coordinates
+                _offset = Offset(
+                  _offset.dx.clamp(-size.width + 70, 20),
+                  _offset.dy.clamp(-size.height + 150, 100),
+                );
               });
             },
             onTap: () {

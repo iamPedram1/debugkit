@@ -1,4 +1,3 @@
-
 class DebugLogSanitizer {
   static const Set<String> _sensitiveKeys = {
     'password',
@@ -48,19 +47,25 @@ class DebugLogSanitizer {
       (match) {
         final prefix = match.group(1);
         final value = match.group(2);
-        if (value == null || value.startsWith('[REDACTED')) return match.group(0)!;
+        if (value == null || value.startsWith('[REDACTED')) {
+          return match.group(0)!;
+        }
         return '$prefix ${maskValue(value)}';
       },
     );
 
     // Mask inline patterns like token=value or password: value
     sanitized = sanitized.replaceAllMapped(
-      RegExp(r'\b(token|password|secret|key|authorization|api_key)\b\s*([=:]|\s)\s*([^\s,;]+)', caseSensitive: false),
+      RegExp(
+          r'\b(token|password|secret|key|authorization|api_key)\b\s*([=:]|\s)\s*([^\s,;]+)',
+          caseSensitive: false),
       (match) {
         final key = match.group(1);
         final separator = match.group(2);
         final value = match.group(3);
-        if (value == null || value.startsWith('[REDACTED')) return match.group(0)!;
+        if (value == null || value.startsWith('[REDACTED')) {
+          return match.group(0)!;
+        }
         return '$key$separator${maskValue(value)}';
       },
     );
@@ -140,5 +145,12 @@ class DebugLogSanitizer {
     });
 
     return uri.replace(queryParameters: sanitizedParams).toString();
+  }
+
+  static String? trimStackTrace(String? stackTrace, {int maxLines = 25}) {
+    if (stackTrace == null) return null;
+    final lines = stackTrace.split('\n');
+    if (lines.length <= maxLines) return stackTrace;
+    return '${lines.take(maxLines).join('\n')}\n... (${lines.length - maxLines} lines trimmed)';
   }
 }

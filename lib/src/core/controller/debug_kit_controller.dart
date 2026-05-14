@@ -63,7 +63,7 @@ class DebugKitController extends ChangeNotifier {
       message: sanitizedMessage,
       timestamp: DateTime.now(),
       error: sanitizedError,
-      stackTrace: stackTrace?.toString(),
+      stackTrace: DebugLogSanitizer.trimStackTrace(stackTrace?.toString()),
       location: location,
       metadata: metadata,
       requestId: requestId,
