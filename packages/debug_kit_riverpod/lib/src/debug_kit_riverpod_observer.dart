@@ -32,10 +32,11 @@ class DebugKitRiverpodObserver extends ProviderObserver {
           RiverpodLogHelpers.sanitizeProviderName(provider.name);
 
       _controller.log(
-        message: 'Riverpod provider failed: $providerName\nError: $error',
+        message: 'Riverpod provider failed: $providerName',
         level: DebugLogLevel.error,
-        source:
-            DebugLogSource.riverpod, // DebugLogSource.riverpod should exist in core
+        source: DebugLogSource.riverpod,
+        error: error.toString(),
+        stackTrace: stackTrace,
         metadata: {
           'provider_name': providerName,
           'event_type': 'provider_failure',

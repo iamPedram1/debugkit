@@ -34,7 +34,7 @@ void main() {
     expect(controller.store.logs.length, 1);
     final log = controller.store.logs.first;
     expect(log.message, contains('Riverpod provider failed: authProvider'));
-    expect(log.message, contains('test error'));
+    expect(log.error, contains('test error'));
     expect(log.source, DebugLogSource.riverpod);
     expect(log.metadata?['event_type'], 'provider_failure');
   });
