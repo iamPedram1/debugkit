@@ -1,0 +1,20 @@
+name: debug_kit_dio
+description: "Dio network logging adapter for DebugKit."
+version: 0.1.0
+repository: https://github.com/iamPedram1/debug_kit
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  debug_kit:
+    path: ../debug_kit
+  dio: ^5.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0

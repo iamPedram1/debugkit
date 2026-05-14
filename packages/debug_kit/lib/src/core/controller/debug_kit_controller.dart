@@ -3,6 +3,7 @@ import '../models/debug_kit_config.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
 import '../models/debug_log_source.dart';
+import '../adapters/debug_kit_adapter.dart';
 import '../store/debug_log_store.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
 
@@ -13,6 +14,7 @@ class DebugKitController extends ChangeNotifier {
 
   late DebugLogStore _store;
   DebugKitConfig _config = const DebugKitConfig(enabled: false);
+  final List<DebugKitAdapter> _adapters = [];
 
   DebugLogStore get store => _store;
   DebugKitConfig get config => _config;
@@ -22,6 +24,7 @@ class DebugKitController extends ChangeNotifier {
     int maxLogs = 300,
     bool captureAppCallLocation = true,
     bool captureAppStackTrace = false,
+    List<DebugKitAdapter> adapters = const [],
   }) {
     _config = DebugKitConfig(
       enabled: enabled,
@@ -30,6 +33,21 @@ class DebugKitController extends ChangeNotifier {
       captureAppStackTrace: captureAppStackTrace,
     );
     _store = DebugLogStore(maxLogs: maxLogs);
+
+    // Dispose old adapters if any
+    for (final adapter in _adapters) {
+      adapter.dispose();
+    }
+    _adapters.clear();
+
+    // Attach new adapters
+    if (enabled) {
+      for (final adapter in adapters) {
+        adapter.attach(this);
+        _adapters.add(adapter);
+      }
+    }
+
     notifyListeners();
   }
 
@@ -147,5 +165,30 @@ class DebugKitController extends ChangeNotifier {
         level: DebugLogLevel.info,
         source: DebugLogSource.userAction,
         metadata: metadata);
+  }
+
+  /// Update an existing log entry by its unique internal ID.
+  void updateLog(int id, DebugLogEntry Function(DebugLogEntry) update) {
+    if (!_config.enabled) return;
+    _store.updateEntry(id, update);
+  }
+
+  /// Update an existing log entry by its requestId.
+  void updateLogByRequestId(
+      String requestId, DebugLogEntry Function(DebugLogEntry) update) {
+    if (!_config.enabled) return;
+    final entry = _store.getEntryByRequestId(requestId);
+    if (entry != null) {
+      _store.updateEntry(entry.id, update);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final adapter in _adapters) {
+      adapter.dispose();
+    }
+    _adapters.clear();
+    super.dispose();
   }
 }
