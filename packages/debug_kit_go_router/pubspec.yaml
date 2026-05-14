@@ -1,14 +1,14 @@
-name: debug_kit_dio
-description: "Dio network logging adapter for DebugKit. Automatically logs requests, responses, and errors with sanitization."
+name: debug_kit_go_router
+description: "GoRouter navigation logging adapter for DebugKit. Automatically logs navigation events with sanitization."
 version: 0.1.0
 repository: https://github.com/iamPedram1/debug_kit
 issue_tracker: https://github.com/iamPedram1/debug_kit/issues
 topics:
   - logging
-  - dio
-  - networking
+  - router
+  - navigation
+  - go_router
   - devtools
-  - debug_kit
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -18,7 +18,6 @@ dependencies:
   flutter:
     sdk: flutter
   debug_kit: ^0.1.0
-  dio: ^5.0.0
 
 dev_dependencies:
   flutter_test:

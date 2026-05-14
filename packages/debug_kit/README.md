@@ -71,7 +71,7 @@ DebugKit automatically masks sensitive information before it even reaches the lo
 <truncated 4 lines>
 - [x] Dio HTTP Interceptor (Phase 2A)
 - [ ] Riverpod / Bloc Observers (Phase 2B)
-- [ ] Navigation Observer (Phase 2B)
+- [ ] Navigation Observer (Phase 2B - In progress)
 - [ ] AI Prompt Builder (Phase 2B)
 - [ ] Snapshots & Reproduction Sessions
 
