@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/controller/debug_kit_controller.dart';
 import '../screens/debug_kit_console_screen.dart';
 
+/// The draggable floating debug button shown by [DebugKitOverlay].
 class DebugKitButton extends StatefulWidget {
   const DebugKitButton({super.key});
 
@@ -10,31 +11,61 @@ class DebugKitButton extends StatefulWidget {
 }
 
 class _DebugKitButtonState extends State<DebugKitButton> {
-  Offset _offset = const Offset(0, 0);
+  // Stores the absolute position of the button's top-left corner.
+  // Initialised on first layout using WidgetsBinding.
+  Offset? _position;
+
+  static const double _buttonSize = 56.0;
+  static const double _edgePadding = 16.0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer initial position until first frame so we have screen dimensions.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.sizeOf(context);
+      setState(() {
+        _position = Offset(
+          size.width - _buttonSize - _edgePadding,
+          size.height * 0.6,
+        );
+      });
+    });
+  }
+
+  void _clampPosition(Size screenSize) {
+    if (_position == null) return;
+    _position = Offset(
+      _position!.dx
+          .clamp(_edgePadding, screenSize.width - _buttonSize - _edgePadding),
+      _position!.dy
+          .clamp(_edgePadding, screenSize.height - _buttonSize - _edgePadding),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_position == null) return const SizedBox.shrink();
+
+    final screenSize = MediaQuery.sizeOf(context);
+
     return ListenableBuilder(
       listenable: DebugKitController().store,
       builder: (context, _) {
         final store = DebugKitController().store;
         final errorCount = store.errorCount;
+        final hasErrors = errorCount > 0;
 
-        return Transform.translate(
-          offset: _offset,
+        return Positioned(
+          left: _position!.dx,
+          top: _position!.dy,
           child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onPanUpdate: (details) {
               setState(() {
-                _offset += details.delta;
-                // Simple clamping logic
-                final size = MediaQuery.of(context).size;
-                // Assuming button is roughly 50x50 and positioned at (right: 20, bottom: 100)
-                // We clamp _offset to stay within reasonable bounds
-                // This is a basic implementation; a more robust one would use global coordinates
-                _offset = Offset(
-                  _offset.dx.clamp(-size.width + 70, 20),
-                  _offset.dy.clamp(-size.height + 150, 100),
-                );
+                _position = _position! + details.delta;
+                _clampPosition(screenSize);
               });
             },
             onTap: () {
@@ -44,61 +75,81 @@ class _DebugKitButtonState extends State<DebugKitButton> {
                 ),
               );
             },
-            child: Material(
-              color: Colors.transparent,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
+            child: SizedBox(
+              width: _buttonSize + 10, // Extra touch area
+              height: _buttonSize + 10,
+              child: Center(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: _buttonSize,
+                      height: _buttonSize,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: hasErrors
+                              ? [
+                                  const Color(0xFF7F0000),
+                                  const Color(0xFF1A0000)
+                                ]
+                              : [
+                                  const Color(0xFF2D2D2D),
+                                  const Color(0xFF1A1A1A)
+                                ],
                         ),
-                      ],
-                      border: Border.all(
-                        color: Colors.grey[800]!,
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.bug_report,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  if (errorCount > 0)
-                    Positioned(
-                      right: -5,
-                      top: -5,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 20,
-                          minHeight: 20,
-                        ),
-                        child: Text(
-                          errorCount > 99 ? '99+' : errorCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: hasErrors
+                                ? Colors.red.withValues(alpha: 0.4)
+                                : Colors.black.withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
                           ),
-                          textAlign: TextAlign.center,
+                        ],
+                        border: Border.all(
+                          color: hasErrors
+                              ? Colors.red.withValues(alpha: 0.6)
+                              : Colors.white.withValues(alpha: 0.1),
+                          width: 1.5,
                         ),
                       ),
+                      child: const Icon(
+                        Icons.bug_report_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                     ),
-                ],
+                    if (hasErrors)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            errorCount > 99 ? '99+' : errorCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

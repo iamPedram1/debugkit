@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import '../../core/controller/debug_kit_controller.dart';
 import 'debug_kit_button.dart';
 
+/// Wraps your app and shows the [DebugKitButton] overlay when DebugKit is enabled.
+///
+/// Place this as close to the root of your widget tree as possible:
+/// ```dart
+/// runApp(const DebugKitOverlay(child: MyApp()));
+/// ```
 class DebugKitOverlay extends StatelessWidget {
   final Widget child;
 
@@ -21,11 +27,8 @@ class DebugKitOverlay extends StatelessWidget {
         return Stack(
           children: [
             child,
-            const Positioned(
-              right: 20,
-              bottom: 100,
-              child: DebugKitButton(),
-            ),
+            // DebugKitButton manages its own absolute position internally.
+            const DebugKitButton(),
           ],
         );
       },

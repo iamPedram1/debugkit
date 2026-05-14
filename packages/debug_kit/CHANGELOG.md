@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- **Overlay button**: Improved drag clamping using absolute `Positioned` layout; larger touch target (56px); gradient background; error state turns button red with glow effect.
+- **Log tile**: Added colored left accent bar per log level for instant scanability; chevron expand indicator; long-press-to-copy message; full timestamp visible in expanded view; improved monospace block styling.
+- **Filter bar**: Source chips now use per-source colors (purple for Riverpod, cyan for Router, etc.); removed checkmarks from chips for cleaner look; compact density; explicit border on search field.
+- **Console screen**: Log count subtitle in AppBar; two distinct empty states ("No logs yet" vs "No matching logs"); improved clear confirmation dialog styling.
+- Updated example app README with a 16-step screenshot demo flow and feature table.
+
 ## 0.2.0
 
 - Added `DebugKit.clearLogs()` convenience method to clear the log store without accessing the controller directly.
