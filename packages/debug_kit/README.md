@@ -60,6 +60,15 @@ DebugKit.log.warning('Slow response from server');
 DebugKit.log.error('Auth failed', error: e, stackTrace: s);
 ```
 
+### 4. Integration Packages
+
+DebugKit relies on separate optional adapter packages to log automated events without bloating the core app:
+- `debug_kit_dio`
+- `debug_kit_go_router`
+- `debug_kit_riverpod`
+
+Check out the full [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) in the repository to see them all working together!
+
 ## Sanitization Guarantees
 
 DebugKit automatically masks sensitive information before it even reaches the log store:
@@ -70,7 +79,7 @@ DebugKit automatically masks sensitive information before it even reaches the lo
 ## Roadmap
 <truncated 4 lines>
 - [x] Dio HTTP Interceptor (Phase 2A)
-- [ ] Riverpod / Bloc Observers (Phase 2C - In progress)
+- [x] Riverpod / Bloc Observers (Phase 2C - Riverpod completed)
 - [x] Navigation Observer (Phase 2B)
 - [ ] AI Prompt Builder (Phase 2B)
 - [ ] Snapshots & Reproduction Sessions

@@ -23,6 +23,8 @@ dependencies:
 
 ## Setup
 
+See the [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) for a complete working demonstration of all adapters combined.
+
 Initialize DebugKit and add the `DebugKitGoRouterObserver` to your `GoRouter` configuration:
 
 ```dart

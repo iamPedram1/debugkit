@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:debug_kit/debug_kit.dart';
 import 'package:debug_kit_dio/debug_kit_dio.dart';
+import 'package:debug_kit_go_router/debug_kit_go_router.dart';
+import 'package:debug_kit_riverpod/debug_kit_riverpod.dart';
+
+// --- Riverpod Providers ---
+final exampleCounterProvider = StateProvider<int>((ref) => 0);
+final throwingProvider = Provider<String>((ref) {
+  throw Exception('Simulated Riverpod Provider Failure!');
+});
 
 void main() {
   final dio = Dio();
@@ -17,131 +27,203 @@ void main() {
   );
 
   runApp(
-    // 2. Wrap your app with DebugKitOverlay
-    DebugKitOverlay(child: MyApp(dio: dio)),
+    // 2. Wrap app with ProviderScope and add DebugKitRiverpodObserver
+    ProviderScope(
+      observers: [
+        DebugKitRiverpodObserver(
+          config: const DebugKitRiverpodConfig(
+            logProviderUpdates: true, // Enable for demo
+            includeValuePreview: true,
+          ),
+        ),
+      ],
+      // 3. Wrap with DebugKitOverlay
+      child: DebugKitOverlay(
+        child: MyApp(dio: dio),
+      ),
+    ),
   );
 }
 
 class MyApp extends StatelessWidget {
   final Dio dio;
-  const MyApp({super.key, required this.dio});
+  late final GoRouter _router;
+
+  MyApp({super.key, required this.dio}) {
+    // 4. Configure GoRouter with DebugKitGoRouterObserver
+    _router = GoRouter(
+      observers: [DebugKitGoRouterObserver()],
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => MyHomePage(dio: dio),
+        ),
+        GoRoute(
+          path: '/details',
+          builder: (context, state) => const DetailsPage(),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'DebugKit Example',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple, brightness: Brightness.dark),
         useMaterial3: true,
       ),
-      home: MyHomePage(title: 'DebugKit Demo', dio: dio),
+      routerConfig: _router,
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  final String title;
+class MyHomePage extends ConsumerWidget {
   final Dio dio;
-  const MyHomePage({super.key, required this.title, required this.dio});
+  const MyHomePage({super.key, required this.dio});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final counter = ref.watch(exampleCounterProvider);
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-
-    // 3. Log manual events
-    DebugKit.log.info('Counter incremented to $_counter');
-
-    if (_counter % 5 == 0) {
-      DebugKit.log.warning('Counter is a multiple of 5');
-    }
-
-    if (_counter % 10 == 0) {
-      try {
-        throw Exception('Simulated counter error at $_counter');
-      } catch (e, s) {
-        DebugKit.log.error('Something went wrong', error: e, stackTrace: s);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: const Text('DebugKit Showcase'),
       ),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('Push the button to generate logs:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                DebugKit.log.userAction(
-                  'clicked_demo_button',
-                  metadata: {
-                    'screen': 'home',
-                    'timestamp': DateTime.now().toIso8601String(),
-                  },
-                );
-              },
-              child: const Text('Log User Action'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                DebugKit.log.debug(
-                  'Debug message with sensitive info: token=eyJhYmNkZWZ0aGlzaXNhdmVyeWxvbmf0b2tlbiJ9',
-                );
-              },
-              child: const Text('Log Sensitive Data (Masked)'),
-            ),
-            const Divider(),
-            const Text('Network Actions (Dio):'),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Manual Logs',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      await widget.dio
-                          .get('https://pub.dev/api/packages/debug_kit');
-                    } catch (_) {}
-                  },
+                  onPressed: () => DebugKit.log.debug('This is a debug log'),
+                  child: const Text('Debug'),
+                ),
+                ElevatedButton(
+                  onPressed: () => DebugKit.log.info('This is an info log'),
+                  child: const Text('Info'),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      DebugKit.log.warning('This is a warning log!'),
+                  child: const Text('Warning'),
+                ),
+                ElevatedButton(
+                  onPressed: () => DebugKit.log
+                      .error('This is an error log!', error: Exception('Oops')),
+                  child: const Text('Error'),
+                ),
+                ElevatedButton(
+                  onPressed: () => DebugKit.log
+                      .info('User password is: my_super_secret_password123'),
+                  child: const Text('Sensitive Log'),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            const Text('Network (Dio)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton(
+                  onPressed: () =>
+                      dio.get('https://pub.dev/api/packages/debug_kit'),
                   child: const Text('GET Success'),
                 ),
-                const SizedBox(width: 10),
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: () => dio
+                      .get('https://pub.dev/api/packages/invalid_package_123'),
+                  child: const Text('GET 404'),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            const Text('Navigation (GoRouter)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton(
+                  onPressed: () => context.push('/details?token=secret_token'),
+                  child: const Text('Push /details'),
+                ),
+                ElevatedButton(
+                  onPressed: () => context.go('/details'),
+                  child: const Text('Replace Route'),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            const Text('State (Riverpod)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('Counter: $counter', style: const TextStyle(fontSize: 16)),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton(
+                  onPressed: () =>
+                      ref.read(exampleCounterProvider.notifier).state++,
+                  child: const Text('Update Provider'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
                     try {
-                      await widget.dio.get(
-                          'https://pub.dev/api/packages/invalid_package_123');
+                      ref.read(throwingProvider);
                     } catch (_) {}
                   },
-                  child: const Text('GET 404'),
+                  child: const Text('Trigger Failure'),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            const Text('DebugKit',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton(
+                  onPressed: () => DebugKit.controller.store.clear(),
+                  child: const Text('Clear Logs'),
                 ),
               ],
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class DetailsPage extends StatelessWidget {
+  const DetailsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Details')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => context.pop(),
+          child: const Text('Pop Route'),
+        ),
       ),
     );
   }
