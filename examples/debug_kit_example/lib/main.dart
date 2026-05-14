@@ -1,18 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
+import 'package:debug_kit_dio/debug_kit_dio.dart';
 
 void main() {
+  final dio = Dio();
+
   // 1. Initialize DebugKit
-  DebugKit.init(enabled: true, maxLogs: 500, captureAppStackTrace: true);
+  DebugKit.init(
+    enabled: true,
+    maxLogs: 500,
+    captureAppStackTrace: true,
+    adapters: [
+      DebugKitDioAdapter(dio),
+    ],
+  );
 
   runApp(
     // 2. Wrap your app with DebugKitOverlay
-    const DebugKitOverlay(child: MyApp()),
+    DebugKitOverlay(child: MyApp(dio: dio)),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Dio dio;
+  const MyApp({super.key, required this.dio});
 
   @override
   Widget build(BuildContext context) {
@@ -22,15 +34,15 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'DebugKit Demo'),
+      home: MyHomePage(title: 'DebugKit Demo', dio: dio),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
   final String title;
+  final Dio dio;
+  const MyHomePage({super.key, required this.title, required this.dio});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -96,6 +108,32 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
               child: const Text('Log Sensitive Data (Masked)'),
+            ),
+            const Divider(),
+            const Text('Network Actions (Dio):'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      await widget.dio
+                          .get('https://pub.dev/api/packages/debug_kit');
+                    } catch (_) {}
+                  },
+                  child: const Text('GET Success'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      await widget.dio.get(
+                          'https://pub.dev/api/packages/invalid_package_123');
+                    } catch (_) {}
+                  },
+                  child: const Text('GET 404'),
+                ),
+              ],
             ),
           ],
         ),

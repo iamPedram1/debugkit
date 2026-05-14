@@ -68,11 +68,11 @@ DebugKit automatically masks sensitive information before it even reaches the lo
 - **Redacted**: Ethereum private keys and BIP-39 mnemonic phrases are fully replaced with `[REDACTED]`.
 
 ## Roadmap
-
-- [ ] Dio HTTP Interceptor (Phase 2)
-- [ ] Riverpod / Bloc Observers (Phase 2)
-- [ ] Navigation Observer (Phase 2)
-- [ ] AI Prompt Builder (Phase 2)
+<truncated 4 lines>
+- [x] Dio HTTP Interceptor (Phase 2A)
+- [ ] Riverpod / Bloc Observers (Phase 2B)
+- [ ] Navigation Observer (Phase 2B)
+- [ ] AI Prompt Builder (Phase 2B)
 - [ ] Snapshots & Reproduction Sessions
 
 ## Contributing

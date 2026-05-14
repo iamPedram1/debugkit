@@ -1,4 +1,6 @@
-# melos_managed_dependency_overrides: debug_kit
+# melos_managed_dependency_overrides: debug_kit,debug_kit_dio
 dependency_overrides:
   debug_kit:
     path: ..\\..\\packages\\debug_kit
+  debug_kit_dio:
+    path: ..\\..\\packages\\debug_kit_dio

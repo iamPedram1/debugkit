@@ -1,5 +1,3 @@
-import 'package:debug_kit/debug_kit.dart';
-
 /// Internal helpers for sanitizing Dio-specific network data.
 class DioLogSanitizerHelpers {
   /// Sanitizes a URL by masking sensitive query parameters.

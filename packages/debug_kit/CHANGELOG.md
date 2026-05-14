@@ -10,4 +10,5 @@
 - Automatic sanitization (masking/redaction) of sensitive data.
 - Stack trace trimming (max 25 lines).
 - Log export to clipboard and file sharing.
+- Adapter architecture support for external integrations (e.g., Dio).
 - Example app demonstration.

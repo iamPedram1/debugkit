@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:debug_kit/debug_kit.dart';
-import 'package:debug_kit/src/core/controller/debug_kit_controller.dart';
 import 'package:debug_kit/src/core/store/debug_log_store.dart';
 import 'package:debug_kit/src/utils/sanitizer/debug_log_sanitizer.dart';
 import 'package:debug_kit/src/utils/export/debug_log_export_formatter.dart';
