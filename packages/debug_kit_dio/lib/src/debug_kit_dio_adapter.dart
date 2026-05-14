@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
-import 'package:debug_kit/src/core/controller/debug_kit_controller.dart';
 import 'debug_kit_dio_interceptor.dart';
 
 /// A DebugKit adapter that integrates Dio network logging.
@@ -14,6 +13,9 @@ class DebugKitDioAdapter extends DebugKitAdapter {
 
   @override
   void attach(DebugKitController controller) {
+    // Avoid duplicate attachment
+    if (_interceptor != null) return;
+
     _interceptor = DebugKitDioInterceptor(controller);
     dio.interceptors.add(_interceptor!);
   }

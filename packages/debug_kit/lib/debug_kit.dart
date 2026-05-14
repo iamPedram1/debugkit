@@ -1,6 +1,7 @@
 library debug_kit;
 
 import 'src/core/controller/debug_kit_controller.dart';
+export 'src/core/controller/debug_kit_controller.dart';
 import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
 import 'src/core/adapters/debug_kit_adapter.dart';

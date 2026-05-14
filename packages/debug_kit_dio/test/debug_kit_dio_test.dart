@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
-import 'package:debug_kit/src/core/controller/debug_kit_controller.dart';
 import 'package:debug_kit_dio/debug_kit_dio.dart';
 
 class MockAdapter implements HttpClientAdapter {
@@ -34,6 +33,20 @@ class ErrorMockAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class CancelMockAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(RequestOptions options,
+      Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    throw DioException(
+      requestOptions: options,
+      type: DioExceptionType.cancel,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 void main() {
   late Dio dio;
   late DebugKitController controller;
@@ -48,6 +61,12 @@ void main() {
     final adapter = DebugKitDioAdapter(dio);
     adapter.attach(controller);
     expect(dio.interceptors.any((i) => i is DebugKitDioInterceptor), isTrue);
+
+    // Repeated attach does not duplicate
+    final countBefore = dio.interceptors.length;
+    adapter.attach(controller);
+    expect(dio.interceptors.length, countBefore);
+
     adapter.dispose();
     expect(dio.interceptors.any((i) => i is DebugKitDioInterceptor), isFalse);
   });
@@ -67,6 +86,11 @@ void main() {
     expect(log.message, contains('GET https://api.example.com/users?token='));
     expect(log.message, contains('200'));
     expect(log.source, DebugLogSource.dio);
+
+    // Verify metadata
+    expect(log.metadata?['request_id'], isNotNull);
+    expect(log.metadata?['duration_ms'], isNotNull);
+    expect(log.metadata?['response_headers'], contains('content-type'));
   });
 
   test('DebugKitDioInterceptor logs errors', () async {
@@ -81,6 +105,21 @@ void main() {
     final log = controller.store.logs.first;
     expect(log.level, DebugLogLevel.error);
     expect(log.message, contains('failed'));
+    expect(log.metadata?['error_type'], contains('connectionTimeout'));
+  });
+
+  test('DebugKitDioInterceptor handles cancelled requests', () async {
+    dio.httpClientAdapter = CancelMockAdapter();
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    try {
+      await dio.get('https://api.example.com/users');
+    } catch (_) {}
+
+    expect(controller.store.logs.length, 1);
+    final log = controller.store.logs.first;
+    expect(log.message, contains('cancelled'));
+    expect(log.level, DebugLogLevel.error);
   });
 
   test('Sanitization of headers', () async {
@@ -100,6 +139,24 @@ void main() {
     expect(metadata['Authorization'], '***');
     expect(metadata['Cookie'], '***');
     expect(metadata['X-Public'], 'public_info');
+  });
+
+  test('Does not log request or response bodies by default', () async {
+    final requestBody = {'name': 'John Doe'};
+    final responseBody = '{"id": 1, "name": "John Doe"}';
+
+    dio.httpClientAdapter =
+        MockAdapter(ResponseBody.fromString(responseBody, 200));
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    await dio.post('https://api.example.com/users', data: requestBody);
+
+    final log = controller.store.logs.first;
+    // Message and metadata should not contain the bodies
+    expect(log.message, isNot(contains('John Doe')));
+    expect(log.details, isNull);
+    expect(log.payloadPreview, isNull);
+    expect(log.responsePreview, isNull);
   });
 
   test('Disabled DebugKit does not log', () async {

@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
-import 'package:debug_kit/src/core/controller/debug_kit_controller.dart';
 import 'dio_log_sanitizer_helpers.dart';
 
 /// A Dio interceptor that logs network transactions to DebugKit.
@@ -28,7 +27,10 @@ class DebugKitDioInterceptor extends Interceptor {
       level: DebugLogLevel.info,
       source: DebugLogSource.dio,
       requestId: requestId,
-      metadata: DioLogSanitizerHelpers.sanitizeHeaders(options.headers),
+      metadata: {
+        'request_id': requestId,
+        ...DioLogSanitizerHelpers.sanitizeHeaders(options.headers),
+      },
     );
 
     super.onRequest(options, handler);
@@ -45,9 +47,9 @@ class DebugKitDioInterceptor extends Interceptor {
     if (requestId != null) {
       final startedAt =
           response.requestOptions.extra['debugKitStartedAt'] as int?;
-      final duration = startedAt != null
-          ? '${DateTime.now().millisecondsSinceEpoch - startedAt}ms'
-          : '';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = startedAt != null ? now - startedAt : null;
+      final durationStr = durationMs != null ? '${durationMs}ms' : '';
 
       final method = response.requestOptions.method.toUpperCase();
       final url = DioLogSanitizerHelpers.sanitizeUrl(
@@ -56,9 +58,10 @@ class DebugKitDioInterceptor extends Interceptor {
 
       _controller.updateLogByRequestId(requestId, (entry) {
         return entry.copyWith(
-          message: '$method $url · $statusCode · $duration',
+          message: '$method $url · $statusCode · $durationStr',
           metadata: {
             ...entry.metadata ?? {},
+            if (durationMs != null) 'duration_ms': durationMs.toString(),
             'response_headers':
                 DioLogSanitizerHelpers.sanitizeHeaders(response.headers.map)
                     .toString(),
@@ -79,22 +82,26 @@ class DebugKitDioInterceptor extends Interceptor {
     final requestId = err.requestOptions.extra['debugKitRequestId'] as String?;
     if (requestId != null) {
       final startedAt = err.requestOptions.extra['debugKitStartedAt'] as int?;
-      final duration = startedAt != null
-          ? '${DateTime.now().millisecondsSinceEpoch - startedAt}ms'
-          : '';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final durationMs = startedAt != null ? now - startedAt : null;
+      final durationStr = durationMs != null ? '${durationMs}ms' : '';
 
       final method = err.requestOptions.method.toUpperCase();
       final url =
           DioLogSanitizerHelpers.sanitizeUrl(err.requestOptions.uri.toString());
-      final statusCode = err.response?.statusCode ?? 'failed';
+
+      final isCancelled = err.type == DioExceptionType.cancel;
+      final statusLabel = isCancelled ? 'cancelled' : 'failed';
+      final statusCode = err.response?.statusCode ?? statusLabel;
 
       _controller.updateLogByRequestId(requestId, (entry) {
         return entry.copyWith(
-          message: '$method $url · $statusCode · $duration',
+          message: '$method $url · $statusCode · $durationStr',
           level: DebugLogLevel.error,
           error: err.toString(),
           metadata: {
             ...entry.metadata ?? {},
+            if (durationMs != null) 'duration_ms': durationMs.toString(),
             'error_type': err.type.toString(),
           },
         );
