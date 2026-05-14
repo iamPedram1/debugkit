@@ -1,63 +1,70 @@
 # Contributing to DebugKit
 
-## Project Vision
-DebugKit aims to be the standard in-app observability layer for Flutter. It should be lightweight, secure, and easy to integrate.
+## Contribution Philosophy
 
-## Architecture Overview
-- **Core**: Contains the models, store, and controller.
-- **UI**: Contains the overlay button, console screen, and widgets.
-- **Utils**: Contains sanitization, filtering, and export logic.
-- **Adapters**: Future home for Dio, Riverpod, and other integrations.
+DebugKit is built to be lightweight, secure, and developer-friendly. We value code quality, performance, and strict sanitization. This is a monorepo, meaning multiple packages live in this repository but are versioned and published independently.
 
-## Folder Structure
-```
-lib/
-  debug_kit.dart            # Public API
-  src/
-    core/                   # Logic and state
-      controller/
-      models/
-      store/
-      adapters/             # Adapter contracts
-    ui/                     # Presentation
-      overlay/              # Floating button logic
-      screens/              # Main console UI
-      widgets/              # UI components
-    utils/                  # Pure utilities
-      sanitizer/            # Security logic
-      export/               # Exporting logic
-      filtering/            # Searching logic
-```
+## Monorepo Structure
 
-## Coding Style
-- Follow official Flutter/Dart lint rules.
-- Prefer `ChangeNotifier` for simple state management.
-- Keep UI components small and focused.
-- Ensure all logs are sanitized before storage.
+- **`packages/`**: Contains the source code for all publishable packages.
+- **`examples/`**: Contains example applications demonstrating package usage.
+- **`AGENTS.md`**: The engineering constitution that all contributors (human and AI) must follow.
 
-## Security & Sanitization Rules
-- NEVER store raw secrets.
-- Use `DebugLogSanitizer` for all incoming strings.
-- Masking: Show first/last few characters for verification.
-- Redaction: Fully hide extremely sensitive data like private keys.
+### Package Boundaries
 
-## Testing Requirements
-- Every new core feature must have unit tests.
-- Sanitization logic must be rigorously tested with various patterns.
-- Ensure bounded store behavior (no memory leaks).
+Each package in the `packages/` directory is a standalone unit:
+- It must have its own `pubspec.yaml`, `README.md`, `CHANGELOG.md`, and `LICENSE`.
+- It must be publishable to pub.dev (unless marked private).
+- It should not have unnecessary dependencies on other internal packages unless clearly required (e.g., adapters depending on `debug_kit`).
 
-## Monorepo Management
+## Adapter Package Rules
 
-This project uses [Melos](https://melos.invertase.dev/) for monorepo management.
+When creating or updating an adapter (e.g., `debug_kit_dio`):
+1. **Sanitize First**: Adapters must sanitize all data before passing it to the core logger.
+2. **Fail Silently**: Adapters must never crash the host application.
+3. **Independent Docs**: Each adapter must have its own setup instructions in its `README.md`.
+4. **Minimal Footprint**: Keep the dependency count of adapters as low as possible.
 
-- **Bootstrap**: `melos bootstrap` (or `flutter pub get` in each package)
-- **Analyze**: `melos run analyze`
-- **Test**: `melos run test`
-- **Format**: `melos run format`
+## Commit Discipline
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat:`: New features
+- `fix:`: Bug fixes
+- `docs:`: Documentation changes
+- `test:`: Adding or updating tests
+- `refactor:`: Code changes that neither fix a bug nor add a feature
+- `perf:`: Performance improvements
+- `chore:`: Maintenance tasks
+
+**Rules:**
+- Commit often after meaningful units of work.
+- Avoid huge mixed commits.
+- Run validation (analyze/test) before every commit.
+- Do not mention AI tools or assistants in commit messages.
+
+## Validation Commands
+
+Run these commands from the root using Melos:
+
+- `melos run analyze`: Static analysis.
+- `melos run test`: Unit tests.
+- `melos run format`: Code formatting.
+- `melos run publish-dry-run`: Pub publish dry-run (for publishable packages).
+
+## Documentation Rules
+
+1. **Root Docs**: `AGENTS.md` and `CONTRIBUTING.md` live only at the root.
+2. **Package Docs**: Each package owns its `README.md` and `CHANGELOG.md`.
+3. **Release Notes**: Update the package-specific `CHANGELOG.md` for every release-worthy change.
+4. **Pub Readiness**: Package-level READMEs must be formatted for high-quality display on pub.dev.
 
 ## PR Checklist
-- [ ] Tests pass (`melos run test`)
-- [ ] Analysis passes (`melos run analyze`)
-- [ ] Formatting is correct (`melos run format`)
-- [ ] README is updated if necessary
-- [ ] No new dependencies introduced without discussion
+
+- [ ] Code follows project style and lints.
+- [ ] Tests added for new logic.
+- [ ] Sanitization rules respected.
+- [ ] Package `CHANGELOG.md` updated.
+- [ ] `melos run analyze` passes.
+- [ ] `melos run test` passes.
+- [ ] `melos run publish-dry-run` passes.

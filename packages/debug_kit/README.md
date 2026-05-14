@@ -77,7 +77,7 @@ DebugKit automatically masks sensitive information before it even reaches the lo
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to DebugKit.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for details on how to contribute to DebugKit.
 
 ## License
 

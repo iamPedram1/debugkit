@@ -6,11 +6,19 @@ packages:
 
 scripts:
   analyze:
-    run: melos exec -- flutter analyze .
+    run: melos exec -- "flutter analyze ."
     description: Run flutter analyze in all packages.
   test:
     run: melos exec -- "flutter test"
-    description: Run flutter test in all packages.
+    description: Run flutter test in all packages with a test directory.
+    packageFilters:
+      dirExists:
+        - test
   format:
     run: melos exec -- "dart format ."
     description: Run dart format in all packages.
+  publish-dry-run:
+    run: melos exec -- "dart pub publish --dry-run"
+    description: Run pub publish dry-run in all publishable packages.
+    packageFilters:
+      private: false

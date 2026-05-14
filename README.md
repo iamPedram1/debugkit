@@ -1,87 +1,63 @@
-# DebugKit
+# DebugKit Monorepo
 
-A mobile-first in-app DevTools/log console for Flutter apps.
+A mobile-first, in-app DevTools cockpit for Flutter apps.
 
-DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls (Phase 2), and debug state transitions without needing to attach a debugger or tail server logs.
+DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls, and debug state transitions without needing to attach a debugger or tail server logs.
 
-## Project Structure
+## Monorepo Overview
 
-This is a monorepo managed by [Melos](https://melos.invertase.dev/).
+This repository is managed as a monorepo using [Melos](https://melos.invertase.dev/). It contains the core DebugKit package and various adapter packages for popular Flutter libraries.
 
-- [**packages/debug_kit**](packages/debug_kit): The core DebugKit package.
-- [**examples/debug_kit_example**](examples/debug_kit_example): A demonstration app for DebugKit.
+### Packages
 
-## Features
+| Package | Status | Description |
+| :--- | :--- | :--- |
+| [**debug_kit**](packages/debug_kit) | ✅ Phase 1 MVP | Core logging engine and UI console. |
+| `debug_kit_dio` | 🗓️ Planned | Dio interceptor for network observability. |
+| `debug_kit_riverpod` | 🗓️ Planned | Riverpod observer for state changes. |
+| `debug_kit_go_router` | 🗓️ Planned | GoRouter observer for navigation logs. |
 
-- **Mobile-First UI**: A floating, draggable button that works on real devices.
-- **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
-- **Security First**: Automatic sanitization and masking of sensitive data (Tokens, API Keys, Passwords, Private Keys).
-- **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
-- **Export Anywhere**: Copy logs to clipboard or share them as a file.
-- **Manual Logging API**: Easy-to-use API for application-level logs and user actions.
+### Project Structure
 
-## Installation
-
-Add `debug_kit` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  debug_kit:
-    git: # or path/pub version when available
+```text
+debugkit/
+  ├── packages/
+  │   └── debug_kit/        # Core package
+  ├── examples/
+  │   └── debug_kit_example/ # Demonstration app
+  ├── melos.yaml            # Monorepo configuration
+  └── AGENTS.md             # Engineering constitution
 ```
 
-## 5-Minute Setup
+## Development
 
-### 1. Initialize DebugKit
+### Prerequisites
 
-Call `DebugKit.init()` in your `main()` function:
+- Flutter SDK
+- [Melos](https://melos.invertase.dev/) (`dart pub global activate melos`)
 
-```dart
-void main() {
-  DebugKit.init(
-    enabled: true, // Typically kDebugMode
-    maxLogs: 300,
-  );
+### Common Commands
 
-  runApp(
-    const DebugKitOverlay(
-      child: MyApp(),
-    ),
-  );
-}
-```
-
-### 2. Wrap your App
-
-Wrap your root widget with `DebugKitOverlay` to enable the floating debug button.
-
-### 3. Start Logging
-
-```dart
-DebugKit.log.info('App started');
-DebugKit.log.debug('Config loaded', metadata: {'env': 'prod'});
-DebugKit.log.warning('Slow response from server');
-DebugKit.log.error('Auth failed', error: e, stackTrace: s);
-```
-
-## Sanitization Guarantees
-
-DebugKit automatically masks sensitive information before it even reaches the log store:
-
-- **Masked**: Bearer tokens, API keys, Cookies, Passwords (e.g., `eyJh***9xQ`).
-- **Redacted**: Ethereum private keys and BIP-39 mnemonic phrases are fully replaced with `[REDACTED]`.
+| Command | Description |
+| :--- | :--- |
+| `melos bootstrap` | Initialize the workspace and link packages. |
+| `melos run analyze` | Run flutter analyze across all packages. |
+| `melos run test` | Run flutter test across all packages. |
+| `melos run format` | Run dart format across all packages. |
+| `melos run publish-dry-run` | Run pub publish dry-run in all publishable packages. |
 
 ## Roadmap
 
-- [ ] Dio HTTP Interceptor (Phase 2)
-- [ ] Riverpod / Bloc Observers (Phase 2)
-- [ ] Navigation Observer (Phase 2)
-- [ ] AI Prompt Builder (Phase 2)
-- [ ] Snapshots & Reproduction Sessions
+- **Phase 1**: Core MVP (Logging, Sanitization, Console UI). [COMPLETED]
+- **Phase 2**: Essential Adapters (Dio, Riverpod, GoRouter).
+- **Phase 3**: Enhanced Diagnosis (Error grouping, Network summary).
+- **Phase 4**: Advanced Features (AI Prompt Builder, Reproduction Sessions).
 
-## Contributing
+## Documentation
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to DebugKit.
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Engineering Constitution](AGENTS.md)
+- [Core Package Usage](packages/debug_kit/README.md)
 
 ## License
 
