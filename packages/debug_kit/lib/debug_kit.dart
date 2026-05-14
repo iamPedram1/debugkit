@@ -11,7 +11,7 @@ export 'src/core/models/debug_log_source.dart';
 export 'src/core/models/debug_log_entry.dart';
 export 'src/core/adapters/debug_kit_adapter.dart';
 export 'src/ui/overlay/debug_kit_overlay.dart';
-export 'src/ui/screens/debug_kit_console_screen.dart';
+// Note: debug_kit_console_screen.dart is used internally by DebugKitOverlay.
 
 class DebugKit {
   static final DebugKitController _controller = DebugKitController();
@@ -32,6 +32,12 @@ class DebugKit {
       adapters: adapters,
     );
   }
+
+  /// Whether DebugKit is currently enabled.
+  static bool get isEnabled => _controller.config.enabled;
+
+  /// Clears all logs from the in-memory store.
+  static void clearLogs() => _controller.store.clear();
 
   /// Access the logging API.
   static final DebugKitLog log = DebugKitLog(_controller);

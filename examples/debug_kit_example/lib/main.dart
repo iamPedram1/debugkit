@@ -200,7 +200,7 @@ class MyHomePage extends ConsumerWidget {
               runSpacing: 8,
               children: [
                 ElevatedButton(
-                  onPressed: () => DebugKit.controller.store.clear(),
+                  onPressed: () => DebugKit.clearLogs(),
                   child: const Text('Clear Logs'),
                 ),
               ],

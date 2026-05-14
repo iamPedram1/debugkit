@@ -72,6 +72,25 @@ void main() {
     });
   });
 
+  group('DebugKit facade', () {
+    test('isEnabled reflects init state', () {
+      DebugKit.init(enabled: true);
+      expect(DebugKit.isEnabled, isTrue);
+      DebugKit.init(enabled: false);
+      expect(DebugKit.isEnabled, isFalse);
+      // Reset for subsequent tests
+      DebugKit.init(enabled: true);
+    });
+
+    test('clearLogs removes all logs', () {
+      DebugKit.init(enabled: true);
+      DebugKit.log.info('Test log');
+      expect(DebugKit.controller.store.logs.length, greaterThan(0));
+      DebugKit.clearLogs();
+      expect(DebugKit.controller.store.logs.isEmpty, isTrue);
+    });
+  });
+
   group('DebugLogSanitizer', () {
     test('masks bearer tokens', () {
       final sanitized = DebugLogSanitizer.sanitizeMessage(

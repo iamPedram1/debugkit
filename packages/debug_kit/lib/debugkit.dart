@@ -1,5 +1,2 @@
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+// This file is intentionally blank.
+// Use 'package:debug_kit/debug_kit.dart' as the public API entrypoint.

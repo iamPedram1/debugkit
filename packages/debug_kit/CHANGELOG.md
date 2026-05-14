@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Added `DebugKit.clearLogs()` convenience method to clear the log store without accessing the controller directly.
+- Added `DebugKit.isEnabled` getter to safely query initialization state.
+- Removed accidental public export of `DebugKitConsoleScreen` (internal UI, not intended for direct use).
+- Cleaned up stale `debugkit.dart` placeholder file.
+
 ## 0.1.0
 
 - Initial MVP release of DebugKit.
