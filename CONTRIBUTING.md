@@ -46,9 +46,18 @@ lib/
 - Sanitization logic must be rigorously tested with various patterns.
 - Ensure bounded store behavior (no memory leaks).
 
+## Monorepo Management
+
+This project uses [Melos](https://melos.invertase.dev/) for monorepo management.
+
+- **Bootstrap**: `melos bootstrap` (or `flutter pub get` in each package)
+- **Analyze**: `melos run analyze`
+- **Test**: `melos run test`
+- **Format**: `melos run format`
+
 ## PR Checklist
-- [ ] Tests pass (`flutter test`)
-- [ ] Analysis passes (`flutter analyze`)
-- [ ] Formatting is correct (`dart format .`)
+- [ ] Tests pass (`melos run test`)
+- [ ] Analysis passes (`melos run analyze`)
+- [ ] Formatting is correct (`melos run format`)
 - [ ] README is updated if necessary
 - [ ] No new dependencies introduced without discussion

@@ -4,6 +4,13 @@ A mobile-first in-app DevTools/log console for Flutter apps.
 
 DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls (Phase 2), and debug state transitions without needing to attach a debugger or tail server logs.
 
+## Project Structure
+
+This is a monorepo managed by [Melos](https://melos.invertase.dev/).
+
+- [**packages/debug_kit**](packages/debug_kit): The core DebugKit package.
+- [**examples/debug_kit_example**](examples/debug_kit_example): A demonstration app for DebugKit.
+
 ## Features
 
 - **Mobile-First UI**: A floating, draggable button that works on real devices.
