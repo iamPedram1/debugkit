@@ -1,0 +1,91 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:debug_kit/debug_kit.dart';
+import 'debug_kit_riverpod_config.dart';
+import 'riverpod_log_helpers.dart';
+
+/// A Riverpod ProviderObserver that logs provider failures and updates to DebugKit.
+class DebugKitRiverpodObserver extends ProviderObserver {
+  DebugKitRiverpodObserver({
+    DebugKitController? controller,
+    this.config = const DebugKitRiverpodConfig(),
+  }) : _customController = controller;
+
+  final DebugKitController? _customController;
+  final DebugKitRiverpodConfig config;
+
+  DebugKitController get _controller =>
+      _customController ?? DebugKit.controller;
+
+  @override
+  void providerDidFail(
+    ProviderBase<Object?> provider,
+    Object error,
+    StackTrace stackTrace,
+    ProviderContainer container,
+  ) {
+    if (!config.logProviderFailures) return;
+
+    try {
+      if (!_controller.config.enabled) return;
+
+      final providerName =
+          RiverpodLogHelpers.sanitizeProviderName(provider.name);
+
+      _controller.log(
+        message: 'Riverpod provider failed: $providerName\nError: $error',
+        level: DebugLogLevel.error,
+        source:
+            DebugLogSource.riverpod, // DebugLogSource.riverpod should exist in core
+        metadata: {
+          'provider_name': providerName,
+          'event_type': 'provider_failure',
+        },
+      );
+    } catch (_) {
+      // Fail silently
+    }
+  }
+
+  @override
+  void didUpdateProvider(
+    ProviderBase<Object?> provider,
+    Object? previousValue,
+    Object? newValue,
+    ProviderContainer container,
+  ) {
+    if (!config.logProviderUpdates) return;
+
+    try {
+      if (!_controller.config.enabled) return;
+
+      final providerName =
+          RiverpodLogHelpers.sanitizeProviderName(provider.name);
+
+      if (config.watchedProviders.isNotEmpty &&
+          !config.watchedProviders.contains(providerName)) {
+        return;
+      }
+
+      final metadata = <String, String>{
+        'provider_name': providerName,
+        'event_type': 'provider_update',
+      };
+
+      if (config.includeValuePreview) {
+        metadata['value_preview'] = RiverpodLogHelpers.safeValuePreview(
+          newValue,
+          config.maxValuePreviewLength,
+        );
+      }
+
+      _controller.log(
+        message: 'Riverpod provider updated: $providerName',
+        level: DebugLogLevel.debug,
+        source: DebugLogSource.riverpod,
+        metadata: metadata,
+      );
+    } catch (_) {
+      // Fail silently
+    }
+  }
+}

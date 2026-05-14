@@ -1,0 +1,3 @@
+dependency_overrides:
+  debug_kit:
+    path: ../debug_kit
