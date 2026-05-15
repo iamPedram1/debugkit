@@ -7,6 +7,15 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 > [!NOTE]
 > This package is part of the [DebugKit Monorepo](https://github.com/iamPedram1/debug_kit).
 
+## Screenshots
+
+*(TODO: Add actual screenshots before pub.dev release)*
+
+<div align="center">
+  <img src="../../docs/assets/screenshots/overlay-button.png" width="200" alt="Overlay Button Placeholder">
+  <img src="../../docs/assets/screenshots/console-all-logs.png" width="200" alt="Console Placeholder">
+</div>
+
 ## Features
 
 - **Mobile-First UI**: A floating, draggable button that works on real devices.

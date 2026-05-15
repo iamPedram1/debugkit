@@ -40,13 +40,15 @@ Follow this sequence to produce a rich, varied log console for screenshots:
 
 > Screenshots will be added once the UI is finalized.
 
-Planned screenshots:
-- `docs/screenshots/overlay_button.png` — floating DebugKit button with error badge
-- `docs/screenshots/console_logs.png` — console with mixed log levels visible
-- `docs/screenshots/filter_bar.png` — filter chips in active state
-- `docs/screenshots/expanded_log.png` — single log with metadata expanded
-- `docs/screenshots/network_log.png` — Dio network entry with status code
-- `docs/screenshots/riverpod_log.png` — provider failure entry
+To capture the required screenshots for the documentation, follow the exact flow below and save them in `../../docs/assets/screenshots/`:
+
+1. **`overlay-button.png`**: Launch the app, tap the "Error" manual log to increment the badge counter, and capture the floating button.
+2. **`console-all-logs.png`**: Tap "Info" and "Warning", open the console, and capture the mixed logs list.
+3. **`console-network-log.png`**: Tap "GET Success" and "GET 404", open the console, and capture the network entries showing status codes.
+4. **`console-router-log.png`**: Tap "Push /details" and then "Pop Route", open the console, and capture the navigation entries.
+5. **`console-riverpod-log.png`**: Tap "Update Provider" and "Trigger Failure", open the console, and capture the state changes and failure log.
+6. **`console-sanitized-log.png`**: Tap "Sensitive Log", open the console, and capture the log showing `***` masking.
+7. **`console-expanded-log.png`**: Open the console, tap any log to expand it, and capture the revealed metadata, timestamps, and stack traces.
 
 ## Running locally
 
