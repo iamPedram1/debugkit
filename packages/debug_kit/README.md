@@ -77,12 +77,20 @@ DebugKit relies on separate optional adapter packages to log automated events wi
 
 Check out the full [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) in the repository to see them all working together!
 
-## Sanitization Guarantees
+## Sanitization & Security
 
-DebugKit automatically masks sensitive information before it even reaches the log store:
+DebugKit uses conservative best-effort sanitization to protect sensitive information before it reaches the in-memory store or exported logs:
 
-- **Masked**: Bearer tokens, API keys, Cookies, Passwords (e.g., `eyJh***9xQ`).
-- **Redacted**: Ethereum private keys and BIP-39 mnemonic phrases are fully replaced with `[REDACTED]`.
+- **Smart Masking**: Sensitive values (Tokens, API keys, Passwords) are partially masked based on their length.
+  - Very short values (≤ 3 chars) are fully masked as `***`.
+  - Longer values preserve a few start and end characters for context (e.g., `abc123secret` -> `abc******ret`).
+- **Natural Language Protection**: DebugKit detects and masks secrets in plain text messages like `User password is: my_secret` or `token=my_token`.
+- **Full Redaction**: High-risk secrets like private keys and mnemonic phrases are fully replaced with `[REDACTED]`.
+- **Metadata Sanitization**: Metadata keys like `api_key` or `secret` are automatically sanitized.
+- **Offline & Local**: DebugKit is strictly local. Logs are only stored in memory and never sent to any server.
+
+> [!IMPORTANT]
+> While DebugKit provides robust automatic sanitization, developers should still avoid intentionally logging raw production secrets.
 
 ## Roadmap
 <truncated 4 lines>

@@ -33,11 +33,11 @@ class DebugLogSanitizer {
   static String sanitizeMessage(String message) {
     var sanitized = message;
 
-    // Redact private keys
+    // Redact private keys (Full redaction)
     sanitized = sanitized.replaceAllMapped(
         _privateKeyPattern, (match) => '[REDACTED PRIVATE KEY]');
 
-    // Redact mnemonics
+    // Redact mnemonics (Full redaction)
     sanitized = sanitized.replaceAllMapped(
         _mnemonicPattern, (match) => '[REDACTED MNEMONIC]');
 
@@ -54,15 +54,17 @@ class DebugLogSanitizer {
       },
     );
 
-    // Mask inline patterns like token=value or password: value
+    // Mask inline patterns like token=value, password: value, or password is: value
+    // We use a more conservative regex to avoid masking sentences like "Password screen opened"
     sanitized = sanitized.replaceAllMapped(
       RegExp(
-          r'\b(token|password|secret|key|authorization|api_key)\b\s*([=:]|\s)\s*([^\s,;]+)',
+          r'\b(token|password|secret|key|authorization|api_key)\b\s*(?:is\s*[:\s]|[:=])\s*([^\s,;]+)',
           caseSensitive: false),
       (match) {
         final key = match.group(1);
-        final separator = match.group(2);
-        final value = match.group(3);
+        final separator = match.group(0)!.substring(
+            key!.length, match.group(0)!.length - match.group(2)!.length);
+        final value = match.group(2);
         if (value == null || value.startsWith('[REDACTED')) {
           return match.group(0)!;
         }
@@ -73,13 +75,41 @@ class DebugLogSanitizer {
     return sanitized;
   }
 
+  /// Smart masking for sensitive values.
+  /// - Length <= 3: ***
+  /// - Length 4 to 6: keep first 1, last 1, mask middle with *
+  /// - Length 7 to 12: keep first 2, last 2, mask middle with *
+  /// - Length >= 13: keep first 3, last 3, mask middle with *
   static String maskValue(String value) {
     if (value.isEmpty) return value;
-    if (value.length <= 8) return '***';
-    if (value.length <= 16) {
-      return '${value.substring(0, 3)}***${value.substring(value.length - 3)}';
+    final len = value.length;
+
+    if (len <= 3) {
+      return '***';
     }
-    return '${value.substring(0, 4)}***${value.substring(value.length - 4)}';
+
+    int startCount;
+    int endCount;
+
+    if (len <= 6) {
+      startCount = 1;
+      endCount = 1;
+    } else if (len <= 12) {
+      startCount = 2;
+      endCount = 2;
+    } else {
+      startCount = 3;
+      endCount = 3;
+    }
+
+    final middleCount = len - startCount - endCount;
+    if (middleCount <= 0) return '***';
+
+    final start = value.substring(0, startCount);
+    final end = value.substring(len - endCount);
+    final maskedMiddle = '*' * middleCount;
+
+    return '$start$maskedMiddle$end';
   }
 
   static Map<String, dynamic>? sanitizePayload(dynamic payload) {
@@ -131,6 +161,16 @@ class DebugLogSanitizer {
         return MapEntry(key, maskValue(value.toString()));
       }
       return MapEntry(key, value.toString());
+    });
+  }
+
+  static Map<String, String>? sanitizeMetadata(Map<String, String>? metadata) {
+    if (metadata == null) return null;
+    return metadata.map((key, value) {
+      if (_isSensitiveKey(key)) {
+        return MapEntry(key, maskValue(value));
+      }
+      return MapEntry(key, value);
     });
   }
 

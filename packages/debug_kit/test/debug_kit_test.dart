@@ -92,28 +92,72 @@ void main() {
   });
 
   group('DebugLogSanitizer', () {
-    test('masks bearer tokens', () {
+    test('maskSensitiveValue behavior', () {
+      expect(DebugLogSanitizer.maskValue('abc'), '***');
+      expect(DebugLogSanitizer.maskValue('abcd'), 'a**d');
+      expect(DebugLogSanitizer.maskValue('testing'), 'te***ng');
+      expect(DebugLogSanitizer.maskValue('testingmylongpassword'),
+          'tes***************ord');
+      expect(DebugLogSanitizer.maskValue('my_super_secret_password123'),
+          'my_*********************123');
+    });
+
+    test('masks bearer tokens with smart masking', () {
       final sanitized = DebugLogSanitizer.sanitizeMessage(
           'Authorization: Bearer eyJhYmNkZWZ0aGlzaXNhdmVyeWxvbmf0b2tlbiJ9');
-      expect(sanitized, contains('eyJh***biJ9'));
+      // Original length: 40. start 3, end 3. middle 34.
+      expect(sanitized, contains('eyJ**********************************iJ9'));
+    });
+
+    test('masks natural language secrets', () {
+      expect(
+          DebugLogSanitizer.sanitizeMessage(
+              'User password is: my_super_secret_password123'),
+          'User password is: my_*********************123');
+      expect(
+          DebugLogSanitizer.sanitizeMessage(
+              'password: my_super_secret_password123'),
+          'password: my_*********************123');
+      expect(
+          DebugLogSanitizer.sanitizeMessage(
+              'password=my_super_secret_password123'),
+          'password=my_*********************123');
+      // abc123secret is 12 chars. Rule: keep 2. middle 8.
+      expect(DebugLogSanitizer.sanitizeMessage('token is: abc123secret'),
+          'token is: ab********et');
+      expect(DebugLogSanitizer.sanitizeMessage('api_key is abc123secret'),
+          'api_key is ab********et');
+      expect(DebugLogSanitizer.sanitizeMessage('secret = abc123secret'),
+          'secret = ab********et');
+    });
+
+    test('does not mask harmless mentions', () {
+      expect(DebugLogSanitizer.sanitizeMessage('Password screen opened'),
+          'Password screen opened');
+      expect(
+          DebugLogSanitizer.sanitizeMessage(
+              'User changed password successfully'),
+          'User changed password successfully');
+      expect(DebugLogSanitizer.sanitizeMessage('Password validation failed'),
+          'Password validation failed');
     });
 
     test('masks cookies', () {
       final headers = {'cookie': 'session=1234567890abcdef; other=value'};
       final sanitized = DebugLogSanitizer.sanitizeHeaders(headers);
-      expect(sanitized['cookie'], 'sess***alue');
+      // Length 37. start 3, end 3. middle 31.
+      expect(sanitized['cookie'], 'ses*******************************lue');
     });
 
-    test('masks API keys', () {
-      final sanitized =
-          DebugLogSanitizer.sanitizeMessage('api_key=12345678901234567890');
-      expect(sanitized, contains('api_key=1234***7890'));
-    });
-
-    test('masks passwords', () {
-      final sanitized =
-          DebugLogSanitizer.sanitizeMessage('password: secret123');
-      expect(sanitized, contains('password:sec***123'));
+    test('masks metadata', () {
+      final metadata = {
+        'api_key': 'abc123secret',
+        'safe_key': 'safe_value',
+      };
+      final sanitized = DebugLogSanitizer.sanitizeMetadata(metadata);
+      // abc123secret is 12 chars. Rule: keep 2. middle 8.
+      expect(sanitized!['api_key'], 'ab********et');
+      expect(sanitized['safe_key'], 'safe_value');
     });
 
     test('fully redacts private keys', () {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+- **Smart Masking**: Replaced static `***` masking with a length-aware algorithm that preserves context while protecting secrets.
+- **Natural Language Sanitization**: Improved detection of secrets in plain text messages (e.g., `User password is: ...`).
+- **Metadata Sanitization**: Log metadata is now automatically sanitized based on sensitive key patterns.
+- **Security Audit**: Conservative regex updates to prevent false positives like masking "Password screen opened".
+
+
 ## 0.2.1
 
 - **Overlay button**: Improved drag clamping using absolute `Positioned` layout; larger touch target (56px); gradient background; error state turns button red with glow effect.
