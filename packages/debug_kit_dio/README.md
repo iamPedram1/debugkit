@@ -17,8 +17,7 @@ Add `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit_dio:
-    git: # or path/pub version when available
+  debug_kit_dio: ^0.1.0
 ```
 
 ## Setup
@@ -62,9 +61,9 @@ DebugKit Dio Adapter takes security seriously:
 
 ## Roadmap
 
-- [ ] Optional opt-in for body logging (Phase 2B)
-- [ ] CURL command export (Phase 2B)
-- [ ] Network inspector UI in DebugKit (Phase 3)
+- [ ] Optional opt-in for body logging (future)
+- [ ] CURL command export (future)
+- [ ] Network inspector UI in DebugKit (future)
 
 ## License
 

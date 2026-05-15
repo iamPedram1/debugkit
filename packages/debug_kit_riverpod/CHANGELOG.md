@@ -1,3 +1,5 @@
+# Changelog
+
 ## 0.1.0
 
 - Initial release of `debug_kit_riverpod`.

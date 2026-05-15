@@ -18,8 +18,7 @@ Add `debug_kit_riverpod` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit_riverpod:
-    git: # or path/pub version when available
+  debug_kit_riverpod: ^0.1.0
 ```
 
 ## Setup

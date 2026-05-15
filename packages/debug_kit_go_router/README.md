@@ -17,8 +17,7 @@ Add `debug_kit_go_router` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit_go_router:
-    git: # or path/pub version when available
+  debug_kit_go_router: ^0.1.0
 ```
 
 ## Setup

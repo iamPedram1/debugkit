@@ -9,6 +9,7 @@ topics:
   - navigation
   - go_router
   - devtools
+  - debug_kit
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -17,7 +18,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  debug_kit: ^0.1.0
+  debug_kit: ^0.2.1
+  go_router: ^13.0.0
 
 dev_dependencies:
   flutter_test:

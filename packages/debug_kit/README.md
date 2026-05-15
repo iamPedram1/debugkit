@@ -22,8 +22,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit:
-    git: # or path/pub version when available
+  debug_kit: ^0.2.1
 ```
 
 ## 5-Minute Setup
@@ -78,11 +77,11 @@ DebugKit automatically masks sensitive information before it even reaches the lo
 
 ## Roadmap
 <truncated 4 lines>
-- [x] Dio HTTP Interceptor (Phase 2A)
-- [x] Riverpod / Bloc Observers (Phase 2C - Riverpod completed)
-- [x] Navigation Observer (Phase 2B)
-- [ ] AI Prompt Builder (Phase 2B)
-- [ ] Snapshots & Reproduction Sessions
+- [x] Dio HTTP Interceptor (`debug_kit_dio`)
+- [x] Navigation Observer (`debug_kit_go_router`)
+- [x] Riverpod Observer (`debug_kit_riverpod`)
+- [ ] AI Prompt Builder (Phase 3)
+- [ ] Snapshots & Reproduction Sessions (Phase 4)
 
 ## Contributing
 

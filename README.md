@@ -10,12 +10,12 @@ This repository is managed as a monorepo using [Melos](https://melos.invertase.d
 
 ### Packages
 
-| Package | Status | Description |
+| Package | Version | Description |
 | :--- | :--- | :--- |
-| [**debug_kit**](packages/debug_kit) | ✅ Phase 1 MVP | Core logging engine and UI console. |
-| [**debug_kit_dio**](packages/debug_kit_dio) | 🏗️ Phase 2A | Dio interceptor for network observability. |
-| [**debug_kit_riverpod**](packages/debug_kit_riverpod) | ✅ Phase 2C | Riverpod observer for state changes. |
-| [**debug_kit_go_router**](packages/debug_kit_go_router) | ✅ Phase 2B | GoRouter observer for navigation logs. |
+| [**debug_kit**](packages/debug_kit) | 0.2.1 | Core logging engine and UI console. |
+| [**debug_kit_dio**](packages/debug_kit_dio) | 0.1.0 | Dio interceptor for network observability. |
+| [**debug_kit_go_router**](packages/debug_kit_go_router) | 0.1.0 | GoRouter observer for navigation logs. |
+| [**debug_kit_riverpod**](packages/debug_kit_riverpod) | 0.1.0 | Riverpod observer for state changes. |
 
 ### Example App
 
@@ -31,11 +31,16 @@ It showcases:
 ```text
 debugkit/
   ├── packages/
-  │   └── debug_kit/        # Core package
+  │   ├── debug_kit/             # Core package
+  │   ├── debug_kit_dio/         # Dio network adapter
+  │   ├── debug_kit_go_router/   # GoRouter navigation adapter
+  │   └── debug_kit_riverpod/    # Riverpod state observer adapter
   ├── examples/
-  │   └── debug_kit_example/ # Demonstration app
-  ├── melos.yaml            # Monorepo configuration
-  └── AGENTS.md             # Engineering constitution
+  │   └── debug_kit_example/     # Demonstration app
+  ├── docs/
+  │   └── RELEASE.md             # Release checklist and process
+  ├── melos.yaml                 # Monorepo configuration
+  └── AGENTS.md                  # Engineering constitution
 ```
 
 ## Development
@@ -58,7 +63,7 @@ debugkit/
 ## Roadmap
 
 - **Phase 1**: Core MVP (Logging, Sanitization, Console UI). [COMPLETED]
-- **Phase 2**: Essential Adapters (Dio, Riverpod, GoRouter).
+- **Phase 2**: Essential Adapters (Dio, Riverpod, GoRouter). [COMPLETED]
 - **Phase 3**: Enhanced Diagnosis (Error grouping, Network summary).
 - **Phase 4**: Advanced Features (AI Prompt Builder, Reproduction Sessions).
 
@@ -67,6 +72,7 @@ debugkit/
 - [Contributing Guidelines](CONTRIBUTING.md)
 - [Engineering Constitution](AGENTS.md)
 - [Core Package Usage](packages/debug_kit/README.md)
+- [Release Process](docs/RELEASE.md)
 
 ## License
 
