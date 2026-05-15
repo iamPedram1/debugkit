@@ -1,3 +1,5 @@
+import 'package:debug_kit/debug_kit.dart';
+
 /// Internal helpers for sanitizing Riverpod state data.
 class RiverpodLogHelpers {
   /// Safely sanitizes a provider name to prevent huge string dumps.
@@ -18,17 +20,10 @@ class RiverpodLogHelpers {
       if (value == null) return 'null';
       final stringified = value.toString();
 
-      // Simple rudimentary masking for obvious secrets that might be printed
-      // from models that don't override toString securely.
-      final lowered = stringified.toLowerCase();
-      if (lowered.contains('token') ||
-          lowered.contains('password') ||
-          lowered.contains('secret') ||
-          lowered.contains('api_key')) {
-        return '[Redacted / Possible sensitive data in toString()]';
-      }
+      // Use core sanitizer to mask sensitive data in stringified object
+      final sanitized = DebugLogSanitizer.sanitizeMessage(stringified);
 
-      return truncateValue(stringified, maxLength);
+      return truncateValue(sanitized, maxLength);
     } catch (_) {
       return '[Un-stringifyable Object]';
     }

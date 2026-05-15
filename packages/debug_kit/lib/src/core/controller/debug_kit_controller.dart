@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../models/debug_kit_config.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
@@ -25,12 +25,14 @@ class DebugKitController extends ChangeNotifier {
     bool captureAppCallLocation = true,
     bool captureAppStackTrace = false,
     List<DebugKitAdapter> adapters = const [],
+    GlobalKey<NavigatorState>? navigatorKey,
   }) {
     _config = DebugKitConfig(
       enabled: enabled,
       maxLogs: maxLogs,
       captureAppCallLocation: captureAppCallLocation,
       captureAppStackTrace: captureAppStackTrace,
+      navigatorKey: navigatorKey,
     );
     _store = DebugLogStore(maxLogs: maxLogs);
 

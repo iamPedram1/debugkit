@@ -58,7 +58,7 @@ class DebugLogSanitizer {
     // We use a more conservative regex to avoid masking sentences like "Password screen opened"
     sanitized = sanitized.replaceAllMapped(
       RegExp(
-          r'\b(token|password|secret|key|authorization|api_key)\b\s*(?:is\s*[:\s]|[:=])\s*([^\s,;]+)',
+          r'\b(token|password|secret|key|authorization|api_key)\b\s*(?:is\s*[:\s]|[:=])\s*([^\s,;\)]+)',
           caseSensitive: false),
       (match) {
         final key = match.group(1);

@@ -151,7 +151,7 @@ void main() {
 
     expect(controller.store.logs.length, 1);
     final log = controller.store.logs.first;
-    expect(log.metadata?['value_preview'], contains('Redacted'));
+    expect(log.metadata?['value_preview'], contains('se*****23'));
     expect(log.metadata?['value_preview'], isNot(contains('secret123')));
   });
 

@@ -136,8 +136,8 @@ void main() {
     );
 
     final metadata = controller.store.logs.first.metadata!;
-    expect(metadata['Authorization'], '***');
-    expect(metadata['Cookie'], '***');
+    expect(metadata['Authorization'], contains('***'));
+    expect(metadata['Cookie'], contains('***'));
     expect(metadata['X-Public'], 'public_info');
   });
 

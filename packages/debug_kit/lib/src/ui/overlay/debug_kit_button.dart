@@ -44,6 +44,31 @@ class _DebugKitButtonState extends State<DebugKitButton> {
     );
   }
 
+  void _openConsole(BuildContext context) {
+    NavigatorState? navigator = Navigator.maybeOf(context);
+
+    if (navigator == null) {
+      final config = DebugKitController().config;
+      if (config.navigatorKey != null) {
+        navigator = config.navigatorKey!.currentState;
+      }
+    }
+
+    if (navigator != null) {
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => const DebugKitConsoleScreen(),
+          settings: const RouteSettings(name: 'debug_kit_console'),
+        ),
+      );
+    } else {
+      // ignore: avoid_print
+      print(
+          'DebugKit: Could not find Navigator. Ensure you are calling this from a context '
+          'descended from Navigator or provide a navigatorKey during DebugKit.init().');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_position == null) return const SizedBox.shrink();
@@ -68,13 +93,7 @@ class _DebugKitButtonState extends State<DebugKitButton> {
                 _clampPosition(screenSize);
               });
             },
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const DebugKitConsoleScreen(),
-                ),
-              );
-            },
+            onTap: () => _openConsole(context),
             child: SizedBox(
               width: _buttonSize + 10, // Extra touch area
               height: _buttonSize + 10,

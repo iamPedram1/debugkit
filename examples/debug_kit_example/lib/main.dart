@@ -13,6 +13,9 @@ final throwingProvider = Provider<String>((ref) {
   throw Exception('Simulated Riverpod Provider Failure!');
 });
 
+// Global navigator key for DebugKit integration
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   final dio = Dio();
 
@@ -21,6 +24,7 @@ void main() {
     enabled: true,
     maxLogs: 500,
     captureAppStackTrace: true,
+    navigatorKey: rootNavigatorKey,
     adapters: [
       DebugKitDioAdapter(dio),
     ],
@@ -37,10 +41,7 @@ void main() {
           ),
         ),
       ],
-      // 3. Wrap with DebugKitOverlay
-      child: DebugKitOverlay(
-        child: MyApp(dio: dio),
-      ),
+      child: MyApp(dio: dio),
     ),
   );
 }
@@ -52,6 +53,7 @@ class MyApp extends StatelessWidget {
   MyApp({super.key, required this.dio}) {
     // 4. Configure GoRouter with DebugKitGoRouterObserver
     _router = GoRouter(
+      navigatorKey: rootNavigatorKey,
       observers: [DebugKitGoRouterObserver()],
       routes: [
         GoRoute(
@@ -76,6 +78,8 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       routerConfig: _router,
+      // 3. Wrap with DebugKitOverlay via builder for better integration
+      builder: (context, child) => DebugKitOverlay(child: child!),
     );
   }
 }
