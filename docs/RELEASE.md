@@ -13,7 +13,7 @@ Packages must be published in dependency order. Core first, then adapters.
 
 | Order | Package | Version | Notes |
 | :---: | :--- | :--- | :--- |
-| 1 | `debug_kit` | 0.2.1 | Core — publish first, no local deps |
+| 1 | `debug_kit` | 0.2.2 | Core — publish first, no local deps |
 | 2 | `debug_kit_dio` | 0.1.0 | Depends on `debug_kit` |
 | 3 | `debug_kit_go_router` | 0.1.0 | Depends on `debug_kit` |
 | 4 | `debug_kit_riverpod` | 0.1.0 | Depends on `debug_kit` |

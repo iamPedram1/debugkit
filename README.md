@@ -22,7 +22,7 @@ This repository is managed as a monorepo using [Melos](https://melos.invertase.d
 
 | Package | Version | Description |
 | :--- | :--- | :--- |
-| [**debug_kit**](packages/debug_kit) | 0.2.1 | Core logging engine and UI console. |
+| [**debug_kit**](packages/debug_kit) | 0.2.2 | Core logging engine and UI console. |
 | [**debug_kit_dio**](packages/debug_kit_dio) | 0.1.0 | Dio interceptor for network observability. |
 | [**debug_kit_go_router**](packages/debug_kit_go_router) | 0.1.0 | GoRouter observer for navigation logs. |
 | [**debug_kit_riverpod**](packages/debug_kit_riverpod) | 0.1.0 | Riverpod observer for state changes. |
