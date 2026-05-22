@@ -166,11 +166,26 @@ void main() {
       expect(sanitized, contains('[REDACTED PRIVATE KEY]'));
     });
 
-    test('fully redacts mnemonics', () {
+    test('fully redacts labeled mnemonics', () {
       const mnemonic =
           'apple banana cherry dog elephant fish goat house ice jump kite lemon';
-      final sanitized = DebugLogSanitizer.sanitizeMessage('Seed: $mnemonic');
-      expect(sanitized, 'Seed: [REDACTED MNEMONIC]');
+      final sanitized1 =
+          DebugLogSanitizer.sanitizeMessage('mnemonic: $mnemonic');
+      final sanitized2 =
+          DebugLogSanitizer.sanitizeMessage('seed phrase is: $mnemonic');
+      final sanitized3 =
+          DebugLogSanitizer.sanitizeMessage('recovery phrase=$mnemonic');
+      expect(sanitized1, 'mnemonic: [REDACTED MNEMONIC]');
+      expect(sanitized2, 'seed phrase is: [REDACTED MNEMONIC]');
+      expect(sanitized3, 'recovery phrase=[REDACTED MNEMONIC]');
+    });
+
+    test('does not over-mask normal english sentences', () {
+      const normalSentence =
+          'the quick brown fox jumps over the lazy dog and the dog barks loudly';
+      final sanitized =
+          DebugLogSanitizer.sanitizeMessage('User said: $normalSentence');
+      expect(sanitized, 'User said: $normalSentence');
     });
 
     test('trims stack traces', () {

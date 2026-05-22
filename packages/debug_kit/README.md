@@ -106,7 +106,7 @@ DebugKit uses conservative best-effort sanitization to protect sensitive informa
   - Very short values (≤ 3 chars) are fully masked as `***`.
   - Longer values preserve a few start and end characters for context (e.g., `abc123secret` → `ab********et`).
 - **Natural Language Protection**: Detects and masks secrets in plain text like `User password is: my_secret` or `token=my_token`.
-- **Full Redaction**: High-risk secrets like private keys (64-char hex) and mnemonic phrases are fully replaced with `[REDACTED PRIVATE KEY]` / `[REDACTED MNEMONIC]`.
+- **Full Redaction**: High-risk secrets like private keys (64-char hex) and explicitly labeled mnemonic phrases are fully replaced with `[REDACTED PRIVATE KEY]` / `[REDACTED MNEMONIC]`.
 - **Metadata Sanitization**: Metadata keys like `api_key` or `secret` are automatically sanitized.
 - **Offline & Local**: DebugKit is strictly local. Logs are only stored in memory and never sent to any server.
 

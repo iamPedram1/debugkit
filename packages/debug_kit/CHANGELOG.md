@@ -5,7 +5,8 @@
 - **Smart Masking**: Replaced static `***` masking with a length-aware algorithm that preserves context while protecting secrets.
 - **Natural Language Sanitization**: Improved detection of secrets in plain text messages (e.g., `User password is: ...`).
 - **Metadata Sanitization**: Log metadata is now automatically sanitized based on sensitive key patterns.
-- **Security Audit**: Conservative regex updates to prevent false positives like masking "Password screen opened".
+- **Security Audit**: Conservative regex updates to prevent false positives like masking "Password screen opened" and to prevent over-masking normal sentences as mnemonics.
+- **Core Architecture**: Removed hidden UI scheduler coupling (`addPostFrameCallback`) from core state notifications.
 
 
 ## 0.2.1

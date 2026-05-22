@@ -25,10 +25,6 @@ class DebugLogSanitizer {
   };
 
   static final RegExp _privateKeyPattern = RegExp(r'\b(0x)?[0-9a-fA-F]{64}\b');
-  static final RegExp _mnemonicPattern = RegExp(
-    r'\b([a-z]{3,}\s+){11,23}[a-z]{3,}\b',
-    caseSensitive: false,
-  );
 
   static String sanitizeMessage(String message) {
     var sanitized = message;
@@ -37,9 +33,19 @@ class DebugLogSanitizer {
     sanitized = sanitized.replaceAllMapped(
         _privateKeyPattern, (match) => '[REDACTED PRIVATE KEY]');
 
-    // Redact mnemonics (Full redaction)
+    // Redact labeled mnemonics
     sanitized = sanitized.replaceAllMapped(
-        _mnemonicPattern, (match) => '[REDACTED MNEMONIC]');
+      RegExp(
+        r'\b(mnemonic|seed\s*phrase|recovery\s*phrase)\b\s*(?:is\s*[:\s]|[:=])\s*([a-z]{3,}(?:\s+[a-z]{3,}){11,23})\b',
+        caseSensitive: false,
+      ),
+      (match) {
+        final key = match.group(1)!;
+        final separator = match.group(0)!.substring(
+            key.length, match.group(0)!.length - match.group(2)!.length);
+        return '$key$separator[REDACTED MNEMONIC]';
+      },
+    );
 
     // Mask Bearer tokens
     sanitized = sanitized.replaceAllMapped(

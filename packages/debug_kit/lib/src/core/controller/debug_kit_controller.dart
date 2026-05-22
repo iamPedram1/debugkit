@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import '../models/debug_kit_config.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
@@ -12,35 +11,6 @@ class DebugKitController extends ChangeNotifier {
   static final DebugKitController _instance = DebugKitController._internal();
   factory DebugKitController() => _instance;
   DebugKitController._internal();
-
-  bool _notificationScheduled = false;
-
-  @override
-  void notifyListeners() {
-    WidgetsBinding? binding;
-    try {
-      binding = WidgetsBinding.instance;
-    } catch (_) {
-      binding = null;
-    }
-
-    if (binding == null) {
-      super.notifyListeners();
-      return;
-    }
-
-    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
-      if (!_notificationScheduled) {
-        _notificationScheduled = true;
-        binding.addPostFrameCallback((_) {
-          _notificationScheduled = false;
-          super.notifyListeners();
-        });
-      }
-    } else {
-      super.notifyListeners();
-    }
-  }
 
   late DebugLogStore _store;
   DebugKitConfig _config = const DebugKitConfig(enabled: false);
