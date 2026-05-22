@@ -2,29 +2,21 @@
 
 A Dio network logging adapter for [DebugKit](https://pub.dev/packages/debug_kit).
 
-This adapter provides automatic logging of Dio network transactions directly into the DebugKit console.
-
-## Features
-
-- **Automatic Lifecycle Tracking**: Logs requests as "pending" and updates them with status codes and durations upon completion or error.
-- **Security First**: Automatically sanitizes URLs, query parameters, and headers (e.g., Authorization, Cookie).
-- **Body Protection**: Does NOT log request or response bodies by default to prevent accidental leakage of PII or large payloads.
-- **Performance**: Zero overhead when DebugKit is disabled. Synchronous, lightweight logging that never blocks the Dio handler flow.
+Automatically logs Dio network requests, responses, and errors into the DebugKit in-app console with sanitization and lifecycle tracking.
 
 ## Installation
 
-Add `debug_kit_dio` to your `pubspec.yaml`:
+Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
+  debug_kit: ^0.2.2
   debug_kit_dio: ^0.1.0
 ```
 
 ## Setup
 
-See the [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) for a complete working demonstration of all adapters combined.
-
-Initialize DebugKit and provide the `DebugKitDioAdapter`:
+Initialize DebugKit and pass a `DebugKitDioAdapter` in the `adapters` list:
 
 ```dart
 import 'package:dio/dio.dart';
@@ -45,25 +37,46 @@ void main() {
 }
 ```
 
-Alternatively, you can add the interceptor manually:
+Alternatively, add the interceptor directly to an existing Dio instance:
 
 ```dart
 dio.interceptors.add(DebugKitDioInterceptor(DebugKit.controller));
 ```
 
+## What is Logged
+
+- HTTP method and sanitized URL (query params masked)
+- Response status code and request duration
+- Sanitized request headers
+- Sanitized response headers
+- Error type and message on failure
+- Cancelled request status
+
+## What is NOT Logged
+
+- Request bodies — never logged to prevent PII leakage
+- Response bodies — never logged by default
+- Binary or multipart payloads — always ignored
+
 ## Security & Sanitization
 
-DebugKit Dio Adapter takes security seriously:
+- URLs: Sensitive query parameters (e.g., `api_key`, `token`, `password`) are masked using smart length-aware masking.
+- Headers: Sensitive headers like `Authorization`, `Cookie`, and `X-API-Key` are automatically masked.
+- Bodies: Request and response bodies are never captured.
 
-- **URLs**: Common sensitive query parameters (e.g., `api_key`, `token`, `password`) are masked with `***`.
-- **Headers**: Sensitive headers like `Authorization`, `Cookie`, and `X-API-Key` are automatically masked.
-- **Bodies**: Request and response bodies are NOT logged by default. Binary and multipart payloads are always ignored.
+## Performance
 
-## Roadmap
+Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor checks the enabled flag synchronously before any work and never blocks the Dio handler chain.
 
-- [ ] Optional opt-in for body logging (future)
-- [ ] CURL command export (future)
-- [ ] Network inspector UI in DebugKit (future)
+## Limitations
+
+- Request and response bodies are not logged. Opt-in body logging is not yet supported.
+- Binary and multipart payloads are always ignored.
+
+## Links
+
+- [DebugKit Core](https://pub.dev/packages/debug_kit)
+- [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example)
 
 ## License
 

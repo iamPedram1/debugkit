@@ -2,30 +2,21 @@
 
 A Riverpod provider observer adapter for [DebugKit](https://pub.dev/packages/debug_kit).
 
-This adapter provides automatic logging of Riverpod provider failures and optional state updates directly into the DebugKit console.
-
-## Features
-
-- **Lifecycle Tracking**: Logs provider failures automatically.
-- **Opt-In Update Logging**: Can log provider updates (disabled by default to prevent noise).
-- **Targeted Observation**: Filter updates by a specific `Set` of `watchedProviders`.
-- **Security First**: Sanitizes error logs, masks sensitive stringified objects, and aggressively limits stringification overhead.
-- **Performance**: Zero overhead when DebugKit is disabled. Lightweight observer that will never throw or break state updates.
+Automatically logs Riverpod provider failures and optionally state updates into the DebugKit in-app console with sanitization.
 
 ## Installation
 
-Add `debug_kit_riverpod` to your `pubspec.yaml`:
+Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
+  debug_kit: ^0.2.2
   debug_kit_riverpod: ^0.1.0
 ```
 
 ## Setup
 
-See the [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) for a complete working demonstration of all adapters combined.
-
-Initialize DebugKit and add the `DebugKitRiverpodObserver` to your `ProviderScope`:
+Initialize DebugKit and add `DebugKitRiverpodObserver` to your `ProviderScope`:
 
 ```dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,34 +39,52 @@ void main() {
 
 ## Configuration
 
-By default, the observer logs ONLY failures. To log provider updates or enable value previews, pass a custom `DebugKitRiverpodConfig`:
+By default, only provider failures are logged. Use `DebugKitRiverpodConfig` to enable update logging or value previews:
 
 ```dart
-final observer = DebugKitRiverpodObserver(
+DebugKitRiverpodObserver(
   config: DebugKitRiverpodConfig(
-    logProviderUpdates: true, // Enables update logging
-    watchedProviders: {'authProvider', 'userProvider'}, // Only log these
-    includeValuePreview: true, // Calls .toString() on state updates
-    maxValuePreviewLength: 300, // Truncates preview string
+    logProviderUpdates: true,       // Log state updates (default: false)
+    watchedProviders: {'authProvider', 'userProvider'}, // Scope to specific providers
+    includeValuePreview: true,      // Call .toString() on new state (default: false)
+    maxValuePreviewLength: 300,     // Truncate preview at this length
   ),
-);
+)
 ```
 
 ## What is Logged
 
-- **Action**: `provider_failure`, `provider_update`.
-- **Provider Information**: `provider_name`.
-- **Value Preview**: Only if explicitly enabled.
+- Provider name and event type (`provider_failure`, `provider_update`)
+- Error message and stack trace on failures
+- Sanitized value preview — only when `includeValuePreview: true`
 
 ## What is NOT Logged
 
-- **Updates by Default**: State updates are ignored unless `logProviderUpdates` is `true`.
-- **Full Values**: Raw models are not stringified unless `includeValuePreview` is `true`, and even then, they are heavily truncated and sanitized for obvious secrets.
+- State updates — ignored by default unless `logProviderUpdates: true`
+- Full state objects — raw models are never stringified unless `includeValuePreview: true`
+- Unfiltered updates — when `watchedProviders` is set, only listed providers emit update logs (failures are always logged regardless)
+
+## Security & Sanitization
+
+- Value previews are passed through the DebugKit core sanitizer before storage. Obvious secrets (tokens, passwords, API keys) in `toString()` output are masked.
+- Previews are truncated at `maxValuePreviewLength` (default 300 chars).
+- If `toString()` throws, the preview is replaced with `[Un-stringifyable Object]`.
+
+> **Warning:** If a model's `toString()` returns raw PII that does not contain obvious secret keywords, it may appear in the preview. Keep `includeValuePreview: false` in production builds.
+
+## Performance
+
+Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps all logging in a try/catch and will never throw or interrupt state updates.
 
 ## Limitations
 
-- The value preview relies on `toString()`. If a custom model returns raw PII or secrets from `toString()` and it doesn't contain obvious keywords like `token` or `password`, the preview may log it. It is strongly recommended to leave `includeValuePreview: false` in production apps unless strictly debugging targeted `watchedProviders`.
-- *Note: This package may display a pub.dev dry-run warning regarding its local path dependency on `debug_kit` while the core package remains unpublished.*
+- Value preview sanitization relies on keyword matching. Custom models with non-standard secret field names are not automatically masked.
+- `includeValuePreview` should remain `false` in production builds.
+
+## Links
+
+- [DebugKit Core](https://pub.dev/packages/debug_kit)
+- [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example)
 
 ## License
 

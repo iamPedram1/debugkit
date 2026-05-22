@@ -6,5 +6,5 @@
 - Log network requests, responses, and errors.
 - Automatic sanitization of URLs, query parameters, and headers.
 - Support for request IDs to track transaction lifecycles.
+- Duplicate attach protection, duration metadata, and improved cancelled request handling.
 - Zero overhead when DebugKit is disabled.
-- Phase 2A Hardening Audit: Added duplicate attach protection, duration metadata, and improved cancelled request handling.

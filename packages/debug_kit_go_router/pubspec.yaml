@@ -18,10 +18,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  debug_kit: ^0.2.1
+  debug_kit: ^0.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  go_router: ^13.0.0
