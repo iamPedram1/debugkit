@@ -1,0 +1,56 @@
+name: "📚 Documentation"
+description: Report unclear, missing, or incorrect documentation.
+title: "[Docs]: "
+labels:
+  - "type: docs"
+  - "status: needs triage"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the docs. Please point to the exact page or
+        file so we can fix the right thing quickly.
+
+  - type: input
+    id: page_file
+    attributes:
+      label: Page / File Affected
+      description: Link or path to the doc page or file that needs attention.
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What Is Unclear / Wrong / Missing?
+      description: Explain the documentation problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: wording
+    attributes:
+      label: Suggested Wording or Example
+      description: Share a replacement paragraph, snippet, or example if you have one.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package Affected
+      options:
+        - debug_kit
+        - debug_kit_dio
+        - debug_kit_go_router
+        - debug_kit_riverpod
+        - example app
+        - docs
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: links
+    attributes:
+      label: Links / Screenshots
+      description: Add screenshots or related links that help explain the issue.

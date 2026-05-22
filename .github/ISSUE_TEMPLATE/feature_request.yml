@@ -1,0 +1,88 @@
+name: "✨ Feature Request"
+description: Suggest a new capability or API for DebugKit or one of its adapters.
+title: "[Feature]: "
+labels:
+  - "type: feature"
+  - "status: needs triage"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping shape DebugKit. Please describe the problem first,
+        then the feature you think would solve it.
+
+  - type: dropdown
+    id: package_area
+    attributes:
+      label: Package / Area
+      description: Which package or part of DebugKit does this request belong to?
+      options:
+        - debug_kit
+        - debug_kit_dio
+        - debug_kit_go_router
+        - debug_kit_riverpod
+        - example app
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem This Solves
+      description: What problem or limitation are you trying to solve?
+      placeholder: "Describe the gap in the current workflow."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: What would you like DebugKit to do?
+      placeholder: "Describe the feature, behavior, or API you want."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches did you consider?
+
+  - type: textarea
+    id: api_sketch
+    attributes:
+      label: API Sketch (if applicable)
+      description: Share a rough API shape if you have one.
+      render: dart
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Example Use Case
+      description: Show how this would be used in a real app.
+
+  - type: dropdown
+    id: breaking_change
+    attributes:
+      label: Breaking Change?
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Willingness to Contribute
+      description: Are you interested in helping implement this?
+      options:
+        - "Yes, I can help"
+        - "Maybe, if guidance is provided"
+        - "No, I only wanted to request it"
+    validations:
+      required: true

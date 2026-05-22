@@ -1,0 +1,70 @@
+name: "🔧 Improvement"
+description: Suggest UX polish, performance improvements, docs improvements, API ergonomics, or internal cleanup.
+title: "[Improvement]: "
+labels:
+  - "type: improvement"
+  - "status: needs triage"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for smaller quality improvements that are not quite bugs
+        and not quite new features.
+
+  - type: dropdown
+    id: package_area
+    attributes:
+      label: Package / Area
+      options:
+        - debug_kit
+        - debug_kit_dio
+        - debug_kit_go_router
+        - debug_kit_riverpod
+        - example app
+        - docs
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: pain_point
+    attributes:
+      label: Current Pain Point
+      description: What feels awkward, slow, confusing, or hard to maintain?
+    validations:
+      required: true
+
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Proposed Improvement
+      description: What should change?
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why This Matters
+      description: Why is this worth improving now?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk / Complexity
+      options:
+        - "Low"
+        - "Medium"
+        - "High"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Screenshots / Examples (if relevant)
+      description: Add references that help explain the improvement.

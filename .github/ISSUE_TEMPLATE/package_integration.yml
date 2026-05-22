@@ -1,0 +1,113 @@
+name: "🔌 Package Integration Problem"
+description: Report issues integrating DebugKit into an app or package setup.
+title: "[Integration]: "
+labels:
+  - "type: question"
+  - "status: needs triage"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when DebugKit is installed but does not behave as expected
+        during integration or app startup.
+
+  - type: dropdown
+    id: package_affected
+    attributes:
+      label: Package Affected
+      options:
+        - debug_kit
+        - debug_kit_dio
+        - debug_kit_go_router
+        - debug_kit_riverpod
+        - multiple adapters
+        - not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: integration_type
+    attributes:
+      label: Integration Type
+      options:
+        - core overlay
+        - Dio
+        - GoRouter
+        - Riverpod
+        - multiple adapters
+    validations:
+      required: true
+
+  - type: textarea
+    id: setup_code
+    attributes:
+      label: Setup Code
+      description: Share the relevant initialization or adapter wiring code.
+      render: dart
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_output
+    attributes:
+      label: Error Output
+      description: Paste any errors, warnings, or unexpected output.
+      render: text
+
+  - type: textarea
+    id: pubspec
+    attributes:
+      label: pubspec Snippet
+      description: Include the relevant dependency section if helpful.
+      render: yaml
+
+  - type: input
+    id: flutter_dart_versions
+    attributes:
+      label: Flutter / Dart Versions
+      placeholder: "Flutter 3.x.x, Dart 3.x.x"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android
+        - iOS
+        - Web
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: dropdown
+    id: material_app_type
+    attributes:
+      label: App Shell
+      description: Which app shell are you using?
+      options:
+        - MaterialApp
+        - MaterialApp.router
+    validations:
+      required: true
+
+  - type: dropdown
+    id: custom_builders
+    attributes:
+      label: Custom Builders / Overlays?
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: Steps Already Tried
+      description: List any troubleshooting steps you have already attempted.

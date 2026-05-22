@@ -88,8 +88,16 @@ debugkit/
 
 - [Contributing Guidelines](CONTRIBUTING.md)
 - [Engineering Constitution](AGENTS.md)
+- [Support](SUPPORT.md)
+- [Security Policy](SECURITY.md)
 - [Core Package Usage](packages/debug_kit/README.md)
 - [Release Process](docs/RELEASE.md)
+
+## Community Support
+
+Issues and feature requests are handled through GitHub issue forms so reports
+stay structured and easy to triage. Please choose the most specific template
+available when opening a new issue.
 
 ## License
 

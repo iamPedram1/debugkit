@@ -58,6 +58,8 @@ Run these commands from the root using Melos:
 2. **Package Docs**: Each package owns its `README.md` and `CHANGELOG.md`.
 3. **Release Notes**: Update the package-specific `CHANGELOG.md` for every release-worthy change.
 4. **Pub Readiness**: Package-level READMEs must be formatted for high-quality display on pub.dev.
+5. **Support and Security**: Use `SUPPORT.md` for help requests and `SECURITY.md` for private security reports.
+6. **Issue and PR Templates**: Use the GitHub issue forms and PR template provided in `.github/`.
 
 ## PR Checklist
 
@@ -68,3 +70,4 @@ Run these commands from the root using Melos:
 - [ ] `melos run analyze` passes.
 - [ ] `melos run test` passes.
 - [ ] `melos run publish-dry-run` passes.
+- [ ] PR template completed and linked issues added where relevant.

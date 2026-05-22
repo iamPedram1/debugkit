@@ -1,0 +1,15 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Ask a Question / Get Help
+    url: https://github.com/iamPedram1/debugkit/discussions
+    about: >
+      Use GitHub Discussions for usage questions, integration help,
+      ideas, and general conversation about DebugKit.
+
+  - name: 🔒 Sensitive Logging / Security Issue
+    url: https://github.com/iamPedram1/debugkit/blob/main/SECURITY.md
+    about: >
+      Please do not post real tokens, passwords, API keys, cookies,
+      private keys, or mnemonic phrases in public issues. See SECURITY.md
+      for safe reporting guidance.
