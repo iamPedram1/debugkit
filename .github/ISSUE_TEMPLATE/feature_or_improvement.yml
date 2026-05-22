@@ -1,0 +1,65 @@
+name: Feature or improvement
+description: Suggest a feature, improvement, or documentation fix.
+title: "[Idea]: "
+labels:
+  - "type: improvement"
+  - "status: needs triage"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Keep it short and focus on the problem first.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - debug_kit
+        - debug_kit_dio
+        - debug_kit_go_router
+        - debug_kit_riverpod
+        - docs
+        - example app
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / pain point
+      description: What is awkward, missing, or confusing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed change
+      description: What should DebugKit do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: API sketch
+      description: Optional.
+      render: dart
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Screenshots / examples
+      description: Optional.
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Willing to contribute?
+      options:
+        - "Yes"
+        - "Maybe"
+        - "No"
