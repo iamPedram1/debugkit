@@ -1,5 +1,6 @@
 import 'dart:collection';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
 
@@ -7,6 +8,7 @@ class DebugLogStore extends ChangeNotifier {
   final int maxLogs;
   final List<DebugLogEntry> _logs = [];
   int _nextId = 1;
+  bool _notificationScheduled = false;
 
   DebugLogStore({this.maxLogs = 300});
 
@@ -14,6 +16,33 @@ class DebugLogStore extends ChangeNotifier {
 
   int get errorCount =>
       _logs.where((e) => e.level == DebugLogLevel.error).length;
+
+  @override
+  void notifyListeners() {
+    WidgetsBinding? binding;
+    try {
+      binding = WidgetsBinding.instance;
+    } catch (_) {
+      binding = null;
+    }
+
+    if (binding == null) {
+      super.notifyListeners();
+      return;
+    }
+
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      if (!_notificationScheduled) {
+        _notificationScheduled = true;
+        binding.addPostFrameCallback((_) {
+          _notificationScheduled = false;
+          super.notifyListeners();
+        });
+      }
+    } else {
+      super.notifyListeners();
+    }
+  }
 
   void addLog(DebugLogEntry entry) {
     if (_logs.length >= maxLogs) {

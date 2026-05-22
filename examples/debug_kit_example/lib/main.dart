@@ -142,13 +142,20 @@ class MyHomePage extends ConsumerWidget {
               runSpacing: 8,
               children: [
                 ElevatedButton(
-                  onPressed: () =>
-                      dio.get('https://pub.dev/api/packages/debug_kit'),
+                  onPressed: () async {
+                    try {
+                      await dio.get('https://pub.dev/api/packages/dio');
+                    } catch (_) {}
+                  },
                   child: const Text('GET Success'),
                 ),
                 ElevatedButton(
-                  onPressed: () => dio
-                      .get('https://pub.dev/api/packages/invalid_package_123'),
+                  onPressed: () async {
+                    try {
+                      await dio.get(
+                          'https://pub.dev/api/packages/invalid_package_123');
+                    } catch (_) {}
+                  },
                   child: const Text('GET 404'),
                 ),
               ],
@@ -225,8 +232,14 @@ class DetailsPage extends StatelessWidget {
       appBar: AppBar(title: const Text('Details')),
       body: Center(
         child: ElevatedButton(
-          onPressed: () => context.pop(),
-          child: const Text('Pop Route'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
+          child: const Text('Pop or Go Home'),
         ),
       ),
     );

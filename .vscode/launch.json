@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "DebugKit Example - Debug",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "examples/debug_kit_example",
+      "program": "lib/main.dart",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "DebugKit Example - Profile",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "examples/debug_kit_example",
+      "program": "lib/main.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "DebugKit Example - Release",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "examples/debug_kit_example",
+      "program": "lib/main.dart",
+      "flutterMode": "release"
+    },
+    {
+      "name": "DebugKit Example - Web Chrome",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "examples/debug_kit_example",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "flutterMode": "debug"
+    }
+  ]
+}
