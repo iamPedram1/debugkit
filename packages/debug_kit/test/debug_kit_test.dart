@@ -2,9 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:debug_kit/debug_kit.dart';
 import 'package:debug_kit/src/core/store/debug_log_store.dart';
 import 'package:debug_kit/src/utils/export/debug_log_export_formatter.dart';
+import 'package:debug_kit/src/utils/export/debug_log_file_exporter.dart';
 import 'package:debug_kit/src/utils/filtering/debug_log_filter.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('DebugLogStore', () {
     test('appends logs', () {
       final store = DebugLogStore(maxLogs: 10);
@@ -243,6 +246,12 @@ void main() {
   });
 
   group('DebugLogExportFormatter', () {
+    test('formats empty logs', () {
+      final formatted = DebugLogExportFormatter.formatLogs([]);
+      expect(formatted, contains('DebugKit Logs'));
+      expect(formatted, contains('Total   : 0 entries'));
+    });
+
     test('includes title/date/count', () {
       final logs = [
         DebugLogEntry(
@@ -258,6 +267,65 @@ void main() {
       expect(formatted, contains('Total   : 1 entries'));
     });
 
+    test('formats multiple sources and levels', () {
+      final logs = [
+        DebugLogEntry(
+            id: 1,
+            level: DebugLogLevel.info,
+            source: DebugLogSource.app,
+            message: 'App info',
+            timestamp: DateTime.now()),
+        DebugLogEntry(
+            id: 2,
+            level: DebugLogLevel.warning,
+            source: DebugLogSource.dio,
+            message: 'Dio warning',
+            timestamp: DateTime.now()),
+        DebugLogEntry(
+            id: 3,
+            level: DebugLogLevel.error,
+            source: DebugLogSource.riverpod,
+            message: 'Riverpod error',
+            timestamp: DateTime.now()),
+      ];
+      final formatted = DebugLogExportFormatter.formatLogs(logs);
+      expect(formatted, contains('Total   : 3 entries'));
+      expect(formatted, contains('[INF][APP]'));
+      expect(formatted, contains('[WRN][DIO]'));
+      expect(formatted, contains('[ERR][RVP]'));
+    });
+
+    test('includes metadata in formatted entry', () {
+      final entry = DebugLogEntry(
+        id: 1,
+        level: DebugLogLevel.info,
+        source: DebugLogSource.dio,
+        message: 'GET /profile',
+        timestamp: DateTime.now(),
+        metadata: {'status': '200', 'duration_ms': '120'},
+      );
+      final formatted = DebugLogExportFormatter.formatEntry(entry);
+      expect(formatted, contains('Meta:'));
+      expect(formatted, contains('status=200'));
+      expect(formatted, contains('duration_ms=120'));
+    });
+
+    test('includes error and stack trace if present', () {
+      final entry = DebugLogEntry(
+        id: 1,
+        level: DebugLogLevel.error,
+        source: DebugLogSource.app,
+        message: 'Something failed',
+        timestamp: DateTime.now(),
+        error: 'NullPointerException',
+        stackTrace: '#0 main (main.dart:10)',
+      );
+      final formatted = DebugLogExportFormatter.formatEntry(entry);
+      expect(formatted, contains('Error: NullPointerException'));
+      expect(formatted, contains('Stack:'));
+      expect(formatted, contains('#0 main'));
+    });
+
     test('includes formatted entries', () {
       final entry = DebugLogEntry(
         id: 1,
@@ -269,6 +337,56 @@ void main() {
       final formatted = DebugLogExportFormatter.formatEntry(entry);
       expect(formatted, contains('[INF][APP]'));
       expect(formatted, contains('Message: Hello World'));
+    });
+
+    test('preserves sanitized values and does not expose raw secrets', () {
+      // Simulate what the controller stores after sanitization
+      final entry = DebugLogEntry(
+        id: 1,
+        level: DebugLogLevel.info,
+        source: DebugLogSource.app,
+        message: 'token is: ab********et', // already sanitized
+        timestamp: DateTime.now(),
+        metadata: {'api_key': 'ab********et'}, // already sanitized
+      );
+      final formatted = DebugLogExportFormatter.formatEntry(entry);
+      // Sanitized value is preserved
+      expect(formatted, contains('ab********et'));
+      // Raw secret is not present
+      expect(formatted, isNot(contains('abc123secret')));
+    });
+
+    test('does not include raw fake secrets in exported output', () {
+      // Logs go through controller sanitization before reaching the store.
+      // This test verifies the formatter only outputs what is stored.
+      final controller = DebugKitController();
+      controller.init(enabled: true);
+      controller.info('token is: abc123secret');
+      controller.info(
+          'key=0x1234567890123456789012345678901234567890123456789012345678901234');
+
+      final logs = controller.store.logs.toList();
+      final formatted = DebugLogExportFormatter.formatLogs(logs);
+
+      expect(formatted, isNot(contains('abc123secret')));
+      expect(
+          formatted,
+          isNot(contains(
+              '0x1234567890123456789012345678901234567890123456789012345678901234')));
+      expect(formatted, contains('[REDACTED PRIVATE KEY]'));
+    });
+  });
+
+  group('DebugLogFileExporter', () {
+    test('builds safe filename with correct format', () {
+      final ts = DateTime(2026, 5, 23, 14, 22, 5);
+      final name = DebugLogFileExporter.buildFileName(ts);
+      expect(name, 'debugkit-logs-20260523-142205.txt');
+    });
+
+    test('filename contains no unsafe filesystem characters', () {
+      final name = DebugLogFileExporter.buildFileName(DateTime.now());
+      expect(RegExp(r'^[a-z0-9\-\.]+$').hasMatch(name), isTrue);
     });
   });
 }

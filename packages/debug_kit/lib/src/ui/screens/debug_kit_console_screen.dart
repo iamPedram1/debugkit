@@ -59,8 +59,14 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.share, size: 22),
-                tooltip: 'Share logs',
-                onPressed: () => _shareLogs(allLogs.toList()),
+                tooltip: _filterState.hasActiveFilters
+                    ? 'Export filtered logs'
+                    : 'Export logs',
+                onPressed: () => _shareLogs(
+                  _filterState.hasActiveFilters
+                      ? filteredLogs
+                      : allLogs.toList(),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_sweep_rounded, size: 22),
@@ -193,7 +199,42 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
   }
 
   Future<void> _shareLogs(List<dynamic> logs) async {
-    await DebugLogFileExporter.shareLogs(logs.cast<DebugLogEntry>());
+    final entries = logs.cast<DebugLogEntry>();
+    if (entries.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No logs to export'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      await DebugLogFileExporter.shareLogs(entries);
+    } catch (_) {
+      try {
+        await DebugLogFileExporter.exportToClipboard(entries);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Share failed — logs copied to clipboard'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Export failed'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _confirmClearLogs() {

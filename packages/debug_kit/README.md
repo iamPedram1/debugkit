@@ -13,7 +13,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
-- **Export Anywhere**: Copy logs to clipboard or share them as a file.
+- **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
 - **Manual Logging API**: Easy-to-use API for application-level logs and user actions.
 
 ## Installation
@@ -22,7 +22,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.2.2
+  debug_kit: ^0.2.3
 ```
 
 ## 5-Minute Setup
@@ -98,7 +98,20 @@ DebugKit relies on separate optional adapter packages to log automated events wi
 
 Check out the full [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) to see them all working together.
 
-## Sanitization & Security
+## Exporting Logs
+
+The DebugKit console provides two export actions in the AppBar:
+
+- **Copy all** — copies all logs to the clipboard as formatted text.
+- **Export logs** / **Export filtered logs** — writes a sanitized `.txt` file to the device's temporary directory and opens the platform share sheet. The label changes to *Export filtered logs* when search or level/source filters are active, exporting only the currently visible entries.
+
+Exported file name format: `debugkit-logs-YYYYMMDD-HHMMSS.txt`
+
+> [!IMPORTANT]
+> Exported logs contain only the already-sanitized values stored in memory. Raw tokens, passwords, API keys, private keys, cookies, and mnemonic phrases are never written to the export file. Request and response bodies are not captured or exported by default.
+
+If the share sheet fails, DebugKit automatically falls back to copying the formatted text to the clipboard and shows a SnackBar notification.
+
 
 DebugKit uses conservative best-effort sanitization to protect sensitive information before it reaches the in-memory store or exported logs:
 

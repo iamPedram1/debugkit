@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.2.2
+## 0.2.3
+
+- **Export**: Filename format updated to `debugkit-logs-YYYYMMDD-HHMMSS.txt` (was `debug_kit_logs_<epoch>.txt`).
+- **Export**: Share button now exports filtered logs when search or level/source filters are active; tooltip updates to *Export filtered logs* accordingly.
+- **Export**: Empty-log guard added — attempting to export with no logs shows a *No logs to export* SnackBar.
+- **Export**: Share failures now fall back to clipboard copy with user feedback; export no longer fails silently.
+- **Tests**: Added formatter tests for empty logs, multiple sources/levels, metadata, error/stack trace, sanitization guarantee, and filename safety.
+
 
 - **Smart Masking**: Replaced static `***` masking with a length-aware algorithm that preserves context while protecting secrets.
 - **Natural Language Sanitization**: Improved detection of secrets in plain text messages (e.g., `User password is: ...`).

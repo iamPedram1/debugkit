@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
@@ -15,12 +16,22 @@ class DebugLogStore extends ChangeNotifier {
   int get errorCount =>
       _logs.where((e) => e.level == DebugLogLevel.error).length;
 
+  void _safeNotify() {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.transientCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    } else {
+      notifyListeners();
+    }
+  }
+
   void addLog(DebugLogEntry entry) {
     if (_logs.length >= maxLogs) {
       _logs.removeAt(0);
     }
     _logs.add(entry);
-    notifyListeners();
+    _safeNotify();
   }
 
   void addLogs(List<DebugLogEntry> entries) {
@@ -30,12 +41,12 @@ class DebugLogStore extends ChangeNotifier {
       }
       _logs.add(entry);
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   void clear() {
     _logs.clear();
-    notifyListeners();
+    _safeNotify();
   }
 
   int getNextId() => _nextId++;
@@ -44,7 +55,7 @@ class DebugLogStore extends ChangeNotifier {
     final index = _logs.indexWhere((entry) => entry.id == id);
     if (index != -1) {
       _logs[index] = update(_logs[index]);
-      notifyListeners();
+      _safeNotify();
     }
   }
 
