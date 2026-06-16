@@ -2,25 +2,55 @@ import '../../core/models/debug_trace.dart';
 import '../../core/models/debug_trace_event_type.dart';
 import '../../core/models/debug_trace_status.dart';
 
-/// A lightweight, stateless analyzer that produces human-readable health
-/// warnings for a [DebugTrace].
+/// Lightweight, stateless health analyzer for [DebugTrace] instances.
 ///
-/// All methods are pure functions — no side effects, no state.
+/// All methods are pure functions — no side effects, no mutable state.
+/// Call [analyze] to get a list of human-readable warning strings for a trace,
+/// or [hasWarnings] for a quick boolean check.
+///
+/// Used by the trace detail screen and the [DebugTraceExportFormatter] to
+/// surface actionable observations alongside trace data.
 class DebugTraceAnalyzer {
   const DebugTraceAnalyzer._();
 
-  /// Default threshold above which a trace is considered slow.
+  /// Duration above which a completed trace is flagged as slow.
+  ///
+  /// Default: 3 seconds. Override per-call via the [analyze] `slowThreshold`
+  /// parameter, or globally via [DebugKitConfig.slowTraceThreshold].
   static const Duration defaultSlowThreshold = Duration(seconds: 3);
 
-  /// Default threshold above which a trace is considered to have too many events.
+  /// Number of events at or above which a trace is considered to have an
+  /// unusually high event count.
+  ///
+  /// Default: 100 events.
   static const int defaultMaxEventWarningCount = 100;
 
-  /// Default threshold above which a running trace is considered stale.
+  /// Running duration above which an in-progress trace is considered stale
+  /// (possibly leaked / never closed).
+  ///
+  /// Default: 2 minutes.
   static const Duration defaultStaleThreshold = Duration(minutes: 2);
 
-  /// Returns a list of human-readable warning strings for [trace].
+  /// Analyzes [trace] and returns a list of human-readable warning strings.
   ///
-  /// Returns an empty list if the trace is healthy.
+  /// Returns an empty list when the trace is healthy. The following conditions
+  /// produce warnings:
+  ///
+  /// | Condition | Warning example |
+  /// |-----------|-----------------|
+  /// | Status is [DebugTraceStatus.failed] | `'trace failed: Auth failed'` |
+  /// | Status is [DebugTraceStatus.cancelled] | `'trace was cancelled'` |
+  /// | Duration > [slowThreshold] | `'slow trace: 4200ms (threshold: 3000ms)'` |
+  /// | Still running > [staleThreshold] | `'trace still running after 150s — possible leak'` |
+  /// | Event count ≥ [maxEventWarningCount] | `'high event count: 103 events (threshold: 100)'` |
+  /// | ≥ 1 failed network events | `'2 failed network request(s) inside trace'` |
+  /// | > 1 error events | `'3 error events recorded in trace'` |
+  /// | ≥ 3 error events with repeated messages | `'repeated errors detected inside trace'` |
+  ///
+  /// Parameters:
+  /// - [slowThreshold]: overrides [defaultSlowThreshold] for this call.
+  /// - [maxEventWarningCount]: overrides [defaultMaxEventWarningCount].
+  /// - [staleThreshold]: overrides [defaultStaleThreshold].
   static List<String> analyze(
     DebugTrace trace, {
     Duration slowThreshold = defaultSlowThreshold,
@@ -29,7 +59,7 @@ class DebugTraceAnalyzer {
   }) {
     final warnings = <String>[];
 
-    // Status-based warnings
+    // --- Status-based ---
     if (trace.status == DebugTraceStatus.failed) {
       warnings.add('trace failed: ${trace.errorSummary ?? 'unknown error'}');
     }
@@ -38,45 +68,53 @@ class DebugTraceAnalyzer {
       warnings.add('trace was cancelled');
     }
 
-    // Duration-based warnings
+    // --- Duration-based ---
     final duration = trace.duration;
     if (duration != null && duration > slowThreshold) {
       warnings.add(
-          'slow trace: ${duration.inMilliseconds}ms (threshold: ${slowThreshold.inMilliseconds}ms)');
+        'slow trace: ${duration.inMilliseconds}ms '
+        '(threshold: ${slowThreshold.inMilliseconds}ms)',
+      );
     }
 
-    // Stale running trace
+    // --- Stale running trace ---
     if (trace.isRunning) {
       final elapsed = DateTime.now().difference(trace.startedAt);
       if (elapsed > staleThreshold) {
         warnings.add(
-            'trace still running after ${elapsed.inSeconds}s — possible leak');
+          'trace still running after ${elapsed.inSeconds}s — possible leak',
+        );
       }
     }
 
-    // Event count warning
+    // --- High event count ---
     if (trace.events.length >= maxEventWarningCount) {
       warnings.add(
-          'high event count: ${trace.events.length} events (threshold: $maxEventWarningCount)');
+        'high event count: ${trace.events.length} events '
+        '(threshold: $maxEventWarningCount)',
+      );
     }
 
-    // Network failure events
+    // --- Failed network requests inside the trace ---
     final failedNetworkEvents = trace.events
         .where((e) => e.type == DebugTraceEventType.network && e.error != null)
         .toList();
     if (failedNetworkEvents.isNotEmpty) {
       warnings.add(
-          '${failedNetworkEvents.length} failed network request(s) inside trace');
+        '${failedNetworkEvents.length} failed network request(s) inside trace',
+      );
     }
 
-    // Error events
+    // --- Multiple error events ---
     final errorEvents =
         trace.events.where((e) => e.type == DebugTraceEventType.error).toList();
     if (errorEvents.length > 1) {
-      warnings.add('${errorEvents.length} error events recorded in trace');
+      warnings.add(
+        '${errorEvents.length} error events recorded in trace',
+      );
     }
 
-    // Repeated identical error messages
+    // --- Repeated identical error messages ---
     if (errorEvents.length >= 3) {
       final messages = errorEvents.map((e) => e.message).toList();
       final unique = messages.toSet();
@@ -88,7 +126,10 @@ class DebugTraceAnalyzer {
     return warnings;
   }
 
-  /// Returns true if the trace has any health warnings.
+  /// Returns `true` when [analyze] would produce at least one warning for
+  /// [trace].
+  ///
+  /// - [slowThreshold]: forwarded to [analyze].
   static bool hasWarnings(
     DebugTrace trace, {
     Duration slowThreshold = defaultSlowThreshold,

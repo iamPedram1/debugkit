@@ -7,25 +7,45 @@ import '../models/debug_trace_status.dart';
 
 /// Bounded in-memory store for [DebugTrace] instances.
 ///
-/// - Default max traces: 50
-/// - Default max events per trace: 200
-/// - No UI coupling, no WidgetsBinding in core logic.
-/// - Evicts oldest completed traces when the buffer is full.
+/// Notifies [ChangeNotifier] listeners when the trace list changes so the
+/// console UI can rebuild reactively. Like [DebugLogStore], notifications are
+/// deferred during frame builds to prevent "setState during build" errors.
+///
+/// **Eviction policy**: when [maxTraces] is reached, the oldest *completed*
+/// (non-running) trace is dropped first. If every trace is still running, the
+/// oldest trace is dropped regardless.
+///
+/// The store is accessed via [DebugKitController.traceStore]. Direct
+/// construction is for tests only.
 class DebugTraceStore extends ChangeNotifier {
+  /// Maximum number of [DebugTrace] instances kept in memory.
+  ///
+  /// Defaults to `50`.
   final int maxTraces;
+
+  /// Maximum number of [DebugTraceEvent] instances per trace.
+  ///
+  /// When a trace reaches this limit, the oldest event is dropped before the
+  /// newest is appended.
+  /// Defaults to `200`.
   final int maxEventsPerTrace;
 
   final List<DebugTrace> _traces = [];
 
+  /// Creates a [DebugTraceStore] with the given capacity limits.
   DebugTraceStore({
     this.maxTraces = 50,
     this.maxEventsPerTrace = 200,
   });
 
-  /// All stored traces, newest last.
+  /// All stored traces in insertion order (oldest first).
+  ///
+  /// Returns an unmodifiable view — mutate via [startTrace], [addEvent],
+  /// [finishTrace], [failTrace], [cancelTrace], or [clear].
   UnmodifiableListView<DebugTrace> get traces => UnmodifiableListView(_traces);
 
-  /// Returns the currently running trace with the given [id], or null.
+  /// Returns the running trace with the given [id], or `null` if not found or
+  /// already completed.
   DebugTrace? getRunningTrace(String id) {
     try {
       return _traces.firstWhere((t) => t.id == id && t.isRunning);
@@ -34,7 +54,10 @@ class DebugTraceStore extends ChangeNotifier {
     }
   }
 
-  /// Returns any running trace (for active-trace lookup).
+  /// Returns the most recently started trace that is still running, or `null`.
+  ///
+  /// Used by [DebugTraceController] as a fallback when no Zone-based trace ID
+  /// is available.
   DebugTrace? get activeTrace {
     try {
       return _traces.lastWhere((t) => t.isRunning);
@@ -43,17 +66,22 @@ class DebugTraceStore extends ChangeNotifier {
     }
   }
 
-  /// Adds a new trace in [DebugTraceStatus.running] state.
+  /// Adds [trace] (which must be in [DebugTraceStatus.running] state) to the
+  /// store, evicting an old entry if the buffer is full.
   void startTrace(DebugTrace trace) {
     _evictIfNeeded();
     _traces.add(trace);
     _safeNotify();
   }
 
-  /// Appends an event to the trace identified by [traceId].
+  /// Appends [event] to the trace identified by [traceId].
   ///
-  /// Silently ignores if the trace is not found or is no longer running.
-  /// Enforces [maxEventsPerTrace] — oldest events are dropped when full.
+  /// Silently ignores the call if:
+  /// - no trace with [traceId] exists, or
+  /// - the trace is no longer in [DebugTraceStatus.running] state.
+  ///
+  /// Enforces [maxEventsPerTrace] by dropping the oldest event first when the
+  /// per-trace limit is reached.
   void addEvent(String traceId, DebugTraceEvent event) {
     final index = _traces.indexWhere((t) => t.id == traceId);
     if (index == -1) return;
@@ -71,38 +99,50 @@ class DebugTraceStore extends ChangeNotifier {
     _safeNotify();
   }
 
-  /// Marks the trace as [DebugTraceStatus.success] and records [endedAt].
+  /// Transitions the trace identified by [traceId] to [DebugTraceStatus.success]
+  /// and records [endedAt] as the completion timestamp.
+  ///
+  /// No-op if [traceId] is not found.
   void finishTrace(String traceId, DateTime endedAt) {
     _updateTrace(
-        traceId,
-        (t) => t.copyWith(
-              status: DebugTraceStatus.success,
-              endedAt: endedAt,
-            ));
+      traceId,
+      (t) => t.copyWith(
+        status: DebugTraceStatus.success,
+        endedAt: endedAt,
+      ),
+    );
   }
 
-  /// Marks the trace as [DebugTraceStatus.failed] with an optional error summary.
+  /// Transitions the trace identified by [traceId] to [DebugTraceStatus.failed]
+  /// and records [endedAt] and an optional [errorSummary].
+  ///
+  /// No-op if [traceId] is not found.
   void failTrace(String traceId, DateTime endedAt, {String? errorSummary}) {
     _updateTrace(
-        traceId,
-        (t) => t.copyWith(
-              status: DebugTraceStatus.failed,
-              endedAt: endedAt,
-              errorSummary: errorSummary,
-            ));
+      traceId,
+      (t) => t.copyWith(
+        status: DebugTraceStatus.failed,
+        endedAt: endedAt,
+        errorSummary: errorSummary,
+      ),
+    );
   }
 
-  /// Marks the trace as [DebugTraceStatus.cancelled].
+  /// Transitions the trace identified by [traceId] to [DebugTraceStatus.cancelled]
+  /// and records [endedAt].
+  ///
+  /// No-op if [traceId] is not found.
   void cancelTrace(String traceId, DateTime endedAt) {
     _updateTrace(
-        traceId,
-        (t) => t.copyWith(
-              status: DebugTraceStatus.cancelled,
-              endedAt: endedAt,
-            ));
+      traceId,
+      (t) => t.copyWith(
+        status: DebugTraceStatus.cancelled,
+        endedAt: endedAt,
+      ),
+    );
   }
 
-  /// Removes all stored traces.
+  /// Removes all stored traces and notifies listeners.
   void clear() {
     _traces.clear();
     _safeNotify();
@@ -119,12 +159,13 @@ class DebugTraceStore extends ChangeNotifier {
     _safeNotify();
   }
 
-  /// Evicts the oldest *completed* trace when the buffer is full.
-  /// If all traces are running, evicts the oldest one regardless.
+  /// Evicts one trace from the buffer when [maxTraces] is reached.
+  ///
+  /// Prefers to remove the oldest completed trace. Falls back to evicting the
+  /// oldest trace regardless of status.
   void _evictIfNeeded() {
     if (_traces.length < maxTraces) return;
 
-    // Prefer evicting completed traces first
     final completedIndex =
         _traces.indexWhere((t) => t.status != DebugTraceStatus.running);
     if (completedIndex != -1) {

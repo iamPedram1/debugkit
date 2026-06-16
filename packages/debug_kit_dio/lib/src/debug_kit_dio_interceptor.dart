@@ -2,15 +2,34 @@ import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
 import 'dio_log_sanitizer_helpers.dart';
 
-/// A Dio interceptor that logs network transactions to DebugKit.
+/// A Dio [Interceptor] that logs network transactions to DebugKit.
 ///
-/// If a request is made inside an active [DebugKit.trace.run] zone, the
-/// trace ID and name are automatically attached to the log entry and a
-/// network trace event is recorded on the active trace.
+/// Lifecycle:
+/// 1. **[onRequest]**: Creates a pending log entry with the sanitized URL and
+///    headers. Assigns a unique `request_id` and records the start timestamp
+///    in `options.extra`.
+/// 2. **[onResponse]**: Updates the pending log entry (by `request_id`) with
+///    the status code, duration, and sanitized response headers.
+/// 3. **[onError]**: Updates the pending log entry with the error type, status
+///    code (if available), and duration. Sets the level to
+///    [DebugLogLevel.error]. Handles Dio cancel exceptions gracefully.
+///
+/// The "pending → final" update pattern means the console always shows one
+/// entry per request, not two separate entries.
+///
+/// **Trace correlation:** the active Zone trace ID is read once in
+/// [onRequest] and stored in `options.extra['debugKitTraceId']`. This
+/// snapshot is then used in [onResponse] and [onError] so that the trace is
+/// correctly associated even when the response arrives in a different Zone.
 class DebugKitDioInterceptor extends Interceptor {
   final DebugKitController _controller;
+
+  /// Per-interceptor counter used to generate unique `request_id` strings.
+  ///
+  /// Format: `'dio_<n>'` where `n` increments from 1.
   int _idCounter = 0;
 
+  /// Creates a [DebugKitDioInterceptor] backed by [controller].
   DebugKitDioInterceptor(this._controller);
 
   @override
@@ -23,7 +42,8 @@ class DebugKitDioInterceptor extends Interceptor {
     options.extra['debugKitRequestId'] = requestId;
     options.extra['debugKitStartedAt'] = DateTime.now().millisecondsSinceEpoch;
 
-    // Capture active trace context at request time
+    // Snapshot the active trace context at request time so it can be used
+    // in onResponse / onError even if the Zone changes.
     final traceId = _controller.traceController.activeTraceId;
     final traceName = _controller.traceController.activeTraceName;
     if (traceId != null) {
@@ -47,7 +67,7 @@ class DebugKitDioInterceptor extends Interceptor {
       },
     );
 
-    // Record network event on active trace
+    // Record the request start as a network trace event
     if (traceId != null) {
       _controller.traceController.recordNetworkEvent(
         message: '$method $url · pending',
@@ -82,6 +102,7 @@ class DebugKitDioInterceptor extends Interceptor {
       final traceId =
           response.requestOptions.extra['debugKitTraceId'] as String?;
 
+      // Update the pending log entry with the final status
       _controller.updateLogByRequestId(requestId, (entry) {
         return entry.copyWith(
           message: '$method $url · $statusCode · $durationStr',
@@ -95,7 +116,7 @@ class DebugKitDioInterceptor extends Interceptor {
         );
       });
 
-      // Update trace event if inside a trace
+      // Record the response as a network trace event
       if (traceId != null) {
         _controller.traceController.recordNetworkEvent(
           message: '$method $url · $statusCode · $durationStr',
@@ -135,6 +156,7 @@ class DebugKitDioInterceptor extends Interceptor {
 
       final traceId = err.requestOptions.extra['debugKitTraceId'] as String?;
 
+      // Update the pending log entry as an error
       _controller.updateLogByRequestId(requestId, (entry) {
         return entry.copyWith(
           message: '$method $url · $statusCode · $durationStr',
@@ -148,7 +170,7 @@ class DebugKitDioInterceptor extends Interceptor {
         );
       });
 
-      // Record failed network event on trace
+      // Record the failure as a network trace event with an error field
       if (traceId != null) {
         _controller.traceController.recordNetworkEvent(
           message: '$method $url · $statusCode · $durationStr',

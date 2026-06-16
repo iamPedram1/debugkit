@@ -1,3 +1,16 @@
+/// DebugKit — a mobile-first in-app DevTools cockpit for Flutter apps.
+///
+/// Import this library and call [DebugKit.init] once in `main()` to enable
+/// the log console, trace system, and adapter integrations.
+///
+/// ```dart
+/// import 'package:debug_kit/debug_kit.dart';
+///
+/// void main() {
+///   DebugKit.init(enabled: kDebugMode);
+///   runApp(const MyApp());
+/// }
+/// ```
 library debug_kit;
 
 import 'package:flutter/material.dart';
@@ -25,12 +38,49 @@ export 'src/core/trace/debug_trace_controller.dart'
         debugKitActiveTraceNameKey;
 export 'src/utils/sanitizer/debug_log_sanitizer.dart';
 export 'src/ui/overlay/debug_kit_overlay.dart';
-// Note: debug_kit_console_screen.dart is used internally by DebugKitOverlay.
+// Note: DebugKitConsoleScreen is used internally by DebugKitOverlay and is
+// not part of the public API.
 
+/// Top-level facade for DebugKit.
+///
+/// All interaction should go through this class. The singleton
+/// [DebugKitController] is owned here and is not intended to be constructed
+/// directly by application code.
+///
+/// **Setup (5 lines):**
+/// ```dart
+/// void main() {
+///   final dio = Dio();
+///   DebugKit.init(enabled: kDebugMode, adapters: [DebugKitDioAdapter(dio)]);
+///   runApp(MaterialApp.router(
+///     builder: (ctx, child) => DebugKitOverlay(child: child!),
+///   ));
+/// }
+/// ```
 class DebugKit {
   static final DebugKitController _controller = DebugKitController();
 
-  /// Initialize DebugKit with configuration.
+  /// Initializes DebugKit with the supplied configuration.
+  ///
+  /// Must be called once, before `runApp`, in your `main()` function. Safe to
+  /// call again if you need to change configuration at runtime — all adapters
+  /// are disposed and re-attached.
+  ///
+  /// Parameters:
+  /// - [enabled]: master on/off switch. Pass `kDebugMode` to disable in
+  ///   release builds automatically. Defaults to `true`.
+  /// - [maxLogs]: log buffer capacity. Oldest entries are evicted when full.
+  ///   Defaults to `300`.
+  /// - [captureAppCallLocation]: parse call-site file/line for `app` logs.
+  ///   Defaults to `true`.
+  /// - [captureAppStackTrace]: reserved for future use. Defaults to `false`.
+  /// - [adapters]: list of [DebugKitAdapter] instances (Dio, GoRouter, …).
+  /// - [navigatorKey]: required for `MaterialApp.router` apps to open the
+  ///   console from the overlay button.
+  /// - [maxTraces]: trace buffer capacity. Defaults to `50`.
+  /// - [maxTraceEventsPerTrace]: per-trace event limit. Defaults to `200`.
+  /// - [slowTraceThreshold]: duration that triggers a "slow trace" health
+  ///   warning. Defaults to 3 seconds.
   static void init({
     bool enabled = true,
     int maxLogs = 300,
@@ -55,29 +105,70 @@ class DebugKit {
     );
   }
 
-  /// Whether DebugKit is currently enabled.
+  /// Whether DebugKit is currently active.
+  ///
+  /// Returns `false` until [init] is called, or when initialized with
+  /// `enabled: false`.
   static bool get isEnabled => _controller.config.enabled;
 
-  /// Clears all logs from the in-memory store.
+  /// Removes all log entries from the in-memory store.
+  ///
+  /// No-op when [isEnabled] is `false`.
   static void clearLogs() => _controller.store.clear();
 
-  /// Clears all traces from the in-memory store.
+  /// Removes all trace records from the in-memory store.
+  ///
+  /// No-op when [isEnabled] is `false`.
   static void clearTraces() => _controller.traceStore.clear();
 
-  /// Access the logging API.
+  /// The manual logging API.
+  ///
+  /// Use the convenience methods for common cases:
+  /// ```dart
+  /// DebugKit.log.debug('Cache hit', metadata: {'key': 'user_42'});
+  /// DebugKit.log.info('User signed in');
+  /// DebugKit.log.warning('Slow network', metadata: {'url': '/api/feed'});
+  /// DebugKit.log.error('Auth failed', error: e, stackTrace: s);
+  /// DebugKit.log.userAction('Tapped checkout button');
+  /// ```
   static final DebugKitLog log = DebugKitLog(_controller);
 
-  /// Access the trace API.
+  /// The trace API.
+  ///
+  /// Use [DebugKitTrace.run] for scoped async tracing (recommended):
+  /// ```dart
+  /// await DebugKit.trace.run('login_flow', () async {
+  ///   DebugKit.trace.step('validate_input');
+  ///   await authRepo.login();
+  /// });
+  /// ```
+  ///
+  /// Or use [DebugKitTrace.start] / [DebugKitTrace.end] for manual control:
+  /// ```dart
+  /// final id = DebugKit.trace.start('checkout');
+  /// DebugKit.trace.step('validate_cart', traceId: id);
+  /// DebugKit.trace.end(traceId: id);
+  /// ```
   static final DebugKitTrace trace = DebugKitTrace(_controller);
 
-  /// Access the internal controller (use with caution).
+  /// Direct access to the internal [DebugKitController].
+  ///
+  /// Intended for adapter packages that need to call [DebugKitController.log]
+  /// or [DebugKitController.traceController] directly. Application code should
+  /// use [log] and [trace] instead.
   static DebugKitController get controller => _controller;
 
-  /// Opens the DebugKit console.
+  /// Pushes the [DebugKitConsoleScreen] onto the nearest [Navigator].
   ///
-  /// If [context] is provided, it will try to find a [Navigator] to push the console.
-  /// If no navigator is found in context, it will try to use the [navigatorKey] provided during [init].
-  /// If still no navigator is found, it will log a warning.
+  /// Resolution order:
+  /// 1. [Navigator.maybeOf(context)] — uses the navigator in the widget tree.
+  /// 2. [DebugKitConfig.navigatorKey] — falls back to the key provided during
+  ///    [init] when no navigator is found in the context.
+  /// 3. Prints a warning if neither resolves.
+  ///
+  /// For apps using `MaterialApp.router`, always provide a [navigatorKey]
+  /// during [init] because the router manages navigation outside the widget
+  /// tree context.
   static void openConsole(BuildContext context) {
     NavigatorState? navigator = Navigator.maybeOf(context);
 
@@ -105,39 +196,101 @@ class DebugKit {
 // DebugKitLog — manual logging API
 // ---------------------------------------------------------------------------
 
+/// The manual logging API accessed via [DebugKit.log].
+///
+/// All methods sanitize input before storage. They are strict no-ops when
+/// DebugKit is disabled. When called inside an active [DebugKit.trace.run]
+/// zone, the log entry automatically carries the trace ID and a corresponding
+/// [DebugTraceEventType.log] event is recorded on the active trace.
 class DebugKitLog {
   final DebugKitController _controller;
 
+  /// @nodoc — constructed by [DebugKit].
   DebugKitLog(this._controller);
 
-  void debug(String message,
-      {String? error, StackTrace? stackTrace, Map<String, String>? metadata}) {
+  /// Logs a [DebugLogLevel.debug] entry.
+  ///
+  /// Use for verbose, development-only information.
+  ///
+  /// - [message]: sanitized description of the event.
+  /// - [error]: optional exception string.
+  /// - [stackTrace]: optional stack trace (trimmed to 25 lines).
+  /// - [metadata]: optional key-value context.
+  void debug(
+    String message, {
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
     _controller.debug(message,
         error: error, stackTrace: stackTrace, metadata: metadata);
   }
 
-  void info(String message,
-      {String? error, StackTrace? stackTrace, Map<String, String>? metadata}) {
+  /// Logs a [DebugLogLevel.info] entry.
+  ///
+  /// Use for normal, noteworthy app events (sign-in, navigation, startup).
+  void info(
+    String message, {
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
     _controller.info(message,
         error: error, stackTrace: stackTrace, metadata: metadata);
   }
 
-  void warning(String message,
-      {String? error, StackTrace? stackTrace, Map<String, String>? metadata}) {
+  /// Logs a [DebugLogLevel.warning] entry.
+  ///
+  /// Use when something unexpected happened but the app can continue.
+  void warning(
+    String message, {
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
     _controller.warning(message,
         error: error, stackTrace: stackTrace, metadata: metadata);
   }
 
-  void error(String message,
-      {dynamic error, StackTrace? stackTrace, Map<String, String>? metadata}) {
+  /// Logs a [DebugLogLevel.error] entry.
+  ///
+  /// Use for failures that require attention.
+  ///
+  /// - [error]: accepts any type — converted via `.toString()`.
+  void error(
+    String message, {
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
     _controller.error(message,
         error: error, stackTrace: stackTrace, metadata: metadata);
   }
 
+  /// Logs a [DebugLogLevel.info] entry with [DebugLogSource.userAction].
+  ///
+  /// Use this for intentional user interactions (button taps, swipes, form
+  /// submissions) that are worth tracking separately from informational logs.
+  ///
+  /// - [action]: description of what the user did.
+  /// - [metadata]: optional context (e.g. screen name, element label).
   void userAction(String action, {Map<String, String>? metadata}) {
     _controller.userAction(action, metadata: metadata);
   }
 
+  /// Logs an entry with full control over all fields.
+  ///
+  /// Use when none of the convenience methods fit your use case — for example,
+  /// when building a custom adapter that needs a non-`app` source or a
+  /// specific [requestId] / [traceId].
+  ///
+  /// - [message]: sanitized description. Required.
+  /// - [level]: severity. Required.
+  /// - [source]: subsystem origin. Required.
+  /// - [requestId]: correlates with a Dio pending entry.
+  /// - [traceId]: explicit trace ID; falls back to Zone value if omitted.
+  /// - [traceName]: trace display name; falls back to Zone value if omitted.
+  /// - [traceStep]: optional step counter within the trace.
   void custom({
     required String message,
     required DebugLogLevel level,
@@ -169,57 +322,128 @@ class DebugKitLog {
 // DebugKitTrace — trace API
 // ---------------------------------------------------------------------------
 
-/// The public trace API, accessed via [DebugKit.trace].
+/// The trace API accessed via [DebugKit.trace].
 ///
-/// Example — manual trace:
-/// ```dart
-/// final traceId = DebugKit.trace.start('login_flow', metadata: {'screen': 'login'});
-/// DebugKit.trace.step('validate_input');
-/// DebugKit.trace.end();
-/// ```
+/// Traces group a sequence of timestamped events into a named timeline so you
+/// can understand exactly what happened during a user flow, network call, or
+/// background task.
 ///
-/// Example — scoped async trace:
+/// **Recommended — scoped async trace:**
 /// ```dart
 /// await DebugKit.trace.run('login_flow', () async {
 ///   DebugKit.trace.step('validate_input');
-///   await authRepository.login();
+///   await authRepository.login(email, password);
 ///   DebugKit.trace.step('login_success');
 /// }, metadata: {'source': 'login_button'});
 /// ```
+///
+/// **Manual trace (for synchronous or non-async flows):**
+/// ```dart
+/// final id = DebugKit.trace.start('checkout', metadata: {'items': '3'});
+/// DebugKit.trace.step('validate_cart', traceId: id);
+/// DebugKit.trace.step('apply_discount', traceId: id);
+/// DebugKit.trace.end(traceId: id);
+/// ```
+///
+/// All methods are strict no-ops when DebugKit is disabled.
 class DebugKitTrace {
   final DebugKitController _controller;
 
+  /// @nodoc — constructed by [DebugKit].
   DebugKitTrace(this._controller);
 
   DebugTraceController get _tc => _controller.traceController;
 
-  /// Starts a new trace. Returns the trace ID.
+  /// Starts a new named trace and returns its stable trace ID.
   ///
-  /// If called inside an active [run] zone, the new trace will be nested
-  /// under the parent trace via [parentTraceId].
+  /// The trace begins in [DebugTraceStatus.running]. You are responsible for
+  /// closing it with [end], [fail], or [cancel]. Prefer [run] to manage the
+  /// lifecycle automatically.
+  ///
+  /// When called inside an active [run] zone, the new trace's
+  /// [DebugTrace.parentTraceId] is set to the outer trace's ID.
+  ///
+  /// Returns an empty string when DebugKit is disabled.
+  ///
+  /// - [name]: human-readable identifier for the trace (e.g. `'login_flow'`).
+  /// - [metadata]: optional sanitized context attached to the trace root.
   String start(String name, {Map<String, String>? metadata}) =>
       _tc.start(name, metadata: metadata);
 
-  /// Records a named step on the active trace (or [traceId] if provided).
+  /// Records a named step event on the trace.
+  ///
+  /// Steps mark progress milestones (e.g. `'validate_input'`,
+  /// `'cache_miss'`, `'network_request_sent'`).
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID (set by [run]) is
+  /// used. No-op if neither is available or DebugKit is disabled.
+  ///
+  /// - [name]: step description.
+  /// - [traceId]: explicit trace ID; falls back to Zone value.
+  /// - [metadata]: optional context for this step.
   void step(String name, {String? traceId, Map<String, String>? metadata}) =>
       _tc.step(name, traceId: traceId, metadata: metadata);
 
-  /// Marks the active trace (or [traceId]) as successfully completed.
+  /// Marks the trace as [DebugTraceStatus.success] and records the end time.
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID is used.
   void end({String? traceId}) => _tc.end(traceId: traceId);
 
-  /// Marks the active trace (or [traceId]) as failed.
+  /// Marks the trace as [DebugTraceStatus.failed] with the given [error].
+  ///
+  /// Records an [DebugTraceEventType.error] event and stores a sanitized
+  /// error summary on the trace. The [error] string is sanitized before
+  /// storage.
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID is used.
+  ///
+  /// Note: [run] calls this automatically when the callback throws — you
+  /// rarely need to call it directly.
   void fail(dynamic error, StackTrace? stackTrace, {String? traceId}) =>
       _tc.fail(error, stackTrace, traceId: traceId);
 
-  /// Marks the active trace (or [traceId]) as cancelled.
+  /// Marks the trace as [DebugTraceStatus.cancelled].
+  ///
+  /// Records an optional [DebugTraceEventType.custom] event with the
+  /// cancellation reason. Use this when an operation is deliberately aborted
+  /// rather than failing due to an error.
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID is used.
+  ///
+  /// - [reason]: optional human-readable cancellation description.
   void cancel(String? reason, {String? traceId}) =>
       _tc.cancel(reason, traceId: traceId);
 
-  /// Runs [callback] inside a Zone that propagates the active trace context.
+  /// Runs [callback] inside a Dart Zone that automatically propagates the
+  /// active trace context to all logs and adapter events.
   ///
-  /// - Starts a trace named [name] before calling [callback].
-  /// - Marks the trace as success when [callback] returns normally.
-  /// - Marks the trace as failed if [callback] throws, then rethrows.
+  /// **Lifecycle:**
+  /// 1. [start] is called to create the trace.
+  /// 2. [callback] runs inside a [runZoned] scope that injects the trace ID
+  ///    and name. All [DebugKit.log.*] calls and adapter hooks (Dio, GoRouter,
+  ///    Riverpod) inside [callback] are automatically correlated.
+  /// 3. [end] is called when [callback] returns normally.
+  /// 4. [fail] is called and the original exception is **rethrown** when
+  ///    [callback] throws, preserving the stack trace.
+  ///
+  /// When DebugKit is disabled, [callback] is called directly with zero
+  /// overhead.
+  ///
+  /// - [name]: trace name (e.g. `'login_flow'`).
+  /// - [callback]: the async work to trace.
+  /// - [metadata]: optional metadata attached to the trace root.
+  ///
+  /// ```dart
+  /// try {
+  ///   await DebugKit.trace.run('refresh_feed', () async {
+  ///     DebugKit.trace.step('fetch_posts');
+  ///     final posts = await postsRepo.fetchLatest();
+  ///     DebugKit.trace.step('render_posts', metadata: {'count': '${posts.length}'});
+  ///   });
+  /// } catch (e) {
+  ///   // The trace is already marked failed — just handle the error here.
+  /// }
+  /// ```
   Future<T> run<T>(
     String name,
     Future<T> Function() callback, {

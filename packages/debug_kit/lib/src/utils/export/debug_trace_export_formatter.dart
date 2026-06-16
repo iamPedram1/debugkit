@@ -3,16 +3,26 @@ import '../../core/models/debug_trace.dart';
 import '../../core/models/debug_trace_status.dart';
 import '../trace/debug_trace_analyzer.dart';
 
-/// Pure formatter for exporting [DebugTrace] data as human-readable text.
+/// Pure, stateless formatter for exporting [DebugTrace] data as human-readable
+/// plain text.
 ///
 /// Only sanitized values are formatted — this class never re-sanitizes or
-/// inspects raw data. It trusts that the store already holds clean values.
+/// inspects raw data. It trusts that the store already holds safe content.
+///
+/// Used by [DebugLogExportFormatter.formatLogs] to append a Traces section to
+/// the export file, and by the trace detail screen's "Copy trace summary"
+/// action.
 class DebugTraceExportFormatter {
   static final _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
   static final _timeFormat = DateFormat('HH:mm:ss.SSS');
 
-  /// Formats a list of traces into a complete section for inclusion in an
-  /// export file.
+  /// Formats [traces] as a complete "DebugKit Traces" section.
+  ///
+  /// Returns a minimal `'DebugKit Traces\nTotal: 0\n'` string when [traces]
+  /// is empty.
+  ///
+  /// - [slowThreshold]: passed to [DebugTraceAnalyzer.analyze] for each trace.
+  ///   Defaults to [DebugTraceAnalyzer.defaultSlowThreshold] (3 seconds).
   static String formatTraces(
     List<DebugTrace> traces, {
     Duration slowThreshold = DebugTraceAnalyzer.defaultSlowThreshold,
@@ -37,7 +47,32 @@ class DebugTraceExportFormatter {
     return buffer.toString();
   }
 
-  /// Formats a single [DebugTrace] with its timeline and health warnings.
+  /// Formats a single [DebugTrace] including its header, timeline, and health
+  /// warnings.
+  ///
+  /// Output structure:
+  /// ```
+  /// Trace: <name>
+  ///   ID     : <id>
+  ///   Status : <STATUS>
+  ///   Started: yyyy-MM-dd HH:mm:ss
+  ///   Ended  : yyyy-MM-dd HH:mm:ss   (if ended)
+  ///   Duration: <N>ms                (if ended)
+  ///   Parent : <parentId>            (if nested)
+  ///   Meta   : key=value ...         (if metadata)
+  ///   Error  : <errorSummary>        (if failed)
+  ///
+  ///   Timeline (N events):
+  ///     +0ms     [STEP]   validate_input
+  ///     +20ms    [NET]    GET /api/login · pending  req=dio_1
+  ///     +800ms   [NET]    GET /api/login · 401 · 780ms  req=dio_1  780ms  error=...
+  ///
+  ///   Health Warnings:
+  ///     - trace failed: Auth failed
+  ///     - slow trace: ...
+  /// ```
+  ///
+  /// - [slowThreshold]: threshold for the slow-trace health warning.
   static String formatTrace(
     DebugTrace trace, {
     Duration slowThreshold = DebugTraceAnalyzer.defaultSlowThreshold,
@@ -71,7 +106,7 @@ class DebugTraceExportFormatter {
       buffer.writeln('  Error  : ${trace.errorSummary}');
     }
 
-    // Timeline
+    // Timeline section
     if (trace.events.isNotEmpty) {
       buffer.writeln();
       buffer.writeln('  Timeline (${trace.events.length} events):');
@@ -101,7 +136,7 @@ class DebugTraceExportFormatter {
       }
     }
 
-    // Health warnings
+    // Health warnings section
     final warnings =
         DebugTraceAnalyzer.analyze(trace, slowThreshold: slowThreshold);
     if (warnings.isNotEmpty) {
@@ -115,7 +150,11 @@ class DebugTraceExportFormatter {
     return buffer.toString();
   }
 
-  /// Formats a summary section of failed traces only.
+  /// Returns a compact multi-line summary listing only the failed traces in
+  /// [traces].
+  ///
+  /// Returns an empty string when no traces have [DebugTraceStatus.failed].
+  /// Intended as a quick-reference section at the bottom of an export file.
   static String formatFailedSummary(List<DebugTrace> traces) {
     final failed =
         traces.where((t) => t.status == DebugTraceStatus.failed).toList();
@@ -133,7 +172,9 @@ class DebugTraceExportFormatter {
     return buffer.toString();
   }
 
-  /// Returns the timestamp of the export for use in file headers.
+  /// Returns a short `'Exported: HH:mm:ss.SSS'` header string for [now].
+  ///
+  /// Used to embed a precise timestamp in export file headers.
   static String exportHeader(DateTime now) {
     return 'Exported: ${_timeFormat.format(now)}';
   }

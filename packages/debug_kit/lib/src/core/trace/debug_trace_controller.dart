@@ -8,56 +8,99 @@ import '../../utils/sanitizer/debug_log_sanitizer.dart';
 
 /// Zone key used to propagate the active trace ID through async call stacks.
 ///
-/// Adapters and log calls can read this to attach trace correlation metadata
-/// without any global mutable state.
+/// Set by [DebugTraceController.run] via [runZoned]. Read by
+/// [DebugTraceController.activeTraceId], [DebugKitController.log], and all
+/// adapter packages to attach trace correlation metadata without global
+/// mutable state.
+///
+/// ```dart
+/// final id = Zone.current[debugKitActiveTraceIdKey] as String?;
+/// ```
 const Symbol debugKitActiveTraceIdKey = #debugKitActiveTraceId;
+
+/// Zone key used to propagate the active trace name through async call stacks.
+///
+/// Mirrors [debugKitActiveTraceIdKey] but carries the human-readable trace
+/// name for convenient display in log entries without a store lookup.
 const Symbol debugKitActiveTraceNameKey = #debugKitActiveTraceName;
 
-/// Controls the trace lifecycle and provides the public trace API.
+/// Manages the complete trace lifecycle and exposes the public trace API.
 ///
-/// Accessed via [DebugKit.trace]. All methods are no-ops when [_enabled] is
-/// false, ensuring zero overhead in disabled mode.
+/// Accessed via [DebugKit.trace] (wrapped by [DebugKitTrace]). All public
+/// methods are strict no-ops when [_isEnabled] returns `false`, ensuring zero
+/// overhead in disabled mode.
+///
+/// **Zone-based context propagation**: [run] wraps the callback in a
+/// [runZoned] call that injects [debugKitActiveTraceIdKey] and
+/// [debugKitActiveTraceNameKey] into the Zone. Every [DebugKit.log.*] call and
+/// every adapter hook reads these values automatically, so logs and events
+/// inside the callback are correlated without explicit plumbing.
 class DebugTraceController {
   final DebugTraceStore _store;
+
+  /// Callback that returns the current enabled state of DebugKit.
+  ///
+  /// Evaluated lazily so the controller honours runtime enable/disable changes
+  /// without needing to be re-created.
   final bool Function() _isEnabled;
 
   int _idCounter = 0;
   int _eventIdCounter = 0;
 
+  /// Creates a [DebugTraceController].
+  ///
+  /// - [store]: the [DebugTraceStore] where traces are persisted.
+  /// - [isEnabled]: returns `true` when DebugKit is active.
   DebugTraceController({
     required DebugTraceStore store,
     required bool Function() isEnabled,
   })  : _store = store,
         _isEnabled = isEnabled;
 
+  /// The [DebugTraceStore] owned by this controller.
   DebugTraceStore get store => _store;
 
   // ---------------------------------------------------------------------------
   // Active trace context (Zone-based)
   // ---------------------------------------------------------------------------
 
-  /// Returns the active trace ID from the current Zone, or null.
+  /// The active trace ID from the current Dart Zone, or `null` if no trace is
+  /// running in this async context.
+  ///
+  /// Set automatically by [run]. Adapters and [DebugKitController.log] read
+  /// this to attach trace metadata without explicit parameters.
   String? get activeTraceId =>
       Zone.current[debugKitActiveTraceIdKey] as String?;
 
-  /// Returns the active trace name from the current Zone, or null.
+  /// The active trace name from the current Dart Zone, or `null`.
+  ///
+  /// Mirrors [activeTraceId] but carries the display name.
   String? get activeTraceName =>
       Zone.current[debugKitActiveTraceNameKey] as String?;
 
   // ---------------------------------------------------------------------------
-  // Public API
+  // Public trace lifecycle API
   // ---------------------------------------------------------------------------
 
-  /// Starts a new trace with the given [name].
+  /// Starts a new named trace and returns its stable trace ID.
   ///
-  /// If called inside an active [run] zone, the new trace will be nested
-  /// under the parent trace via [parentTraceId].
+  /// The trace begins in [DebugTraceStatus.running]. Call [end], [fail], or
+  /// [cancel] to close it, or use [run] to manage the lifecycle automatically.
   ///
-  /// Returns the trace ID for use with [step], [end], [fail], and [cancel].
-  String start(
-    String name, {
-    Map<String, String>? metadata,
-  }) {
+  /// If called inside an active [run] zone, the new trace's [DebugTrace.parentTraceId]
+  /// is set to the outer trace's ID, supporting nested traces.
+  ///
+  /// Returns an empty string (and stores nothing) when DebugKit is disabled.
+  ///
+  /// - [name]: human-readable identifier, e.g. `'login_flow'`.
+  /// - [metadata]: optional sanitized context attached to the trace root.
+  ///
+  /// ```dart
+  /// final id = DebugKit.trace.start('checkout', metadata: {'items': '3'});
+  /// // ... do work ...
+  /// DebugKit.trace.end(traceId: id);
+  /// ```
+  String start(String name, {Map<String, String>? metadata}) {
     if (!_isEnabled()) return '';
 
     final id = _nextTraceId();
@@ -76,14 +119,18 @@ class DebugTraceController {
     return id;
   }
 
-  /// Records a named step event on the trace identified by [traceId].
+  /// Records a named step event on the trace.
   ///
-  /// If [traceId] is omitted, uses the active Zone trace ID.
-  void step(
-    String name, {
-    String? traceId,
-    Map<String, String>? metadata,
-  }) {
+  /// Steps are the primary way to mark progress milestones inside a trace
+  /// (e.g. `'validate_input'`, `'network_request_sent'`).
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID is used. No-op if
+  /// neither is available or DebugKit is disabled.
+  ///
+  /// - [name]: step description.
+  /// - [traceId]: explicit trace ID; falls back to Zone value.
+  /// - [metadata]: optional key-value context for this step.
+  void step(String name, {String? traceId, Map<String, String>? metadata}) {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
@@ -96,9 +143,10 @@ class DebugTraceController {
     );
   }
 
-  /// Marks the trace as successfully completed.
+  /// Marks the trace as [DebugTraceStatus.success] and records the end time.
   ///
-  /// If [traceId] is omitted, uses the active Zone trace ID.
+  /// If [traceId] is omitted, the active Zone trace ID is used. No-op if
+  /// neither is available or DebugKit is disabled.
   void end({String? traceId}) {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
@@ -106,14 +154,18 @@ class DebugTraceController {
     _store.finishTrace(id, DateTime.now());
   }
 
-  /// Marks the trace as failed with an optional [error] and [stackTrace].
+  /// Marks the trace as [DebugTraceStatus.failed], records an error event, and
+  /// stores a sanitized [errorSummary] on the trace.
   ///
-  /// If [traceId] is omitted, uses the active Zone trace ID.
-  void fail(
-    dynamic error,
-    StackTrace? stackTrace, {
-    String? traceId,
-  }) {
+  /// The [error] and [stackTrace] parameters mirror those of a standard Dart
+  /// `catch` clause. The error string is sanitized before storage.
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID is used. No-op if
+  /// neither is available or DebugKit is disabled.
+  ///
+  /// Note: [run] calls this automatically when the callback throws — you
+  /// usually don't need to call it directly.
+  void fail(dynamic error, StackTrace? stackTrace, {String? traceId}) {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
@@ -132,9 +184,17 @@ class DebugTraceController {
     _store.failTrace(id, DateTime.now(), errorSummary: sanitizedError);
   }
 
-  /// Marks the trace as cancelled with an optional [reason].
+  /// Marks the trace as [DebugTraceStatus.cancelled] and optionally records a
+  /// reason event.
   ///
-  /// If [traceId] is omitted, uses the active Zone trace ID.
+  /// Use this when the user or system deliberately aborts an operation that
+  /// was in progress (e.g. user dismissed a modal while a network call was
+  /// pending).
+  ///
+  /// If [traceId] is omitted, the active Zone trace ID is used. No-op if
+  /// neither is available or DebugKit is disabled.
+  ///
+  /// - [reason]: optional human-readable cancellation reason.
   void cancel(String? reason, {String? traceId}) {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
@@ -152,15 +212,33 @@ class DebugTraceController {
     _store.cancelTrace(id, DateTime.now());
   }
 
-  /// Runs [callback] inside a Zone that propagates the active trace context.
+  /// Runs [callback] inside a Dart Zone that carries the active trace context.
   ///
-  /// - Starts a trace named [name] before calling [callback].
-  /// - Marks the trace as [DebugTraceStatus.success] when [callback] returns.
-  /// - Marks the trace as [DebugTraceStatus.failed] if [callback] throws.
-  /// - Always rethrows the original exception with the original stack trace.
+  /// This is the **recommended** way to trace async operations because it
+  /// handles the full lifecycle automatically:
   ///
-  /// Logs and adapter events emitted inside [callback] will automatically
-  /// carry the trace ID and name in their metadata.
+  /// 1. Calls [start] to create the trace.
+  /// 2. Injects [debugKitActiveTraceIdKey] and [debugKitActiveTraceNameKey]
+  ///    into the Zone so all logs and adapter events inside [callback] are
+  ///    automatically correlated.
+  /// 3. Calls [end] when [callback] completes normally.
+  /// 4. Calls [fail] and **rethrows** when [callback] throws, preserving the
+  ///    original exception and stack trace.
+  ///
+  /// When DebugKit is disabled, [callback] is called directly with zero
+  /// overhead.
+  ///
+  /// - [name]: trace name.
+  /// - [callback]: the async work to trace.
+  /// - [metadata]: optional metadata attached to the trace root.
+  ///
+  /// ```dart
+  /// await DebugKit.trace.run('login_flow', () async {
+  ///   DebugKit.trace.step('validate_input');
+  ///   await authRepository.login();
+  ///   DebugKit.trace.step('login_success');
+  /// }, metadata: {'source': 'login_button'});
+  /// ```
   Future<T> run<T>(
     String name,
     Future<T> Function() callback, {
@@ -187,12 +265,19 @@ class DebugTraceController {
   }
 
   // ---------------------------------------------------------------------------
-  // Internal helpers used by adapters
+  // Internal helpers — called by adapter packages
   // ---------------------------------------------------------------------------
 
-  /// Records a network event on the active trace (if any).
+  /// Records a [DebugTraceEventType.network] event on the currently active trace.
   ///
-  /// Called by adapter packages. No-op if no trace is active.
+  /// Called by the Dio adapter when a request starts, a response is received,
+  /// or a request fails. No-op if no trace is active or DebugKit is disabled.
+  ///
+  /// - [message]: sanitized request description (e.g. `'GET /api/users · 200 · 142ms'`).
+  /// - [requestId]: Dio request ID for cross-referencing with the log entry.
+  /// - [durationMs]: round-trip duration in milliseconds.
+  /// - [metadata]: additional sanitized key-value context.
+  /// - [error]: sanitized error string if the request failed.
   void recordNetworkEvent({
     required String message,
     String? requestId,
@@ -215,9 +300,13 @@ class DebugTraceController {
     );
   }
 
-  /// Records a navigation event on the active trace (if any).
+  /// Records a [DebugTraceEventType.navigation] event on the currently active trace.
   ///
-  /// Called by adapter packages. No-op if no trace is active.
+  /// Called by the GoRouter adapter for push/pop/replace/remove events. No-op
+  /// if no trace is active or DebugKit is disabled.
+  ///
+  /// - [message]: sanitized navigation description (e.g. `'push: /home'`).
+  /// - [metadata]: optional route metadata (action, route_path, etc.).
   void recordNavigationEvent({
     required String message,
     Map<String, String>? metadata,
@@ -234,9 +323,14 @@ class DebugTraceController {
     );
   }
 
-  /// Records a state event on the active trace (if any).
+  /// Records a [DebugTraceEventType.state] event on the currently active trace.
   ///
-  /// Called by adapter packages. No-op if no trace is active.
+  /// Called by the Riverpod adapter for provider failures (and optionally
+  /// updates). No-op if no trace is active or DebugKit is disabled.
+  ///
+  /// - [message]: sanitized state description.
+  /// - [metadata]: optional provider metadata.
+  /// - [error]: sanitized error string if the state event represents a failure.
   void recordStateEvent({
     required String message,
     Map<String, String>? metadata,
@@ -255,9 +349,11 @@ class DebugTraceController {
     );
   }
 
-  /// Records a log event on the active trace (if any).
+  /// Records a [DebugTraceEventType.log] event on the currently active trace.
   ///
-  /// Called by the core controller when a log is emitted inside an active trace.
+  /// Called by [DebugKitController.log] when a log entry is emitted inside an
+  /// active trace zone. Keeps the trace timeline in sync with the log stream.
+  /// No-op if no trace is active or DebugKit is disabled.
   void recordLogEvent({
     required String message,
     Map<String, String>? metadata,
@@ -275,7 +371,7 @@ class DebugTraceController {
   }
 
   // ---------------------------------------------------------------------------
-  // Private
+  // Private helpers
   // ---------------------------------------------------------------------------
 
   void _addEvent({
@@ -301,7 +397,10 @@ class DebugTraceController {
     _store.addEvent(traceId, event);
   }
 
+  /// Generates the next trace ID string. Format: `'trace_<n>'`.
   String _nextTraceId() => 'trace_${++_idCounter}';
+
+  /// Generates the next event ID string. Format: `'evt_<n>'`.
   String _nextEventId() => 'evt_${++_eventIdCounter}';
 
   Map<String, String>? _sanitizeMetadata(Map<String, String>? metadata) {

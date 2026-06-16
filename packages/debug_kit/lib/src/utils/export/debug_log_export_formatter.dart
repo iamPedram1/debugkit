@@ -3,7 +3,40 @@ import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_trace.dart';
 import 'debug_trace_export_formatter.dart';
 
+/// Pure, stateless formatter that converts log entries and traces to a
+/// human-readable plain-text export string.
+///
+/// All inputs are expected to already be sanitized — this class never
+/// re-sanitizes or inspects values for secrets. It trusts that the store
+/// contains only safe data.
+///
+/// Used by [DebugLogFileExporter] to produce the exported `.txt` file content
+/// and by the clipboard copy action in the console screen.
 class DebugLogExportFormatter {
+  /// Formats [logs] (and optionally [traces]) into a complete export string.
+  ///
+  /// The output structure is:
+  /// ```
+  /// DebugKit Logs
+  /// Exported: yyyy-MM-dd HH:mm:ss
+  /// Total   : N entries
+  /// ============================================================
+  ///
+  /// [LEVEL][SOURCE] HH:mm:ss  requestId  Trace: name
+  /// Message: ...
+  /// ...
+  /// ------------------------------------------------------------
+  ///
+  /// (if traces provided)
+  /// ============================================================
+  /// DebugKit Traces
+  /// Total: M
+  /// ...
+  /// ```
+  ///
+  /// - [logs]: the list of [DebugLogEntry] instances to format.
+  /// - [traces]: optional list of [DebugTrace] instances appended as a
+  ///   separate section after the log entries.
   static String formatLogs(List<DebugLogEntry> logs,
       {List<DebugTrace>? traces}) {
     final buffer = StringBuffer();
@@ -42,6 +75,18 @@ class DebugLogExportFormatter {
     return buffer.toString();
   }
 
+  /// Formats a single [DebugLogEntry] as a multi-line block.
+  ///
+  /// Line 1: `[LEVEL][SOURCE] HH:mm:ss  <requestId>  Trace: <name> step=<n>`
+  /// Following lines (present when non-null):
+  /// - `Message: ...`
+  /// - `Location: ...`
+  /// - `Error: ...`
+  /// - `Meta: key=value key2=value2`
+  /// - `Details:` + details block
+  /// - `Payload:` + payload block
+  /// - `Response:` + response block
+  /// - `Stack:` + stack trace block
   static String formatEntry(DebugLogEntry entry) {
     final buffer = StringBuffer();
     final time = DateFormat('HH:mm:ss').format(entry.timestamp);

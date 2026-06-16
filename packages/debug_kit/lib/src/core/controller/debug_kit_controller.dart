@@ -9,22 +9,75 @@ import '../store/debug_trace_store.dart';
 import '../trace/debug_trace_controller.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
 
+/// Central controller that owns the log store, trace store, and adapter lifecycle.
+///
+/// Implemented as a singleton — `DebugKitController()` always returns the same
+/// instance. The public [DebugKit] facade delegates all work here.
+///
+/// Extends [ChangeNotifier] so the overlay and console UI can react to
+/// initialization events (e.g. enabled/disabled toggle).
+///
+/// Adapter packages interact with DebugKit exclusively through the public API
+/// of this class. They must never access `src/` internals directly.
 class DebugKitController extends ChangeNotifier {
   static final DebugKitController _instance = DebugKitController._internal();
+
+  /// Returns the singleton [DebugKitController] instance.
   factory DebugKitController() => _instance;
   DebugKitController._internal();
 
   late DebugLogStore _store;
   late DebugTraceStore _traceStore;
   late DebugTraceController _traceController;
+
+  /// Active configuration snapshot. Starts with `enabled: false` until
+  /// [init] is called.
   DebugKitConfig _config = const DebugKitConfig(enabled: false);
   final List<DebugKitAdapter> _adapters = [];
 
+  /// The bounded in-memory log store.
+  ///
+  /// Prefer reading logs via [DebugKit.controller.store.logs]. Direct access
+  /// is allowed for adapter packages that need to inspect or update entries.
   DebugLogStore get store => _store;
+
+  /// The bounded in-memory trace store.
   DebugTraceStore get traceStore => _traceStore;
+
+  /// The trace controller powering [DebugKit.trace].
+  ///
+  /// Adapter packages use [traceController.activeTraceId] and
+  /// [traceController.recordNetworkEvent] / [recordNavigationEvent] /
+  /// [recordStateEvent] to attach their events to the active trace.
   DebugTraceController get traceController => _traceController;
+
+  /// The current configuration. Read-only after [init].
   DebugKitConfig get config => _config;
 
+  // ---------------------------------------------------------------------------
+  // Initialization
+  // ---------------------------------------------------------------------------
+
+  /// Initializes DebugKit with the supplied configuration.
+  ///
+  /// Must be called once in `main()` before `runApp`. Can be called again to
+  /// reinitialize (e.g. to change [enabled] at runtime), which disposes and
+  /// re-attaches all adapters.
+  ///
+  /// Parameters:
+  /// - [enabled]: master switch. `false` means all logging and trace calls
+  ///   are no-ops and no overhead is incurred.
+  /// - [maxLogs]: maximum log entries kept in memory. Defaults to `300`.
+  /// - [captureAppCallLocation]: parse the call-site file/line for `app`
+  ///   logs. Defaults to `true`.
+  /// - [captureAppStackTrace]: reserved for future use. Defaults to `false`.
+  /// - [adapters]: list of [DebugKitAdapter] instances to attach.
+  /// - [navigatorKey]: required to open the console from non-widget contexts
+  ///   or `MaterialApp.router` apps.
+  /// - [maxTraces]: maximum [DebugTrace] instances kept in memory. Defaults to `50`.
+  /// - [maxTraceEventsPerTrace]: maximum events per trace. Defaults to `200`.
+  /// - [slowTraceThreshold]: duration above which [DebugTraceAnalyzer] warns
+  ///   about a slow trace. Defaults to 3 seconds.
   void init({
     bool enabled = true,
     int maxLogs = 300,
@@ -56,13 +109,13 @@ class DebugKitController extends ChangeNotifier {
       isEnabled: () => _config.enabled,
     );
 
-    // Dispose old adapters if any
+    // Dispose old adapters before replacing them
     for (final adapter in _adapters) {
       adapter.dispose();
     }
     _adapters.clear();
 
-    // Attach new adapters
+    // Attach new adapters only when enabled
     if (enabled) {
       for (final adapter in adapters) {
         adapter.attach(this);
@@ -73,6 +126,37 @@ class DebugKitController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------------------------------------------------------------------------
+  // Core log method
+  // ---------------------------------------------------------------------------
+
+  /// Sanitizes and stores a single log entry.
+  ///
+  /// This is the lowest-level method — all higher-level helpers ([debug],
+  /// [info], [warning], [error], [userAction]) delegate here.
+  ///
+  /// **Sanitization guarantees:**
+  /// - [message] is passed through [DebugLogSanitizer.sanitizeMessage].
+  /// - [error] string is sanitized the same way.
+  /// - [stackTrace] is trimmed to 25 lines via [DebugLogSanitizer.trimStackTrace].
+  /// - [metadata] keys and values are sanitized via [DebugLogSanitizer.sanitizeMetadata].
+  ///
+  /// **Trace correlation:**
+  /// If [traceId] is not provided, the active Zone trace ID (set by
+  /// [DebugKit.trace.run]) is used automatically. A [DebugTraceEventType.log]
+  /// event is also recorded on the active trace.
+  ///
+  /// Parameters:
+  /// - [message]: human-readable description of the event. Required.
+  /// - [level]: severity. Required.
+  /// - [source]: subsystem origin. Required.
+  /// - [error]: optional exception/error string.
+  /// - [stackTrace]: optional stack trace (trimmed to 25 lines).
+  /// - [metadata]: optional key-value pairs (values must be plain strings).
+  /// - [requestId]: correlates Dio entries across pending → response updates.
+  /// - [traceId]: explicit trace ID; falls back to Zone value if omitted.
+  /// - [traceName]: trace display name; falls back to Zone value if omitted.
+  /// - [traceStep]: optional step counter within the trace.
   void log({
     required String message,
     required DebugLogLevel level,
@@ -118,7 +202,7 @@ class DebugKitController extends ChangeNotifier {
 
     _store.addLog(entry);
 
-    // Record a log event on the active trace (if any)
+    // Mirror as a log event on the active trace
     if (resolvedTraceId != null) {
       _traceController.recordLogEvent(
         message: sanitizedMessage,
@@ -127,10 +211,133 @@ class DebugKitController extends ChangeNotifier {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Convenience log helpers
+  // ---------------------------------------------------------------------------
+
+  /// Logs a [DebugLogLevel.debug] entry from the app source.
+  void debug(
+    String message, {
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
+    log(
+      message: message,
+      level: DebugLogLevel.debug,
+      source: DebugLogSource.app,
+      error: error,
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
+  }
+
+  /// Logs a [DebugLogLevel.info] entry from the app source.
+  void info(
+    String message, {
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
+    log(
+      message: message,
+      level: DebugLogLevel.info,
+      source: DebugLogSource.app,
+      error: error,
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
+  }
+
+  /// Logs a [DebugLogLevel.warning] entry from the app source.
+  void warning(
+    String message, {
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
+    log(
+      message: message,
+      level: DebugLogLevel.warning,
+      source: DebugLogSource.app,
+      error: error,
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
+  }
+
+  /// Logs a [DebugLogLevel.error] entry from the app source.
+  ///
+  /// [error] accepts any type and is converted via `.toString()`.
+  void error(
+    String message, {
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, String>? metadata,
+  }) {
+    log(
+      message: message,
+      level: DebugLogLevel.error,
+      source: DebugLogSource.app,
+      error: error?.toString(),
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
+  }
+
+  /// Logs an [DebugLogLevel.info] entry with [DebugLogSource.userAction].
+  ///
+  /// Use this for deliberate user interactions (button taps, form submissions)
+  /// that you want to surface separately in the console.
+  void userAction(String action, {Map<String, String>? metadata}) {
+    log(
+      message: action,
+      level: DebugLogLevel.info,
+      source: DebugLogSource.userAction,
+      metadata: metadata,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Entry update helpers (used by adapters)
+  // ---------------------------------------------------------------------------
+
+  /// Replaces the log entry with [id] using the result of [update].
+  ///
+  /// No-op when DebugKit is disabled or no entry with [id] exists.
+  void updateLog(int id, DebugLogEntry Function(DebugLogEntry) update) {
+    if (!_config.enabled) return;
+    _store.updateEntry(id, update);
+  }
+
+  /// Replaces the log entry whose [DebugLogEntry.requestId] matches [requestId]
+  /// using the result of [update].
+  ///
+  /// No-op when DebugKit is disabled or no matching entry is found.
+  /// Used by the Dio adapter to finalize a pending log entry with the response
+  /// status code and duration.
+  void updateLogByRequestId(
+    String requestId,
+    DebugLogEntry Function(DebugLogEntry) update,
+  ) {
+    if (!_config.enabled) return;
+    final entry = _store.getEntryByRequestId(requestId);
+    if (entry != null) {
+      _store.updateEntry(entry.id, update);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /// Walks [stackTrace] to find the first non-DebugKit frame and returns
+  /// its `filename.dart:line:col` string for use as [DebugLogEntry.location].
+  ///
+  /// Returns `null` if no suitable frame is found or parsing fails.
   String? _parseLocation(StackTrace stackTrace) {
     try {
       final lines = stackTrace.toString().split('\n');
-      // Skip the first few lines which are usually the logger itself
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (line.contains('debug_kit_controller.dart') ||
@@ -138,7 +345,6 @@ class DebugKitController extends ChangeNotifier {
             line.isEmpty) {
           continue;
         }
-
         final match = RegExp(r'package:[^ ]+\.dart:\d+:\d+').firstMatch(line);
         if (match != null) {
           final fullPath = match.group(0)!;
@@ -147,74 +353,6 @@ class DebugKitController extends ChangeNotifier {
       }
     } catch (_) {}
     return null;
-  }
-
-  void debug(String message,
-      {String? error, StackTrace? stackTrace, Map<String, String>? metadata}) {
-    log(
-        message: message,
-        level: DebugLogLevel.debug,
-        source: DebugLogSource.app,
-        error: error,
-        stackTrace: stackTrace,
-        metadata: metadata);
-  }
-
-  void info(String message,
-      {String? error, StackTrace? stackTrace, Map<String, String>? metadata}) {
-    log(
-        message: message,
-        level: DebugLogLevel.info,
-        source: DebugLogSource.app,
-        error: error,
-        stackTrace: stackTrace,
-        metadata: metadata);
-  }
-
-  void warning(String message,
-      {String? error, StackTrace? stackTrace, Map<String, String>? metadata}) {
-    log(
-        message: message,
-        level: DebugLogLevel.warning,
-        source: DebugLogSource.app,
-        error: error,
-        stackTrace: stackTrace,
-        metadata: metadata);
-  }
-
-  void error(String message,
-      {dynamic error, StackTrace? stackTrace, Map<String, String>? metadata}) {
-    log(
-        message: message,
-        level: DebugLogLevel.error,
-        source: DebugLogSource.app,
-        error: error?.toString(),
-        stackTrace: stackTrace,
-        metadata: metadata);
-  }
-
-  void userAction(String action, {Map<String, String>? metadata}) {
-    log(
-        message: action,
-        level: DebugLogLevel.info,
-        source: DebugLogSource.userAction,
-        metadata: metadata);
-  }
-
-  /// Update an existing log entry by its unique internal ID.
-  void updateLog(int id, DebugLogEntry Function(DebugLogEntry) update) {
-    if (!_config.enabled) return;
-    _store.updateEntry(id, update);
-  }
-
-  /// Update an existing log entry by its requestId.
-  void updateLogByRequestId(
-      String requestId, DebugLogEntry Function(DebugLogEntry) update) {
-    if (!_config.enabled) return;
-    final entry = _store.getEntryByRequestId(requestId);
-    if (entry != null) {
-      _store.updateEntry(entry.id, update);
-    }
   }
 
   @override
