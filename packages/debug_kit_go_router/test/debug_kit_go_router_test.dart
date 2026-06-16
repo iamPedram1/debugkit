@@ -105,4 +105,51 @@ void main() {
 
     expect(controller.store.logs.isEmpty, isTrue);
   });
+
+  // ---------------------------------------------------------------------------
+  // Trace correlation
+  // ---------------------------------------------------------------------------
+  test('navigation log carries traceId when inside active trace', () async {
+    controller.init(enabled: true);
+
+    await controller.traceController.run('nav_flow', () async {
+      final route = createRoute('/home');
+      observer.didPush(route, null);
+    });
+
+    final log = controller.store.logs.first;
+    expect(log.traceId, isNotNull);
+    expect(log.traceName, 'nav_flow');
+  });
+
+  test('navigation log has no traceId when outside any trace', () {
+    controller.init(enabled: true);
+    final route = createRoute('/home');
+    observer.didPush(route, null);
+
+    final log = controller.store.logs.first;
+    expect(log.traceId, isNull);
+  });
+
+  test('navigation trace event is recorded on active trace', () async {
+    controller.init(enabled: true);
+
+    await controller.traceController.run('nav_flow', () async {
+      final route = createRoute('/home');
+      observer.didPush(route, null);
+    });
+
+    final trace = controller.traceStore.traces.first;
+    final navEvents = trace.events
+        .where((e) => e.type == DebugTraceEventType.navigation)
+        .toList();
+    expect(navEvents.isNotEmpty, isTrue);
+  });
+
+  test('disabled mode: no trace events recorded', () async {
+    controller.init(enabled: false);
+    final route = createRoute('/home');
+    observer.didPush(route, null);
+    expect(controller.traceStore.traces.isEmpty, isTrue);
+  });
 }

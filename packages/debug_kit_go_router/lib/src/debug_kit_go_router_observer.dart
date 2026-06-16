@@ -3,6 +3,10 @@ import 'package:debug_kit/debug_kit.dart';
 import 'go_router_log_helpers.dart';
 
 /// A Navigator observer that logs GoRouter navigation events to DebugKit.
+///
+/// If navigation occurs inside an active [DebugKit.trace.run] zone, the
+/// trace ID and name are automatically attached to the log entry and a
+/// navigation trace event is recorded on the active trace.
 class DebugKitGoRouterObserver extends NavigatorObserver {
   final DebugKitController? _customController;
 
@@ -53,7 +57,6 @@ class DebugKitGoRouterObserver extends NavigatorObserver {
         message =
             'replace: ${sanitizedPrevRoute ?? 'unknown'} → ${sanitizedRoute ?? 'unknown'}';
       } else if (action == 'pop') {
-        // For pop, we're returning TO previousRoute FROM route
         message = 'pop: ${sanitizedRoute ?? 'unknown'}';
       } else {
         message = '$action: ${sanitizedRoute ?? 'unknown'}';
@@ -66,12 +69,26 @@ class DebugKitGoRouterObserver extends NavigatorObserver {
           'previous_route_path': sanitizedPrevRoute,
       };
 
+      // Capture active trace context
+      final traceId = _controller.traceController.activeTraceId;
+      final traceName = _controller.traceController.activeTraceName;
+
       _controller.log(
         message: message,
         level: DebugLogLevel.info,
         source: DebugLogSource.router,
         metadata: metadata,
+        traceId: traceId,
+        traceName: traceName,
       );
+
+      // Record navigation event on active trace
+      if (traceId != null) {
+        _controller.traceController.recordNavigationEvent(
+          message: message,
+          metadata: metadata,
+        );
+      }
     } catch (_) {
       // Fail silently to never break navigation
     }

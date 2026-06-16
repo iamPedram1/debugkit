@@ -5,6 +5,8 @@ import '../models/debug_log_level.dart';
 import '../models/debug_log_source.dart';
 import '../adapters/debug_kit_adapter.dart';
 import '../store/debug_log_store.dart';
+import '../store/debug_trace_store.dart';
+import '../trace/debug_trace_controller.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
 
 class DebugKitController extends ChangeNotifier {
@@ -13,10 +15,14 @@ class DebugKitController extends ChangeNotifier {
   DebugKitController._internal();
 
   late DebugLogStore _store;
+  late DebugTraceStore _traceStore;
+  late DebugTraceController _traceController;
   DebugKitConfig _config = const DebugKitConfig(enabled: false);
   final List<DebugKitAdapter> _adapters = [];
 
   DebugLogStore get store => _store;
+  DebugTraceStore get traceStore => _traceStore;
+  DebugTraceController get traceController => _traceController;
   DebugKitConfig get config => _config;
 
   void init({
@@ -26,6 +32,9 @@ class DebugKitController extends ChangeNotifier {
     bool captureAppStackTrace = false,
     List<DebugKitAdapter> adapters = const [],
     GlobalKey<NavigatorState>? navigatorKey,
+    int maxTraces = 50,
+    int maxTraceEventsPerTrace = 200,
+    Duration slowTraceThreshold = const Duration(seconds: 3),
   }) {
     _config = DebugKitConfig(
       enabled: enabled,
@@ -33,8 +42,19 @@ class DebugKitController extends ChangeNotifier {
       captureAppCallLocation: captureAppCallLocation,
       captureAppStackTrace: captureAppStackTrace,
       navigatorKey: navigatorKey,
+      maxTraces: maxTraces,
+      maxTraceEventsPerTrace: maxTraceEventsPerTrace,
+      slowTraceThreshold: slowTraceThreshold,
     );
     _store = DebugLogStore(maxLogs: maxLogs);
+    _traceStore = DebugTraceStore(
+      maxTraces: maxTraces,
+      maxEventsPerTrace: maxTraceEventsPerTrace,
+    );
+    _traceController = DebugTraceController(
+      store: _traceStore,
+      isEnabled: () => _config.enabled,
+    );
 
     // Dispose old adapters if any
     for (final adapter in _adapters) {
@@ -71,6 +91,10 @@ class DebugKitController extends ChangeNotifier {
     final sanitizedError =
         error != null ? DebugLogSanitizer.sanitizeMessage(error) : null;
 
+    // Resolve trace context from Zone if not explicitly provided
+    final resolvedTraceId = traceId ?? _traceController.activeTraceId;
+    final resolvedTraceName = traceName ?? _traceController.activeTraceName;
+
     String? location;
     if (_config.captureAppCallLocation && source == DebugLogSource.app) {
       location = _parseLocation(StackTrace.current);
@@ -87,12 +111,20 @@ class DebugKitController extends ChangeNotifier {
       location: location,
       metadata: DebugLogSanitizer.sanitizeMetadata(metadata),
       requestId: requestId,
-      traceId: traceId,
-      traceName: traceName,
+      traceId: resolvedTraceId,
+      traceName: resolvedTraceName,
       traceStep: traceStep,
     );
 
     _store.addLog(entry);
+
+    // Record a log event on the active trace (if any)
+    if (resolvedTraceId != null) {
+      _traceController.recordLogEvent(
+        message: sanitizedMessage,
+        metadata: entry.metadata,
+      );
+    }
   }
 
   String? _parseLocation(StackTrace stackTrace) {

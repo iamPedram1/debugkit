@@ -19,24 +19,26 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 void main() {
   final dio = Dio();
 
-  // 1. Initialize DebugKit
+  // 1. Initialize DebugKit with trace config
   DebugKit.init(
     enabled: true,
     maxLogs: 500,
     captureAppStackTrace: true,
     navigatorKey: rootNavigatorKey,
+    maxTraces: 50,
+    maxTraceEventsPerTrace: 200,
+    slowTraceThreshold: const Duration(seconds: 3),
     adapters: [
       DebugKitDioAdapter(dio),
     ],
   );
 
   runApp(
-    // 2. Wrap app with ProviderScope and add DebugKitRiverpodObserver
     ProviderScope(
       observers: [
         DebugKitRiverpodObserver(
           config: const DebugKitRiverpodConfig(
-            logProviderUpdates: true, // Enable for demo
+            logProviderUpdates: true,
             includeValuePreview: true,
           ),
         ),
@@ -51,7 +53,6 @@ class MyApp extends StatelessWidget {
   late final GoRouter _router;
 
   MyApp({super.key, required this.dio}) {
-    // 4. Configure GoRouter with DebugKitGoRouterObserver
     _router = GoRouter(
       navigatorKey: rootNavigatorKey,
       observers: [DebugKitGoRouterObserver()],
@@ -78,7 +79,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       routerConfig: _router,
-      // 3. Wrap with DebugKitOverlay via builder for better integration
       builder: (context, child) => DebugKitOverlay(child: child!),
     );
   }
@@ -93,133 +93,214 @@ class MyHomePage extends ConsumerWidget {
     final counter = ref.watch(exampleCounterProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('DebugKit Showcase'),
-      ),
+      appBar: AppBar(title: const Text('DebugKit Showcase')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Manual Logs',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () => DebugKit.log.debug('This is a debug log'),
-                  child: const Text('Debug'),
-                ),
-                ElevatedButton(
-                  onPressed: () => DebugKit.log.info('This is an info log'),
-                  child: const Text('Info'),
-                ),
-                ElevatedButton(
-                  onPressed: () =>
-                      DebugKit.log.warning('This is a warning log!'),
-                  child: const Text('Warning'),
-                ),
-                ElevatedButton(
-                  onPressed: () => DebugKit.log
-                      .error('This is an error log!', error: Exception('Oops')),
-                  child: const Text('Error'),
-                ),
-                ElevatedButton(
-                  onPressed: () => DebugKit.log
-                      .info('User password is: my_super_secret_password123'),
-                  child: const Text('Sensitive Log'),
-                ),
-              ],
-            ),
+            // --- Manual Logs ---
+            _SectionTitle('Manual Logs'),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () => DebugKit.log.debug('This is a debug log'),
+                child: const Text('Debug'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.log.info('This is an info log'),
+                child: const Text('Info'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.log.warning('This is a warning log!'),
+                child: const Text('Warning'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.log
+                    .error('This is an error log!', error: Exception('Oops')),
+                child: const Text('Error'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.log
+                    .info('User password is: my_super_secret_password123'),
+                child: const Text('Sensitive Log'),
+              ),
+            ]),
             const Divider(height: 32),
-            const Text('Network (Dio)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      await dio.get('https://pub.dev/api/packages/dio');
-                    } catch (_) {}
-                  },
-                  child: const Text('GET Success'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      await dio.get(
-                          'https://pub.dev/api/packages/invalid_package_123');
-                    } catch (_) {}
-                  },
-                  child: const Text('GET 404'),
-                ),
-              ],
-            ),
+
+            // --- Traces ---
+            _SectionTitle('Traces'),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () => _runSuccessfulTrace(dio),
+                child: const Text('Successful Trace'),
+              ),
+              ElevatedButton(
+                onPressed: () => _runFailedTrace(dio),
+                child: const Text('Failed Trace'),
+              ),
+              ElevatedButton(
+                onPressed: () => _runSlowTrace(),
+                child: const Text('Slow Trace'),
+              ),
+              ElevatedButton(
+                onPressed: () => _runManualTrace(),
+                child: const Text('Manual Trace'),
+              ),
+              ElevatedButton(
+                onPressed: () => _runCancelledTrace(),
+                child: const Text('Cancelled Trace'),
+              ),
+            ]),
             const Divider(height: 32),
-            const Text('Navigation (GoRouter)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () => context.push('/details?token=secret_token'),
-                  child: const Text('Push /details'),
-                ),
-                ElevatedButton(
-                  onPressed: () => context.go('/details'),
-                  child: const Text('Replace Route'),
-                ),
-              ],
-            ),
+
+            // --- Network (Dio) ---
+            _SectionTitle('Network (Dio)'),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    await dio.get('https://pub.dev/api/packages/dio');
+                  } catch (_) {}
+                },
+                child: const Text('GET Success'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    await dio.get(
+                        'https://pub.dev/api/packages/invalid_package_123');
+                  } catch (_) {}
+                },
+                child: const Text('GET 404'),
+              ),
+            ]),
             const Divider(height: 32),
-            const Text('State (Riverpod)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
+
+            // --- Navigation (GoRouter) ---
+            _SectionTitle('Navigation (GoRouter)'),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () => context.push('/details?token=secret_token'),
+                child: const Text('Push /details'),
+              ),
+              ElevatedButton(
+                onPressed: () => context.go('/details'),
+                child: const Text('Replace Route'),
+              ),
+            ]),
+            const Divider(height: 32),
+
+            // --- State (Riverpod) ---
+            _SectionTitle('State (Riverpod)'),
             Text('Counter: $counter', style: const TextStyle(fontSize: 16)),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () =>
-                      ref.read(exampleCounterProvider.notifier).state++,
-                  child: const Text('Update Provider'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    try {
-                      ref.read(throwingProvider);
-                    } catch (_) {}
-                  },
-                  child: const Text('Trigger Failure'),
-                ),
-              ],
-            ),
-            const Divider(height: 32),
-            const Text('DebugKit',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () => DebugKit.clearLogs(),
-                  child: const Text('Clear Logs'),
-                ),
-              ],
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () =>
+                    ref.read(exampleCounterProvider.notifier).state++,
+                child: const Text('Update Provider'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  try {
+                    ref.read(throwingProvider);
+                  } catch (_) {}
+                },
+                child: const Text('Trigger Failure'),
+              ),
+            ]),
+            const Divider(height: 32),
+
+            // --- DebugKit Controls ---
+            _SectionTitle('DebugKit'),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () => DebugKit.clearLogs(),
+                child: const Text('Clear Logs'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.clearTraces(),
+                child: const Text('Clear Traces'),
+              ),
+            ]),
           ],
         ),
       ),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trace demos
+  // ---------------------------------------------------------------------------
+
+  Future<void> _runSuccessfulTrace(Dio dio) async {
+    await DebugKit.trace.run(
+      'fetch_packages',
+      () async {
+        DebugKit.trace.step('start_request');
+        DebugKit.log.info('Fetching package list');
+        try {
+          await dio.get('https://pub.dev/api/packages/flutter');
+        } catch (_) {}
+        DebugKit.trace.step('request_complete');
+        DebugKit.log.info('Package list fetched');
+      },
+      metadata: {'source': 'home_page'},
+    );
+  }
+
+  Future<void> _runFailedTrace(Dio dio) async {
+    try {
+      await DebugKit.trace.run(
+        'login_flow',
+        () async {
+          DebugKit.trace.step('validate_credentials');
+          DebugKit.log.info('Validating credentials');
+          try {
+            await dio
+                .get('https://pub.dev/api/packages/invalid_package_xyz_123');
+          } catch (_) {}
+          DebugKit.trace.step('auth_request');
+          throw Exception('Authentication failed: invalid credentials');
+        },
+        metadata: {'screen': 'login'},
+      );
+    } catch (_) {
+      // Expected — trace.run rethrows
+    }
+  }
+
+  Future<void> _runSlowTrace() async {
+    await DebugKit.trace.run(
+      'slow_operation',
+      () async {
+        DebugKit.trace.step('heavy_computation');
+        DebugKit.log.info('Starting slow operation...');
+        await Future.delayed(const Duration(seconds: 4));
+        DebugKit.trace.step('computation_done');
+        DebugKit.log.info('Slow operation complete');
+      },
+      metadata: {'type': 'background_task'},
+    );
+  }
+
+  void _runManualTrace() {
+    final traceId = DebugKit.trace.start(
+      'manual_checkout',
+      metadata: {'cart_items': '3'},
+    );
+    DebugKit.trace.step('validate_cart', traceId: traceId);
+    DebugKit.log.info('Cart validated');
+    DebugKit.trace.step('apply_discount', traceId: traceId);
+    DebugKit.log.info('Discount applied');
+    DebugKit.trace.end(traceId: traceId);
+  }
+
+  void _runCancelledTrace() {
+    final traceId = DebugKit.trace.start('upload_flow');
+    DebugKit.trace.step('prepare_upload', traceId: traceId);
+    DebugKit.log.info('Upload prepared');
+    DebugKit.trace.cancel('user_cancelled', traceId: traceId);
   }
 }
 
@@ -241,6 +322,22 @@ class DetailsPage extends StatelessWidget {
           },
           child: const Text('Pop or Go Home'),
         ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
       ),
     );
   }

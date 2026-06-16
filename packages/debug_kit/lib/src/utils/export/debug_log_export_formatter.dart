@@ -1,8 +1,11 @@
 import 'package:intl/intl.dart';
 import '../../core/models/debug_log_entry.dart';
+import '../../core/models/debug_trace.dart';
+import 'debug_trace_export_formatter.dart';
 
 class DebugLogExportFormatter {
-  static String formatLogs(List<DebugLogEntry> logs) {
+  static String formatLogs(List<DebugLogEntry> logs,
+      {List<DebugTrace>? traces}) {
     final buffer = StringBuffer();
     final now = DateTime.now();
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
@@ -18,6 +21,22 @@ class DebugLogExportFormatter {
       buffer.writeln(formatEntry(entry));
       buffer.writeln(
           '------------------------------------------------------------');
+    }
+
+    // Append traces section if provided
+    if (traces != null && traces.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln(
+          '============================================================');
+      buffer.writeln();
+      buffer.write(DebugTraceExportFormatter.formatTraces(traces));
+
+      final failedSummary =
+          DebugTraceExportFormatter.formatFailedSummary(traces);
+      if (failedSummary.isNotEmpty) {
+        buffer.writeln();
+        buffer.write(failedSummary);
+      }
     }
 
     return buffer.toString();

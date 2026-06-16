@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/debug_log_entry.dart';
+import '../../core/models/debug_trace.dart';
 import 'debug_log_export_formatter.dart';
 
 class DebugLogFileExporter {
@@ -12,13 +13,19 @@ class DebugLogFileExporter {
     return 'debugkit-logs-$formatted.txt';
   }
 
-  static Future<void> exportToClipboard(List<DebugLogEntry> logs) async {
-    final content = DebugLogExportFormatter.formatLogs(logs);
+  static Future<void> exportToClipboard(
+    List<DebugLogEntry> logs, {
+    List<DebugTrace>? traces,
+  }) async {
+    final content = DebugLogExportFormatter.formatLogs(logs, traces: traces);
     await Clipboard.setData(ClipboardData(text: content));
   }
 
-  static Future<void> shareLogs(List<DebugLogEntry> logs) async {
-    final content = DebugLogExportFormatter.formatLogs(logs);
+  static Future<void> shareLogs(
+    List<DebugLogEntry> logs, {
+    List<DebugTrace>? traces,
+  }) async {
+    final content = DebugLogExportFormatter.formatLogs(logs, traces: traces);
     final directory = await getTemporaryDirectory();
     final fileName = buildFileName(DateTime.now());
     final file = File('${directory.path}/$fileName');

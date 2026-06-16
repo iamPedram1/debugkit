@@ -79,7 +79,7 @@ packages:
       path: "../debug_kit"
       relative: true
     source: path
-    version: "0.2.2"
+    version: "0.3.0"
   dio:
     dependency: "direct main"
     description:

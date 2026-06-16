@@ -3,6 +3,10 @@ import 'package:debug_kit/debug_kit.dart';
 import 'dio_log_sanitizer_helpers.dart';
 
 /// A Dio interceptor that logs network transactions to DebugKit.
+///
+/// If a request is made inside an active [DebugKit.trace.run] zone, the
+/// trace ID and name are automatically attached to the log entry and a
+/// network trace event is recorded on the active trace.
 class DebugKitDioInterceptor extends Interceptor {
   final DebugKitController _controller;
   int _idCounter = 0;
@@ -19,6 +23,14 @@ class DebugKitDioInterceptor extends Interceptor {
     options.extra['debugKitRequestId'] = requestId;
     options.extra['debugKitStartedAt'] = DateTime.now().millisecondsSinceEpoch;
 
+    // Capture active trace context at request time
+    final traceId = _controller.traceController.activeTraceId;
+    final traceName = _controller.traceController.activeTraceName;
+    if (traceId != null) {
+      options.extra['debugKitTraceId'] = traceId;
+      options.extra['debugKitTraceName'] = traceName;
+    }
+
     final method = options.method.toUpperCase();
     final url = DioLogSanitizerHelpers.sanitizeUrl(options.uri.toString());
 
@@ -27,11 +39,22 @@ class DebugKitDioInterceptor extends Interceptor {
       level: DebugLogLevel.info,
       source: DebugLogSource.dio,
       requestId: requestId,
+      traceId: traceId,
+      traceName: traceName,
       metadata: {
         'request_id': requestId,
         ...DioLogSanitizerHelpers.sanitizeHeaders(options.headers),
       },
     );
+
+    // Record network event on active trace
+    if (traceId != null) {
+      _controller.traceController.recordNetworkEvent(
+        message: '$method $url · pending',
+        requestId: requestId,
+        metadata: {'request_id': requestId},
+      );
+    }
 
     super.onRequest(options, handler);
   }
@@ -56,6 +79,9 @@ class DebugKitDioInterceptor extends Interceptor {
           response.requestOptions.uri.toString());
       final statusCode = response.statusCode;
 
+      final traceId =
+          response.requestOptions.extra['debugKitTraceId'] as String?;
+
       _controller.updateLogByRequestId(requestId, (entry) {
         return entry.copyWith(
           message: '$method $url · $statusCode · $durationStr',
@@ -68,6 +94,19 @@ class DebugKitDioInterceptor extends Interceptor {
           },
         );
       });
+
+      // Update trace event if inside a trace
+      if (traceId != null) {
+        _controller.traceController.recordNetworkEvent(
+          message: '$method $url · $statusCode · $durationStr',
+          requestId: requestId,
+          durationMs: durationMs,
+          metadata: {
+            'status_code': statusCode?.toString() ?? '',
+            if (durationMs != null) 'duration_ms': durationMs.toString(),
+          },
+        );
+      }
     }
 
     super.onResponse(response, handler);
@@ -94,6 +133,8 @@ class DebugKitDioInterceptor extends Interceptor {
       final statusLabel = isCancelled ? 'cancelled' : 'failed';
       final statusCode = err.response?.statusCode ?? statusLabel;
 
+      final traceId = err.requestOptions.extra['debugKitTraceId'] as String?;
+
       _controller.updateLogByRequestId(requestId, (entry) {
         return entry.copyWith(
           message: '$method $url · $statusCode · $durationStr',
@@ -106,6 +147,20 @@ class DebugKitDioInterceptor extends Interceptor {
           },
         );
       });
+
+      // Record failed network event on trace
+      if (traceId != null) {
+        _controller.traceController.recordNetworkEvent(
+          message: '$method $url · $statusCode · $durationStr',
+          requestId: requestId,
+          durationMs: durationMs,
+          error: err.toString(),
+          metadata: {
+            'error_type': err.type.toString(),
+            if (durationMs != null) 'duration_ms': durationMs.toString(),
+          },
+        );
+      }
     }
 
     super.onError(err, handler);

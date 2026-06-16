@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- **Trace correlation**: Provider failures that occur inside an active `DebugKit.trace.run()` zone now automatically carry `traceId` and `traceName` on the log entry.
+- **State trace events**: A `state` trace event is recorded on the active trace when a provider fails inside a trace.
+- No behavior change when no trace is active — all existing logging behavior is preserved.
+
 ## 0.1.0
 
 - Initial release of `debug_kit_riverpod`.

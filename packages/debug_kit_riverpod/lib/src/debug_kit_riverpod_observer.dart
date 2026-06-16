@@ -4,6 +4,10 @@ import 'debug_kit_riverpod_config.dart';
 import 'riverpod_log_helpers.dart';
 
 /// A Riverpod ProviderObserver that logs provider failures and updates to DebugKit.
+///
+/// If a provider failure occurs inside an active [DebugKit.trace.run] zone,
+/// the trace ID and name are automatically attached to the log entry and a
+/// state trace event is recorded on the active trace.
 class DebugKitRiverpodObserver extends ProviderObserver {
   DebugKitRiverpodObserver({
     DebugKitController? controller,
@@ -31,6 +35,10 @@ class DebugKitRiverpodObserver extends ProviderObserver {
       final providerName =
           RiverpodLogHelpers.sanitizeProviderName(provider.name);
 
+      // Capture active trace context
+      final traceId = _controller.traceController.activeTraceId;
+      final traceName = _controller.traceController.activeTraceName;
+
       _controller.log(
         message: 'Riverpod provider failed: $providerName',
         level: DebugLogLevel.error,
@@ -41,7 +49,21 @@ class DebugKitRiverpodObserver extends ProviderObserver {
           'provider_name': providerName,
           'event_type': 'provider_failure',
         },
+        traceId: traceId,
+        traceName: traceName,
       );
+
+      // Record state event on active trace
+      if (traceId != null) {
+        _controller.traceController.recordStateEvent(
+          message: 'provider failed: $providerName',
+          metadata: {
+            'provider_name': providerName,
+            'event_type': 'provider_failure',
+          },
+          error: error.toString(),
+        );
+      }
     } catch (_) {
       // Fail silently
     }
@@ -79,11 +101,17 @@ class DebugKitRiverpodObserver extends ProviderObserver {
         );
       }
 
+      // Capture active trace context
+      final traceId = _controller.traceController.activeTraceId;
+      final traceName = _controller.traceController.activeTraceName;
+
       _controller.log(
         message: 'Riverpod provider updated: $providerName',
         level: DebugLogLevel.debug,
         source: DebugLogSource.riverpod,
         metadata: metadata,
+        traceId: traceId,
+        traceName: traceName,
       );
     } catch (_) {
       // Fail silently

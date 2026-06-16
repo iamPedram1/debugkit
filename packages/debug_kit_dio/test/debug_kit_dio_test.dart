@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
@@ -152,7 +153,6 @@ void main() {
     await dio.post('https://api.example.com/users', data: requestBody);
 
     final log = controller.store.logs.first;
-    // Message and metadata should not contain the bodies
     expect(log.message, isNot(contains('John Doe')));
     expect(log.details, isNull);
     expect(log.payloadPreview, isNull);
@@ -166,5 +166,58 @@ void main() {
 
     await dio.get('https://api.example.com/users');
     expect(controller.store.logs.isEmpty, isTrue);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Trace correlation
+  // ---------------------------------------------------------------------------
+  test('Dio log carries traceId when request is inside active trace', () async {
+    controller.init(enabled: true);
+    dio.httpClientAdapter = MockAdapter(ResponseBody.fromString('{}', 200));
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    await controller.traceController.run('api_flow', () async {
+      await dio.get('https://api.example.com/data');
+    });
+
+    final log = controller.store.logs.first;
+    expect(log.traceId, isNotNull);
+    expect(log.traceName, 'api_flow');
+  });
+
+  test('Dio log has no traceId when request is outside any trace', () async {
+    controller.init(enabled: true);
+    dio.httpClientAdapter = MockAdapter(ResponseBody.fromString('{}', 200));
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    await dio.get('https://api.example.com/data');
+
+    final log = controller.store.logs.first;
+    expect(log.traceId, isNull);
+  });
+
+  test('Network trace event is recorded on active trace', () async {
+    controller.init(enabled: true);
+    dio.httpClientAdapter = MockAdapter(ResponseBody.fromString('{}', 200));
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    await controller.traceController.run('api_flow', () async {
+      await dio.get('https://api.example.com/data');
+    });
+
+    final trace = controller.traceStore.traces.first;
+    final networkEvents = trace.events
+        .where((e) => e.type == DebugTraceEventType.network)
+        .toList();
+    expect(networkEvents.isNotEmpty, isTrue);
+  });
+
+  test('Disabled mode: no trace events recorded', () async {
+    controller.init(enabled: false);
+    dio.httpClientAdapter = MockAdapter(ResponseBody.fromString('{}', 200));
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    await dio.get('https://api.example.com/data');
+    expect(controller.traceStore.traces.isEmpty, isTrue);
   });
 }

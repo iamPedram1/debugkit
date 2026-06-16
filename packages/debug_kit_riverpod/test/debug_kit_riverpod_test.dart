@@ -20,8 +20,6 @@ void main() {
     controller.init(enabled: true);
   });
 
-  // Since we are mocking ProviderContainer simply to pass it to the observer,
-  // we can use a basic ProviderContainer.
   final container = ProviderContainer();
 
   test('observer logs provider failures', () {
@@ -61,7 +59,7 @@ void main() {
     final log = controller.store.logs.first;
     expect(log.message, 'Riverpod provider updated: userProvider');
     expect(log.metadata?['event_type'], 'provider_update');
-    expect(log.metadata?['value_preview'], isNull); // disabled by default
+    expect(log.metadata?['value_preview'], isNull);
   });
 
   test('watchedProviders filters update logs', () {
@@ -79,7 +77,6 @@ void main() {
     observer.didUpdateProvider(userProvider, null, 'new_value', container);
     observer.didUpdateProvider(settingsProvider, null, 'new_value', container);
 
-    // Only userProvider should be logged
     expect(controller.store.logs.length, 1);
     expect(controller.store.logs.first.message, contains('userProvider'));
   });
@@ -176,5 +173,64 @@ void main() {
 
     expect(controller.store.logs.length, 2);
     expect(controller.store.logs.first.message, contains('UnnamedProvider'));
+  });
+
+  // ---------------------------------------------------------------------------
+  // Trace correlation
+  // ---------------------------------------------------------------------------
+  test('provider failure log carries traceId when inside active trace',
+      () async {
+    controller.init(enabled: true);
+    final observer = DebugKitRiverpodObserver(controller: controller);
+    final provider = createProvider('authProvider');
+
+    await controller.traceController.run('auth_flow', () async {
+      observer.providerDidFail(
+          provider, Exception('error'), StackTrace.empty, container);
+    });
+
+    final log = controller.store.logs.first;
+    expect(log.traceId, isNotNull);
+    expect(log.traceName, 'auth_flow');
+  });
+
+  test('provider failure log has no traceId when outside any trace', () {
+    controller.init(enabled: true);
+    final observer = DebugKitRiverpodObserver(controller: controller);
+    final provider = createProvider('authProvider');
+
+    observer.providerDidFail(
+        provider, Exception('error'), StackTrace.empty, container);
+
+    final log = controller.store.logs.first;
+    expect(log.traceId, isNull);
+  });
+
+  test('state trace event is recorded on active trace for provider failure',
+      () async {
+    controller.init(enabled: true);
+    final observer = DebugKitRiverpodObserver(controller: controller);
+    final provider = createProvider('authProvider');
+
+    await controller.traceController.run('auth_flow', () async {
+      observer.providerDidFail(
+          provider, Exception('error'), StackTrace.empty, container);
+    });
+
+    final trace = controller.traceStore.traces.first;
+    final stateEvents =
+        trace.events.where((e) => e.type == DebugTraceEventType.state).toList();
+    expect(stateEvents.isNotEmpty, isTrue);
+  });
+
+  test('disabled mode: no trace events recorded', () async {
+    controller.init(enabled: false);
+    final observer = DebugKitRiverpodObserver(controller: controller);
+    final provider = createProvider('authProvider');
+
+    observer.providerDidFail(
+        provider, Exception('error'), StackTrace.empty, container);
+
+    expect(controller.traceStore.traces.isEmpty, isTrue);
   });
 }

@@ -7,12 +7,22 @@ export 'src/core/controller/debug_kit_controller.dart';
 import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
 import 'src/core/adapters/debug_kit_adapter.dart';
+import 'src/core/trace/debug_trace_controller.dart';
 import 'src/ui/screens/debug_kit_console_screen.dart';
 
 export 'src/core/models/debug_log_level.dart';
 export 'src/core/models/debug_log_source.dart';
 export 'src/core/models/debug_log_entry.dart';
+export 'src/core/models/debug_trace.dart';
+export 'src/core/models/debug_trace_event.dart';
+export 'src/core/models/debug_trace_event_type.dart';
+export 'src/core/models/debug_trace_status.dart';
 export 'src/core/adapters/debug_kit_adapter.dart';
+export 'src/core/trace/debug_trace_controller.dart'
+    show
+        DebugTraceController,
+        debugKitActiveTraceIdKey,
+        debugKitActiveTraceNameKey;
 export 'src/utils/sanitizer/debug_log_sanitizer.dart';
 export 'src/ui/overlay/debug_kit_overlay.dart';
 // Note: debug_kit_console_screen.dart is used internally by DebugKitOverlay.
@@ -28,6 +38,9 @@ class DebugKit {
     bool captureAppStackTrace = false,
     List<DebugKitAdapter> adapters = const [],
     GlobalKey<NavigatorState>? navigatorKey,
+    int maxTraces = 50,
+    int maxTraceEventsPerTrace = 200,
+    Duration slowTraceThreshold = const Duration(seconds: 3),
   }) {
     _controller.init(
       enabled: enabled,
@@ -36,6 +49,9 @@ class DebugKit {
       captureAppStackTrace: captureAppStackTrace,
       adapters: adapters,
       navigatorKey: navigatorKey,
+      maxTraces: maxTraces,
+      maxTraceEventsPerTrace: maxTraceEventsPerTrace,
+      slowTraceThreshold: slowTraceThreshold,
     );
   }
 
@@ -45,8 +61,14 @@ class DebugKit {
   /// Clears all logs from the in-memory store.
   static void clearLogs() => _controller.store.clear();
 
+  /// Clears all traces from the in-memory store.
+  static void clearTraces() => _controller.traceStore.clear();
+
   /// Access the logging API.
   static final DebugKitLog log = DebugKitLog(_controller);
+
+  /// Access the trace API.
+  static final DebugKitTrace trace = DebugKitTrace(_controller);
 
   /// Access the internal controller (use with caution).
   static DebugKitController get controller => _controller;
@@ -78,6 +100,10 @@ class DebugKit {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// DebugKitLog — manual logging API
+// ---------------------------------------------------------------------------
 
 class DebugKitLog {
   final DebugKitController _controller;
@@ -137,4 +163,67 @@ class DebugKitLog {
       traceStep: traceStep,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// DebugKitTrace — trace API
+// ---------------------------------------------------------------------------
+
+/// The public trace API, accessed via [DebugKit.trace].
+///
+/// Example — manual trace:
+/// ```dart
+/// final traceId = DebugKit.trace.start('login_flow', metadata: {'screen': 'login'});
+/// DebugKit.trace.step('validate_input');
+/// DebugKit.trace.end();
+/// ```
+///
+/// Example — scoped async trace:
+/// ```dart
+/// await DebugKit.trace.run('login_flow', () async {
+///   DebugKit.trace.step('validate_input');
+///   await authRepository.login();
+///   DebugKit.trace.step('login_success');
+/// }, metadata: {'source': 'login_button'});
+/// ```
+class DebugKitTrace {
+  final DebugKitController _controller;
+
+  DebugKitTrace(this._controller);
+
+  DebugTraceController get _tc => _controller.traceController;
+
+  /// Starts a new trace. Returns the trace ID.
+  ///
+  /// If called inside an active [run] zone, the new trace will be nested
+  /// under the parent trace via [parentTraceId].
+  String start(String name, {Map<String, String>? metadata}) =>
+      _tc.start(name, metadata: metadata);
+
+  /// Records a named step on the active trace (or [traceId] if provided).
+  void step(String name, {String? traceId, Map<String, String>? metadata}) =>
+      _tc.step(name, traceId: traceId, metadata: metadata);
+
+  /// Marks the active trace (or [traceId]) as successfully completed.
+  void end({String? traceId}) => _tc.end(traceId: traceId);
+
+  /// Marks the active trace (or [traceId]) as failed.
+  void fail(dynamic error, StackTrace? stackTrace, {String? traceId}) =>
+      _tc.fail(error, stackTrace, traceId: traceId);
+
+  /// Marks the active trace (or [traceId]) as cancelled.
+  void cancel(String? reason, {String? traceId}) =>
+      _tc.cancel(reason, traceId: traceId);
+
+  /// Runs [callback] inside a Zone that propagates the active trace context.
+  ///
+  /// - Starts a trace named [name] before calling [callback].
+  /// - Marks the trace as success when [callback] returns normally.
+  /// - Marks the trace as failed if [callback] throws, then rethrows.
+  Future<T> run<T>(
+    String name,
+    Future<T> Function() callback, {
+    Map<String, String>? metadata,
+  }) =>
+      _tc.run(name, callback, metadata: metadata);
 }

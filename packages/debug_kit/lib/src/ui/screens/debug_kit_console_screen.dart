@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../core/controller/debug_kit_controller.dart';
 import '../../core/models/debug_log_entry.dart';
+import '../../core/models/debug_trace.dart';
 import '../../utils/filtering/debug_log_filter.dart';
 import '../../utils/export/debug_log_file_exporter.dart';
+import '../../utils/trace/debug_trace_analyzer.dart';
 import '../widgets/debug_log_list.dart';
 import '../widgets/debug_log_filter_bar.dart';
+import '../widgets/debug_trace_status_badge.dart';
+import 'debug_trace_detail_screen.dart';
 
 class DebugKitConsoleScreen extends StatefulWidget {
   const DebugKitConsoleScreen({super.key});
@@ -13,17 +18,35 @@ class DebugKitConsoleScreen extends StatefulWidget {
   State<DebugKitConsoleScreen> createState() => _DebugKitConsoleScreenState();
 }
 
-class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
+class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
+    with SingleTickerProviderStateMixin {
   DebugLogFilterState _filterState = const DebugLogFilterState();
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: DebugKitController().store,
+      listenable: Listenable.merge([
+        DebugKitController().store,
+        DebugKitController().traceStore,
+      ]),
       builder: (context, _) {
         final allLogs = DebugKitController().store.logs;
         final filteredLogs = _filterState.apply(allLogs.toList());
         final totalCount = allLogs.length;
+        final allTraces = DebugKitController().traceStore.traces;
 
         return Scaffold(
           backgroundColor: const Color(0xFF111111),
@@ -43,7 +66,8 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
                   ),
                 ),
                 Text(
-                  '$totalCount ${totalCount == 1 ? 'entry' : 'entries'}',
+                  '$totalCount ${totalCount == 1 ? 'entry' : 'entries'}'
+                  '  ·  ${allTraces.length} ${allTraces.length == 1 ? 'trace' : 'traces'}',
                   style: TextStyle(
                     color: Colors.grey[500],
                     fontSize: 11,
@@ -55,7 +79,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
               IconButton(
                 icon: const Icon(Icons.copy_all, size: 22),
                 tooltip: 'Copy all to clipboard',
-                onPressed: () => _copyAll(allLogs.toList()),
+                onPressed: () => _copyAll(allLogs.toList(), allTraces.toList()),
               ),
               IconButton(
                 icon: const Icon(Icons.share, size: 22),
@@ -66,6 +90,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
                   _filterState.hasActiveFilters
                       ? filteredLogs
                       : allLogs.toList(),
+                  allTraces.toList(),
                 ),
               ),
               IconButton(
@@ -74,27 +99,97 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
                 onPressed: () => _confirmClearLogs(),
               ),
             ],
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.blueAccent,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.grey[600],
+              labelStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              tabs: const [
+                Tab(text: 'Logs'),
+                Tab(text: 'Traces'),
+              ],
+            ),
           ),
-          body: Column(
+          body: TabBarView(
+            controller: _tabController,
             children: [
-              DebugLogFilterBar(
-                state: _filterState,
-                onChanged: (newState) =>
-                    setState(() => _filterState = newState),
+              // --- Logs tab ---
+              Column(
+                children: [
+                  DebugLogFilterBar(
+                    state: _filterState,
+                    onChanged: (newState) =>
+                        setState(() => _filterState = newState),
+                  ),
+                  if (_filterState.hasActiveFilters)
+                    _buildFilterBanner(filteredLogs.length, totalCount),
+                  Expanded(
+                    child: filteredLogs.isEmpty
+                        ? _buildLogsEmptyState(allLogs.isEmpty)
+                        : DebugLogList(logs: filteredLogs),
+                  ),
+                ],
               ),
-              if (_filterState.hasActiveFilters)
-                _buildFilterBanner(filteredLogs.length, totalCount),
-              Expanded(
-                child: filteredLogs.isEmpty
-                    ? _buildEmptyState(allLogs.isEmpty)
-                    : DebugLogList(logs: filteredLogs),
-              ),
+
+              // --- Traces tab ---
+              _buildTracesTab(allTraces.toList()),
             ],
           ),
         );
       },
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Traces tab
+  // ---------------------------------------------------------------------------
+
+  Widget _buildTracesTab(List<DebugTrace> traces) {
+    if (traces.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.timeline_outlined, size: 64, color: Colors.grey[800]),
+            const SizedBox(height: 16),
+            const Text(
+              'No traces yet',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Use DebugKit.trace.run() or\nDebugKit.trace.start() to record traces.',
+              style: TextStyle(color: Colors.grey[600], height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show newest traces first
+    final reversed = traces.reversed.toList();
+
+    return ListView.builder(
+      itemCount: reversed.length,
+      padding: EdgeInsets.zero,
+      itemBuilder: (context, index) {
+        return _TraceListTile(trace: reversed[index]);
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Logs tab helpers
+  // ---------------------------------------------------------------------------
 
   Widget _buildFilterBanner(int shown, int total) {
     return Container(
@@ -128,7 +223,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
     );
   }
 
-  Widget _buildEmptyState(bool noLogsAtAll) {
+  Widget _buildLogsEmptyState(bool noLogsAtAll) {
     if (noLogsAtAll) {
       return Center(
         child: Column(
@@ -186,8 +281,13 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
     );
   }
 
-  Future<void> _copyAll(List<dynamic> logs) async {
-    await DebugLogFileExporter.exportToClipboard(logs.cast<DebugLogEntry>());
+  // ---------------------------------------------------------------------------
+  // Export actions
+  // ---------------------------------------------------------------------------
+
+  Future<void> _copyAll(
+      List<DebugLogEntry> logs, List<DebugTrace> traces) async {
+    await DebugLogFileExporter.exportToClipboard(logs, traces: traces);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -198,9 +298,9 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
     }
   }
 
-  Future<void> _shareLogs(List<dynamic> logs) async {
-    final entries = logs.cast<DebugLogEntry>();
-    if (entries.isEmpty) {
+  Future<void> _shareLogs(
+      List<DebugLogEntry> logs, List<DebugTrace> traces) async {
+    if (logs.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -212,10 +312,10 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
       return;
     }
     try {
-      await DebugLogFileExporter.shareLogs(entries);
+      await DebugLogFileExporter.shareLogs(logs, traces: traces);
     } catch (_) {
       try {
-        await DebugLogFileExporter.exportToClipboard(entries);
+        await DebugLogFileExporter.exportToClipboard(logs, traces: traces);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -265,6 +365,102 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen> {
             child: const Text('Clear'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Trace list tile
+// ---------------------------------------------------------------------------
+
+class _TraceListTile extends StatelessWidget {
+  final DebugTrace trace;
+
+  const _TraceListTile({required this.trace});
+
+  @override
+  Widget build(BuildContext context) {
+    final warnings = DebugTraceAnalyzer.analyze(trace);
+    final hasWarnings = warnings.isNotEmpty;
+    final timeFormat = DateFormat('HH:mm:ss');
+
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DebugTraceDetailScreen(trace: trace),
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.grey[850]!, width: 1),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                DebugTraceStatusBadge(status: trace.status),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    trace.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (hasWarnings)
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: Color(0xFFFF9800)),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                Text(
+                  timeFormat.format(trace.startedAt),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                ),
+                if (trace.durationMs != null) ...[
+                  Text(
+                    '  ·  ${trace.durationMs}ms',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                  ),
+                ],
+                Text(
+                  '  ·  ${trace.events.length} events',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 11),
+                ),
+                if (trace.parentTraceId != null) ...[
+                  Text(
+                    '  ·  nested',
+                    style: TextStyle(color: Colors.grey[700], fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+            if (trace.errorSummary != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                trace.errorSummary!,
+                style: const TextStyle(
+                  color: Color(0xFFF44336),
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
