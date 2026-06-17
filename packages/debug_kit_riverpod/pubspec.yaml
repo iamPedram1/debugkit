@@ -8,7 +8,7 @@ topics:
   - riverpod
   - state-management
   - devtools
-  - debug_kit
+  - debug-kit
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

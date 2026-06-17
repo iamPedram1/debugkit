@@ -7,9 +7,8 @@ topics:
   - logging
   - router
   - navigation
-  - go_router
-  - devtools
-  - debug_kit
+  - go-router
+  - debug-kit
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
