@@ -5,7 +5,7 @@ A mobile-first in-app DevTools/log console for Flutter apps.
 DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls, and debug state transitions without needing to attach a debugger or tail server logs.
 
 > [!NOTE]
-> This package is part of the [DebugKit Monorepo](https://github.com/iamPedram1/debug_kit).
+> This package is part of the [DebugKit Monorepo](https://github.com/iamPedram1/debugkit).
 
 ## Features
 
@@ -25,7 +25,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.5.0
+  debug_kit: ^0.5.1
 ```
 
 ## 5-Minute Setup
@@ -99,7 +99,7 @@ DebugKit relies on separate optional adapter packages to log automated events wi
 - [`debug_kit_go_router`](https://pub.dev/packages/debug_kit_go_router) — GoRouter navigation observer
 - [`debug_kit_riverpod`](https://pub.dev/packages/debug_kit_riverpod) — Riverpod state observer
 
-Check out the full [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) to see them all working together.
+Check out the full [Example App](https://github.com/iamPedram1/debugkit/tree/main/examples/debug_kit_example) to see them all working together.
 
 ## Repeated Log Grouping
 
@@ -328,7 +328,7 @@ Network   : 2 failed request(s)
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/iamPedram1/debug_kit/blob/main/CONTRIBUTING.md) for details.
+See [CONTRIBUTING.md](https://github.com/iamPedram1/debugkit/blob/main/CONTRIBUTING.md) for details.
 
 ## License
 

@@ -1,8 +1,8 @@
 name: debug_kit_riverpod
 description: "Riverpod provider observer adapter for DebugKit. Automatically logs provider failures and optionally state updates with sanitization."
-version: 0.2.1
-repository: https://github.com/iamPedram1/debug_kit
-issue_tracker: https://github.com/iamPedram1/debug_kit/issues
+version: 0.2.2
+repository: https://github.com/iamPedram1/debugkit
+issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:
   - logging
   - riverpod
