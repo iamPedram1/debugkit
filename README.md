@@ -4,16 +4,6 @@ A mobile-first, in-app DevTools cockpit for Flutter apps.
 
 DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls, and debug state transitions without needing to attach a debugger or tail server logs.
 
-## Screenshots
-
-*(TODO: Add actual screenshots before pub.dev release)*
-
-<div align="center">
-  <img src="docs/assets/screenshots/overlay-button.png" width="200" alt="Overlay Button Placeholder">
-  <img src="docs/assets/screenshots/console-all-logs.png" width="200" alt="Console Placeholder">
-  <img src="docs/assets/screenshots/console-expanded-log.png" width="200" alt="Expanded Log Placeholder">
-</div>
-
 ## Monorepo Overview
 
 This repository is managed as a monorepo using [Melos](https://melos.invertase.dev/). It contains the core DebugKit package and various adapter packages for popular Flutter libraries.

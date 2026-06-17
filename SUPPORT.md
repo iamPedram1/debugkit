@@ -5,13 +5,12 @@
 For usage questions, integration help, and general discussion, use the project
 issue templates or GitHub Discussions when available.
 
-Use the following issue templates for the right kind of request:
+Use the following issue template for the right kind of request:
 
 - bug reports: `.github/ISSUE_TEMPLATE/bug_report.yml`
-- feature requests: `.github/ISSUE_TEMPLATE/feature_request.yml`
-- improvements: `.github/ISSUE_TEMPLATE/improvement.yml`
-- documentation requests: `.github/ISSUE_TEMPLATE/documentation.yml`
-- package integration problems: `.github/ISSUE_TEMPLATE/package_integration.yml`
+
+For feature requests, improvements, and integration questions, open a plain
+GitHub issue with a clear title and description.
 
 ## What to Include
 

@@ -20,8 +20,8 @@ If the report requires sharing sensitive details, contact the maintainer private
 
 ## Supported Versions
 
-- `debug_kit` 0.2.x
-- official adapters 0.1.x
+- `debug_kit` 0.5.x
+- official adapters 0.2.x
 
 ## Reminder
 
