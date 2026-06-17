@@ -124,6 +124,14 @@ class MyHomePage extends ConsumerWidget {
                     .info('User password is: my_super_secret_password123'),
                 child: const Text('Sensitive Log'),
               ),
+              ElevatedButton(
+                onPressed: () {
+                  for (var i = 0; i < 5; i++) {
+                    DebugKit.log.warning('Retrying request…');
+                  }
+                },
+                child: const Text('Repeat Log ×5'),
+              ),
             ]),
             const Divider(height: 32),
 

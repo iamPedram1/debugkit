@@ -7,6 +7,11 @@ import 'debug_log_source.dart';
 /// by [DebugKitController] — raw secrets, tokens, and private keys are never
 /// stored. Use [copyWith] to produce updated versions of a live entry (e.g.
 /// when the Dio adapter finalises a pending request with a status code).
+///
+/// When [DebugKitConfig.groupRepeatedLogs] is `true`, consecutive identical
+/// logs are collapsed into a single entry. [repeatCount] tracks how many times
+/// the log was emitted, [timestamp] remains the first occurrence, and
+/// [lastSeenAt] records the most recent emission time.
 class DebugLogEntry {
   /// Auto-incrementing integer assigned by [DebugLogStore.getNextId].
   ///
@@ -22,7 +27,10 @@ class DebugLogEntry {
   /// The sanitized human-readable message.
   final String message;
 
-  /// When the entry was recorded (UTC).
+  /// When the entry was first recorded (UTC).
+  ///
+  /// Always the timestamp of the *first* occurrence, even when the entry has
+  /// been repeated and [repeatCount] is greater than 1.
   final DateTime timestamp;
 
   /// Optional sanitized error string (e.g. `exception.toString()`).
@@ -88,6 +96,26 @@ class DebugLogEntry {
   /// log entry; not set automatically by the core.
   final int? traceStep;
 
+  // ---------------------------------------------------------------------------
+  // Repeat grouping fields
+  // ---------------------------------------------------------------------------
+
+  /// How many times this log has been emitted consecutively.
+  ///
+  /// Defaults to `1` for all new entries. Incremented by [DebugLogStore] when
+  /// [DebugKitConfig.groupRepeatedLogs] is `true` and the incoming entry has
+  /// the same [fingerprint] as the current tail entry.
+  ///
+  /// Always ≥ 1.
+  final int repeatCount;
+
+  /// When the most recent repeat was recorded.
+  ///
+  /// `null` when [repeatCount] is `1`. Set to [DateTime.now()] whenever the
+  /// store increments [repeatCount]. The [timestamp] field always reflects the
+  /// *first* occurrence.
+  final DateTime? lastSeenAt;
+
   /// Creates a [DebugLogEntry]. All required fields must be provided.
   ///
   /// In practice entries are created only by [DebugKitController.log] after
@@ -109,7 +137,69 @@ class DebugLogEntry {
     this.traceId,
     this.traceName,
     this.traceStep,
-  });
+    this.repeatCount = 1,
+    this.lastSeenAt,
+  }) : assert(repeatCount >= 1, 'repeatCount must be at least 1');
+
+  // ---------------------------------------------------------------------------
+  // Fingerprint
+  // ---------------------------------------------------------------------------
+
+  /// A stable string that identifies the "kind" of this log for grouping.
+  ///
+  /// Two entries with the same fingerprint are considered equivalent and may
+  /// be collapsed into a single grouped entry when consecutive.
+  ///
+  /// **Important:** the [DebugLogStore] never groups entries that carry a
+  /// [requestId], regardless of fingerprint equality. This protects network
+  /// log entries from being merged — each one must remain individually
+  /// addressable for [DebugKitController.updateLogByRequestId] to work.
+  ///
+  /// **Included in the fingerprint:**
+  /// - [level] — different severities are never merged.
+  /// - [source] — app vs DIO vs router logs are never merged.
+  /// - [message] — the primary log text.
+  /// - [error] — two entries with different errors are distinct.
+  /// - First line of [stackTrace] — enough to distinguish call sites without
+  ///   over-specificity.
+  /// - [traceId] — logs from different traces are never merged.
+  /// - Stable metadata keys: all metadata *except* the volatile keys
+  ///   `duration_ms`, `request_id`, and `response_headers` which change on
+  ///   every network call even when the logical event is the same.
+  ///
+  /// **Excluded from the fingerprint:**
+  /// - [timestamp] / [lastSeenAt] — timing is irrelevant for grouping.
+  /// - [id] — internal identity, not semantic content.
+  /// - [repeatCount] / [lastSeenAt] — grouping state, not content.
+  /// - [location] — call-site varies across build flavors; excluding it avoids
+  ///   false negatives in release vs profile vs debug builds.
+  /// - `duration_ms`, `response_headers` metadata — volatile per call.
+  String get fingerprint {
+    final metaPart = _stableMetadata();
+    final stackFirst = _firstStackLine();
+    return '${level.index}|${source.index}|$message|${error ?? ''}|${stackFirst ?? ''}|${traceId ?? ''}|$metaPart';
+  }
+
+  /// Returns metadata sorted by key with volatile keys excluded.
+  String _stableMetadata() {
+    if (metadata == null || metadata!.isEmpty) return '';
+    const volatileKeys = {'duration_ms', 'request_id', 'response_headers'};
+    final stable = metadata!.entries
+        .where((e) => !volatileKeys.contains(e.key))
+        .toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return stable.map((e) => '${e.key}=${e.value}').join(',');
+  }
+
+  /// Returns only the first line of [stackTrace], or `null`.
+  String? _firstStackLine() {
+    if (stackTrace == null) return null;
+    return stackTrace!.split('\n').first.trim();
+  }
+
+  // ---------------------------------------------------------------------------
+  // copyWith
+  // ---------------------------------------------------------------------------
 
   /// Returns a copy of this entry with the specified fields replaced.
   ///
@@ -130,6 +220,8 @@ class DebugLogEntry {
     String? traceId,
     String? traceName,
     int? traceStep,
+    int? repeatCount,
+    DateTime? lastSeenAt,
   }) {
     return DebugLogEntry(
       id: id,
@@ -148,6 +240,19 @@ class DebugLogEntry {
       traceId: traceId ?? this.traceId,
       traceName: traceName ?? this.traceName,
       traceStep: traceStep ?? this.traceStep,
+      repeatCount: repeatCount ?? this.repeatCount,
+      lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+    );
+  }
+
+  /// Returns a copy with [repeatCount] incremented by 1 and [lastSeenAt] set
+  /// to [now].
+  ///
+  /// Used by [DebugLogStore] when a consecutive duplicate is detected.
+  DebugLogEntry copyWithRepeatIncrement(DateTime now) {
+    return copyWith(
+      repeatCount: repeatCount + 1,
+      lastSeenAt: now,
     );
   }
 }

@@ -49,6 +49,8 @@ class CancelMockAdapter implements HttpClientAdapter {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Dio dio;
   late DebugKitController controller;
 
@@ -219,5 +221,176 @@ void main() {
 
     await dio.get('https://api.example.com/data');
     expect(controller.traceStore.traces.isEmpty, isTrue);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Concurrent request grouping regression tests
+  // ---------------------------------------------------------------------------
+
+  group('Concurrent request grouping safety', () {
+    test(
+        'two identical concurrent pending requests are stored as separate entries',
+        () async {
+      // Use a manual interceptor and controller directly so we control timing.
+      controller.init(enabled: true, groupRepeatedLogs: true);
+      final interceptor = DebugKitDioInterceptor(controller);
+
+      // Simulate onRequest for req 1
+      final options1 = RequestOptions(path: 'https://api.example.com/users');
+      interceptor.onRequest(options1, RequestInterceptorHandler());
+
+      // Simulate onRequest for req 2 (identical URL, same message fingerprint)
+      final options2 = RequestOptions(path: 'https://api.example.com/users');
+      interceptor.onRequest(options2, RequestInterceptorHandler());
+
+      // Both must be stored as separate rows — not grouped
+      expect(controller.store.logs.length, 2,
+          reason: 'Each pending network log must be a separate entry so it can '
+              'be updated independently by requestId');
+
+      final requestId1 = options1.extra['debugKitRequestId'] as String;
+      final requestId2 = options2.extra['debugKitRequestId'] as String;
+
+      expect(requestId1, isNot(requestId2));
+
+      // Both entries must be findable by their own requestId
+      final entry1 = controller.store.getEntryByRequestId(requestId1);
+      final entry2 = controller.store.getEntryByRequestId(requestId2);
+      expect(entry1, isNotNull, reason: 'Entry for req1 must be findable');
+      expect(entry2, isNotNull, reason: 'Entry for req2 must be findable');
+      expect(entry1!.id, isNot(entry2!.id));
+    });
+
+    test('response for req2 updates only req2 entry, req1 entry unchanged',
+        () async {
+      controller.init(enabled: true, groupRepeatedLogs: true);
+      final interceptor = DebugKitDioInterceptor(controller);
+
+      // Fire two identical requests
+      final options1 = RequestOptions(path: 'https://api.example.com/feed');
+      final options2 = RequestOptions(path: 'https://api.example.com/feed');
+      interceptor.onRequest(options1, RequestInterceptorHandler());
+      interceptor.onRequest(options2, RequestInterceptorHandler());
+
+      expect(controller.store.logs.length, 2);
+
+      // Response arrives for req2 first (out-of-order)
+      final response2 = Response(
+        requestOptions: options2,
+        statusCode: 200,
+        data: null,
+      );
+      interceptor.onResponse(response2, ResponseInterceptorHandler());
+
+      // req2 entry should now show 200
+      final requestId1 = options1.extra['debugKitRequestId'] as String;
+      final requestId2 = options2.extra['debugKitRequestId'] as String;
+
+      final updatedEntry2 = controller.store.getEntryByRequestId(requestId2);
+      final unchangedEntry1 = controller.store.getEntryByRequestId(requestId1);
+
+      expect(updatedEntry2, isNotNull);
+      expect(updatedEntry2!.message, contains('200'),
+          reason: 'req2 entry must be updated with status code');
+
+      expect(unchangedEntry1, isNotNull);
+      expect(unchangedEntry1!.message, contains('pending'),
+          reason:
+              'req1 entry must still be pending — not affected by req2 response');
+    });
+
+    test(
+        'error for req1 updates only req1 entry when responses arrive out-of-order',
+        () async {
+      controller.init(enabled: true, groupRepeatedLogs: true);
+      final interceptor = DebugKitDioInterceptor(controller);
+
+      final options1 = RequestOptions(path: 'https://api.example.com/data');
+      final options2 = RequestOptions(path: 'https://api.example.com/data');
+      interceptor.onRequest(options1, RequestInterceptorHandler());
+      interceptor.onRequest(options2, RequestInterceptorHandler());
+
+      expect(controller.store.logs.length, 2);
+
+      final requestId1 = options1.extra['debugKitRequestId'] as String;
+      final requestId2 = options2.extra['debugKitRequestId'] as String;
+
+      // Simulate req2 succeeding via direct store update (same path the adapter uses)
+      controller.updateLogByRequestId(
+          requestId2,
+          (e) => e.copyWith(
+                message: 'GET https://api.example.com/data В· 200 В· 10ms',
+              ));
+
+      // Simulate req1 failing via direct store update
+      controller.updateLogByRequestId(
+          requestId1,
+          (e) => e.copyWith(
+                message: 'GET https://api.example.com/data В· failed В· 5ms',
+                level: DebugLogLevel.error,
+                error: 'timeout',
+              ));
+
+      final entry1 = controller.store.getEntryByRequestId(requestId1);
+      final entry2 = controller.store.getEntryByRequestId(requestId2);
+
+      expect(entry1, isNotNull);
+      expect(entry1!.level, DebugLogLevel.error,
+          reason: 'req1 must be marked as error');
+      expect(entry1.message, contains('failed'));
+
+      expect(entry2, isNotNull);
+      expect(entry2!.level, DebugLogLevel.info,
+          reason:
+              'req2 must remain successful, not contaminated by req1 error');
+      expect(entry2.message, contains('200'));
+    });
+
+    test('store.logs.length stays 2 after both requests complete', () async {
+      controller.init(enabled: true, groupRepeatedLogs: true);
+      final interceptor = DebugKitDioInterceptor(controller);
+
+      final options1 = RequestOptions(path: 'https://api.example.com/items');
+      final options2 = RequestOptions(path: 'https://api.example.com/items');
+      interceptor.onRequest(options1, RequestInterceptorHandler());
+      interceptor.onRequest(options2, RequestInterceptorHandler());
+
+      final response1 =
+          Response(requestOptions: options1, statusCode: 201, data: null);
+      final response2 =
+          Response(requestOptions: options2, statusCode: 200, data: null);
+
+      interceptor.onResponse(response2, ResponseInterceptorHandler());
+      interceptor.onResponse(response1, ResponseInterceptorHandler());
+
+      // No entries evicted, no merging — should still be exactly 2
+      expect(controller.store.logs.length, 2);
+    });
+
+    test('app logs still group normally alongside non-grouping network logs',
+        () async {
+      controller.init(enabled: true, groupRepeatedLogs: true);
+      final interceptor = DebugKitDioInterceptor(controller);
+
+      // App log repeated 3×
+      controller.info('Polling…');
+      controller.info('Polling…');
+      controller.info('Polling…');
+
+      // Network request (should NOT group with app logs or with each other)
+      final options1 = RequestOptions(path: 'https://api.example.com/poll');
+      final options2 = RequestOptions(path: 'https://api.example.com/poll');
+      interceptor.onRequest(options1, RequestInterceptorHandler());
+      interceptor.onRequest(options2, RequestInterceptorHandler());
+
+      // 1 grouped app log + 2 separate network logs = 3 entries
+      expect(controller.store.logs.length, 3);
+      expect(controller.store.logs.first.repeatCount, 3);
+      expect(controller.store.logs.first.source, DebugLogSource.app);
+      expect(controller.store.logs[1].source, DebugLogSource.dio);
+      expect(controller.store.logs[1].repeatCount, 1);
+      expect(controller.store.logs[2].source, DebugLogSource.dio);
+      expect(controller.store.logs[2].repeatCount, 1);
+    });
   });
 }

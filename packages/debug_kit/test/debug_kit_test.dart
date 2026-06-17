@@ -10,7 +10,7 @@ void main() {
 
   group('DebugLogStore', () {
     test('appends logs', () {
-      final store = DebugLogStore(maxLogs: 10);
+      final store = DebugLogStore(maxLogs: 10, groupRepeated: false);
       store.addLog(DebugLogEntry(
         id: 1,
         level: DebugLogLevel.info,
@@ -23,7 +23,7 @@ void main() {
     });
 
     test('evicts oldest logs after maxLogs', () {
-      final store = DebugLogStore(maxLogs: 3);
+      final store = DebugLogStore(maxLogs: 3, groupRepeated: false);
       for (var i = 1; i <= 5; i++) {
         store.addLog(DebugLogEntry(
           id: i,
@@ -39,7 +39,7 @@ void main() {
     });
 
     test('clear removes all logs', () {
-      final store = DebugLogStore(maxLogs: 10);
+      final store = DebugLogStore(maxLogs: 10, groupRepeated: false);
       store.addLog(DebugLogEntry(
         id: 1,
         level: DebugLogLevel.info,
@@ -62,7 +62,7 @@ void main() {
 
     test('logging stores sanitized entries', () {
       final controller = DebugKitController();
-      controller.init(enabled: true);
+      controller.init(enabled: true, groupRepeatedLogs: false);
       controller.info(
           'App started with key=0x1234567890123456789012345678901234567890123456789012345678901234');
 

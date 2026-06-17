@@ -20,8 +20,8 @@ class DebugKitConfig {
 
   /// Maximum number of log entries kept in memory at one time.
   ///
-  /// When the store reaches [maxLogs], the oldest entry is evicted before the
-  /// newest is added. Defaults to `300`.
+  /// Grouped (repeated) entries count as a single slot regardless of their
+  /// [DebugLogEntry.repeatCount]. Defaults to `300`.
   final int maxLogs;
 
   /// Whether to capture the call-site file name and line for [DebugLogSource.app] entries.
@@ -78,6 +78,27 @@ class DebugKitConfig {
   /// Defaults to 3 seconds.
   final Duration slowTraceThreshold;
 
+  /// Whether consecutive identical log entries are collapsed into a single
+  /// grouped entry with a [DebugLogEntry.repeatCount] counter.
+  ///
+  /// When `true` (the default), the store compares each incoming entry's
+  /// [DebugLogEntry.fingerprint] against the tail entry. If they match, the
+  /// tail entry is updated in-place rather than appending a new row. The
+  /// console UI then shows a `×N` repeat badge.
+  ///
+  /// This mirrors Chrome DevTools console behavior and keeps the log list
+  /// readable during high-frequency repeated events (e.g. polling, retries).
+  ///
+  /// Only *consecutive* duplicates are grouped — if a different log appears
+  /// between two identical entries they remain separate. This matches
+  /// Chrome's behavior and is more predictable than global deduplication.
+  ///
+  /// Set to `false` if you need every emission as an independent row, or
+  /// when you are programmatically processing the raw log stream.
+  ///
+  /// Defaults to `true`.
+  final bool groupRepeatedLogs;
+
   /// Creates an immutable [DebugKitConfig].
   ///
   /// All parameters have safe defaults suitable for a development build.
@@ -90,5 +111,6 @@ class DebugKitConfig {
     this.maxTraces = 50,
     this.maxTraceEventsPerTrace = 200,
     this.slowTraceThreshold = const Duration(seconds: 3),
+    this.groupRepeatedLogs = true,
   });
 }

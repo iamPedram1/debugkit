@@ -6,6 +6,10 @@ import '../../core/models/debug_log_level.dart';
 import '../../core/models/debug_log_source.dart';
 
 /// A single log entry tile with expand-on-tap and long-press-to-copy.
+///
+/// When [DebugLogEntry.repeatCount] is greater than 1, a compact `×N` repeat
+/// badge is displayed in the header row. Expanded view shows first-seen and
+/// last-seen timestamps alongside the repeat count.
 class DebugLogTile extends StatefulWidget {
   final DebugLogEntry entry;
 
@@ -26,10 +30,11 @@ class _DebugLogTileState extends State<DebugLogTile> {
     final entry = widget.entry;
     final levelColor = _getLevelColor(entry.level);
     final time = DateFormat('HH:mm:ss').format(entry.timestamp);
+    final isRepeated = entry.repeatCount > 1;
 
     return InkWell(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
-      onLongPress: () => _copyToClipboard(context, entry.message),
+      onLongPress: () => _copyToClipboard(context, _buildCopyText(entry)),
       child: Container(
         decoration: BoxDecoration(
           border: Border(
@@ -41,7 +46,7 @@ class _DebugLogTileState extends State<DebugLogTile> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row: badges + time
+            // Header row: level badge · source badge · time · repeat badge · chevron
             Row(
               children: [
                 _Badge(label: entry.level.label, color: levelColor),
@@ -60,7 +65,12 @@ class _DebugLogTileState extends State<DebugLogTile> {
                   ),
                 ),
                 const Spacer(),
-                if (entry.requestId != null)
+                // Repeat badge — shown only when collapsed (count > 1)
+                if (isRepeated && !_isExpanded) ...[
+                  _RepeatBadge(count: entry.repeatCount),
+                  const SizedBox(width: 6),
+                ],
+                if (!isRepeated && entry.requestId != null)
                   Flexible(
                     child: Text(
                       entry.requestId!,
@@ -98,12 +108,33 @@ class _DebugLogTileState extends State<DebugLogTile> {
             // Expanded detail blocks
             if (_isExpanded) ...[
               const SizedBox(height: 10),
-              _DetailBlock(
-                title: 'Timestamp',
-                content: DateFormat('yyyy-MM-dd HH:mm:ss.SSS')
-                    .format(entry.timestamp),
-                color: Colors.grey[500],
-              ),
+              // Repeat info block (shown when grouped)
+              if (isRepeated) ...[
+                _DetailBlock(
+                  title: 'Repeat',
+                  content: '×${entry.repeatCount}',
+                  color: const Color(0xFF64B5F6),
+                ),
+                _DetailBlock(
+                  title: 'First seen',
+                  content: DateFormat('yyyy-MM-dd HH:mm:ss.SSS')
+                      .format(entry.timestamp),
+                  color: Colors.grey[500],
+                ),
+                if (entry.lastSeenAt != null)
+                  _DetailBlock(
+                    title: 'Last seen',
+                    content: DateFormat('yyyy-MM-dd HH:mm:ss.SSS')
+                        .format(entry.lastSeenAt!),
+                    color: Colors.grey[500],
+                  ),
+              ] else
+                _DetailBlock(
+                  title: 'Timestamp',
+                  content: DateFormat('yyyy-MM-dd HH:mm:ss.SSS')
+                      .format(entry.timestamp),
+                  color: Colors.grey[500],
+                ),
               if (entry.error != null)
                 _DetailBlock(
                   title: 'Error',
@@ -116,6 +147,12 @@ class _DebugLogTileState extends State<DebugLogTile> {
                   content: entry.metadata!.entries
                       .map((e) => '  ${e.key}: ${e.value}')
                       .join('\n'),
+                ),
+              if (entry.requestId != null)
+                _DetailBlock(
+                  title: 'Request ID',
+                  content: entry.requestId!,
+                  color: Colors.grey[600],
                 ),
               if (entry.payloadPreview != null)
                 _DetailBlock(
@@ -139,6 +176,14 @@ class _DebugLogTileState extends State<DebugLogTile> {
         ),
       ),
     );
+  }
+
+  /// Builds the clipboard text, including repeat info when grouped.
+  String _buildCopyText(DebugLogEntry entry) {
+    if (entry.repeatCount > 1) {
+      return '×${entry.repeatCount} ${entry.message}';
+    }
+    return entry.message;
   }
 
   Future<void> _copyToClipboard(BuildContext context, String text) async {
@@ -172,6 +217,46 @@ class _DebugLogTileState extends State<DebugLogTile> {
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Repeat badge
+// ---------------------------------------------------------------------------
+
+/// Compact `×N` badge shown on grouped log entries.
+class _RepeatBadge extends StatelessWidget {
+  final int count;
+
+  const _RepeatBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1565C0).withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: const Color(0xFF64B5F6).withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        '×$count',
+        style: const TextStyle(
+          color: Color(0xFF64B5F6),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared private widgets
+// ---------------------------------------------------------------------------
 
 class _Badge extends StatelessWidget {
   final String label;

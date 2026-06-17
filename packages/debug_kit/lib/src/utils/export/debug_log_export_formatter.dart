@@ -15,28 +15,12 @@ import 'debug_trace_export_formatter.dart';
 class DebugLogExportFormatter {
   /// Formats [logs] (and optionally [traces]) into a complete export string.
   ///
-  /// The output structure is:
-  /// ```
-  /// DebugKit Logs
-  /// Exported: yyyy-MM-dd HH:mm:ss
-  /// Total   : N entries
-  /// ============================================================
-  ///
-  /// [LEVEL][SOURCE] HH:mm:ss  requestId  Trace: name
-  /// Message: ...
-  /// ...
-  /// ------------------------------------------------------------
-  ///
-  /// (if traces provided)
-  /// ============================================================
-  /// DebugKit Traces
-  /// Total: M
-  /// ...
-  /// ```
+  /// Grouped entries (where [DebugLogEntry.repeatCount] > 1) are exported as
+  /// a single block with repeat count, first-seen, and last-seen timestamps.
+  /// They are **never** expanded into N duplicate lines.
   ///
   /// - [logs]: the list of [DebugLogEntry] instances to format.
-  /// - [traces]: optional list of [DebugTrace] instances appended as a
-  ///   separate section after the log entries.
+  /// - [traces]: optional list of [DebugTrace] instances appended after logs.
   static String formatLogs(List<DebugLogEntry> logs,
       {List<DebugTrace>? traces}) {
     final buffer = StringBuffer();
@@ -77,21 +61,21 @@ class DebugLogExportFormatter {
 
   /// Formats a single [DebugLogEntry] as a multi-line block.
   ///
-  /// Line 1: `[LEVEL][SOURCE] HH:mm:ss  <requestId>  Trace: <name> step=<n>`
-  /// Following lines (present when non-null):
-  /// - `Message: ...`
-  /// - `Location: ...`
-  /// - `Error: ...`
-  /// - `Meta: key=value key2=value2`
-  /// - `Details:` + details block
-  /// - `Payload:` + payload block
-  /// - `Response:` + response block
-  /// - `Stack:` + stack trace block
+  /// When [DebugLogEntry.repeatCount] > 1 the header line includes `×N` and
+  /// the block gains `First seen` / `Last seen` lines. The entry is always
+  /// emitted as **one block** regardless of how many times it was repeated.
+  ///
+  /// Header line: `[LEVEL][SOURCE] HH:mm:ss ×N  requestId  Trace: name step=N`
   static String formatEntry(DebugLogEntry entry) {
     final buffer = StringBuffer();
-    final time = DateFormat('HH:mm:ss').format(entry.timestamp);
+    final timeFormat = DateFormat('HH:mm:ss');
+    final fullFormat = DateFormat('yyyy-MM-dd HH:mm:ss.SSS');
+    final time = timeFormat.format(entry.timestamp);
+    final isRepeated = entry.repeatCount > 1;
 
+    // Header line
     buffer.write('[${entry.level.label}][${entry.source.label}] $time');
+    if (isRepeated) buffer.write(' ×${entry.repeatCount}');
     if (entry.requestId != null) buffer.write('  ${entry.requestId}');
     if (entry.traceId != null) {
       buffer.write('  Trace: ${entry.traceName ?? entry.traceId}');
@@ -100,6 +84,14 @@ class DebugLogExportFormatter {
     buffer.writeln();
 
     buffer.writeln('Message: ${entry.message}');
+
+    // Repeat timing lines
+    if (isRepeated) {
+      buffer.writeln('First seen: ${fullFormat.format(entry.timestamp)}');
+      if (entry.lastSeenAt != null) {
+        buffer.writeln('Last seen : ${fullFormat.format(entry.lastSeenAt!)}');
+      }
+    }
 
     if (entry.location != null) {
       buffer.writeln('Location: ${entry.location}');

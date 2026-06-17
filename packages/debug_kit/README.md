@@ -11,9 +11,11 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 
 - **Mobile-First UI**: A floating, draggable button that works on real devices.
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
+- **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
+- **Trace System**: Named async traces with timeline, health analysis, and correlation to logs, network, navigation, and state events.
 - **Manual Logging API**: Easy-to-use API for application-level logs and user actions.
 
 ## Installation
@@ -22,7 +24,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.2.3
+  debug_kit: ^0.4.0
 ```
 
 ## 5-Minute Setup
@@ -98,6 +100,73 @@ DebugKit relies on separate optional adapter packages to log automated events wi
 
 Check out the full [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example) to see them all working together.
 
+## Repeated Log Grouping
+
+When the same log is emitted repeatedly in a row, DebugKit collapses the duplicates into a single entry with a `×N` badge — the same behavior as the Chrome DevTools console.
+
+```dart
+// These three calls produce one row in the console: "Retrying request  ×3"
+DebugKit.log.warning('Retrying request');
+DebugKit.log.warning('Retrying request');
+DebugKit.log.warning('Retrying request');
+```
+
+Grouping is **consecutive-only**: if a different log appears between two identical messages they remain separate rows. This keeps the behavior predictable.
+
+```
+A  →  A ×3
+A      A ×3
+A      B
+B      A
+A
+```
+
+### Disabling grouping
+
+```dart
+DebugKit.init(
+  enabled: true,
+  groupRepeatedLogs: false, // store every emission independently
+);
+```
+
+### What gets grouped
+
+Two entries are considered equivalent when their **fingerprint** matches. The fingerprint includes:
+
+| Included | Excluded |
+|----------|----------|
+| `level` | `id` |
+| `source` | `timestamp` / `lastSeenAt` |
+| `message` | `repeatCount` |
+| `error` | `duration_ms` metadata |
+| First stack trace line | `response_headers` metadata |
+| `traceId` | |
+| Stable metadata key=value pairs | |
+
+**Network logs (entries with a `requestId`) are never grouped**, regardless of fingerprint. The Dio adapter updates log entries in-place by `requestId` — merging two concurrent identical network requests would silently lose one of their updates. Each network transaction always occupies its own row.
+
+### In the UI
+
+- Collapsed tile: `×N` badge in the header row.
+- Expanded tile: **Repeat**, **First seen**, and **Last seen** detail blocks.
+- Long-press copy: includes `×N` prefix when grouped.
+
+### In exports
+
+Grouped entries export as **one block** — never expanded into N lines:
+
+```
+[WRN][APP] 14:21:02 ×12
+Message: Retrying request
+First seen: 2026-06-16 14:21:02.000
+Last seen : 2026-06-16 14:21:09.000
+```
+
+### Security
+
+The fingerprint is computed on already-sanitized values — raw secrets never reach the comparison logic. Grouping never merges logs from different traces (`traceId` is included in the fingerprint).
+
 ## Exporting Logs
 
 The DebugKit console provides two export actions in the AppBar:
@@ -133,6 +202,8 @@ DebugKit uses conservative best-effort sanitization to protect sensitive informa
 - [x] Dio HTTP Interceptor (`debug_kit_dio`)
 - [x] Navigation Observer (`debug_kit_go_router`)
 - [x] Riverpod Observer (`debug_kit_riverpod`)
+- [x] Repeated log grouping (Chrome DevTools-style `×N` badge)
+- [x] Trace system with timeline, health analysis, and adapter correlation
 - [ ] AI Prompt Builder (Phase 3)
 - [ ] Snapshots & Reproduction Sessions (Phase 4)
 

@@ -78,6 +78,8 @@ class DebugKitController extends ChangeNotifier {
   /// - [maxTraceEventsPerTrace]: maximum events per trace. Defaults to `200`.
   /// - [slowTraceThreshold]: duration above which [DebugTraceAnalyzer] warns
   ///   about a slow trace. Defaults to 3 seconds.
+  /// - [groupRepeatedLogs]: collapse consecutive identical logs into a single
+  ///   entry with a repeat counter. Defaults to `true`.
   void init({
     bool enabled = true,
     int maxLogs = 300,
@@ -88,6 +90,7 @@ class DebugKitController extends ChangeNotifier {
     int maxTraces = 50,
     int maxTraceEventsPerTrace = 200,
     Duration slowTraceThreshold = const Duration(seconds: 3),
+    bool groupRepeatedLogs = true,
   }) {
     _config = DebugKitConfig(
       enabled: enabled,
@@ -98,8 +101,9 @@ class DebugKitController extends ChangeNotifier {
       maxTraces: maxTraces,
       maxTraceEventsPerTrace: maxTraceEventsPerTrace,
       slowTraceThreshold: slowTraceThreshold,
+      groupRepeatedLogs: groupRepeatedLogs,
     );
-    _store = DebugLogStore(maxLogs: maxLogs);
+    _store = DebugLogStore(maxLogs: maxLogs, groupRepeated: groupRepeatedLogs);
     _traceStore = DebugTraceStore(
       maxTraces: maxTraces,
       maxEventsPerTrace: maxTraceEventsPerTrace,

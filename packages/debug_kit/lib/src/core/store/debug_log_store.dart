@@ -11,20 +11,36 @@ import '../models/debug_log_level.dart';
 /// [SchedulerBinding.addPostFrameCallback] when called during a frame build to
 /// avoid "setState during build" errors.
 ///
+/// **Repeat grouping:** when [groupRepeated] is `true` (the default), calling
+/// [addLog] with an entry whose [DebugLogEntry.fingerprint] matches the tail
+/// entry will increment [DebugLogEntry.repeatCount] on the tail rather than
+/// appending a new row. This keeps the store bounded and mirrors Chrome
+/// DevTools console behavior.
+///
 /// The store is a singleton accessed via [DebugKitController.store]. Direct
 /// construction is for tests only.
 class DebugLogStore extends ChangeNotifier {
   /// Maximum number of entries kept in memory.
   ///
+  /// Grouped entries count as one slot regardless of [DebugLogEntry.repeatCount].
   /// When [addLog] is called and the buffer is full, the oldest entry is
   /// evicted before the new one is appended.
   final int maxLogs;
 
+  /// Whether to group consecutive identical entries.
+  ///
+  /// Mirrors [DebugKitConfig.groupRepeatedLogs]. Injected at construction so
+  /// tests can toggle the behavior without touching global config.
+  final bool groupRepeated;
+
   final List<DebugLogEntry> _logs = [];
   int _nextId = 1;
 
-  /// Creates a [DebugLogStore] with the given [maxLogs] capacity.
-  DebugLogStore({this.maxLogs = 300});
+  /// Creates a [DebugLogStore].
+  ///
+  /// - [maxLogs]: buffer capacity. Defaults to `300`.
+  /// - [groupRepeated]: enable consecutive-duplicate grouping. Defaults to `true`.
+  DebugLogStore({this.maxLogs = 300, this.groupRepeated = true});
 
   /// All stored entries in insertion order (oldest first).
   ///
@@ -52,8 +68,31 @@ class DebugLogStore extends ChangeNotifier {
     }
   }
 
-  /// Appends [entry] to the store, evicting the oldest entry when full.
+  /// Appends [entry] to the store, with optional consecutive-duplicate grouping.
+  ///
+  /// **Grouping path** (when [groupRepeated] is `true`):
+  /// 1. The entry is eligible for grouping only if it has **no `requestId`**.
+  ///    Entries with a `requestId` are individually addressable by the Dio
+  ///    adapter via [getEntryByRequestId] and must never be merged — doing so
+  ///    would cause [updateLogByRequestId] to silently lose network updates.
+  /// 2. If eligible and the tail entry has the same [DebugLogEntry.fingerprint],
+  ///    the tail is replaced with [DebugLogEntry.copyWithRepeatIncrement] and
+  ///    listeners are notified. No new row is appended.
+  ///
+  /// **Normal path** (grouping disabled, entry has a requestId, or fingerprints differ):
+  /// 1. Evicts the oldest entry if the buffer is full.
+  /// 2. Appends [entry].
+  /// 3. Notifies listeners.
   void addLog(DebugLogEntry entry) {
+    if (groupRepeated && _logs.isNotEmpty && entry.requestId == null) {
+      final tail = _logs.last;
+      if (tail.fingerprint == entry.fingerprint) {
+        _logs[_logs.length - 1] = tail.copyWithRepeatIncrement(DateTime.now());
+        _safeNotify();
+        return;
+      }
+    }
+
     if (_logs.length >= maxLogs) {
       _logs.removeAt(0);
     }
@@ -61,11 +100,20 @@ class DebugLogStore extends ChangeNotifier {
     _safeNotify();
   }
 
-  /// Appends multiple [entries] at once, evicting old entries as needed.
+  /// Appends multiple [entries] at once, applying grouping and eviction for
+  /// each entry in order.
   ///
-  /// Only one [notifyListeners] call is made after all entries are added.
+  /// Only one [notifyListeners] call is made after all entries are processed.
   void addLogs(List<DebugLogEntry> entries) {
     for (final entry in entries) {
+      if (groupRepeated && _logs.isNotEmpty && entry.requestId == null) {
+        final tail = _logs.last;
+        if (tail.fingerprint == entry.fingerprint) {
+          _logs[_logs.length - 1] =
+              tail.copyWithRepeatIncrement(DateTime.now());
+          continue;
+        }
+      }
       if (_logs.length >= maxLogs) {
         _logs.removeAt(0);
       }
@@ -106,7 +154,8 @@ class DebugLogStore extends ChangeNotifier {
     }
   }
 
-  /// Returns the first entry whose [DebugLogEntry.requestId] matches [requestId], or `null`.
+  /// Returns the first entry whose [DebugLogEntry.requestId] matches
+  /// [requestId], or `null`.
   ///
   /// Used by the Dio adapter to locate the pending log entry when a response
   /// or error arrives.

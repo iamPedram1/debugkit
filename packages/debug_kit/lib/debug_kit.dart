@@ -81,6 +81,8 @@ class DebugKit {
   /// - [maxTraceEventsPerTrace]: per-trace event limit. Defaults to `200`.
   /// - [slowTraceThreshold]: duration that triggers a "slow trace" health
   ///   warning. Defaults to 3 seconds.
+  /// - [groupRepeatedLogs]: collapse consecutive identical log entries into a
+  ///   single row with a `×N` repeat badge. Defaults to `true`.
   static void init({
     bool enabled = true,
     int maxLogs = 300,
@@ -91,6 +93,7 @@ class DebugKit {
     int maxTraces = 50,
     int maxTraceEventsPerTrace = 200,
     Duration slowTraceThreshold = const Duration(seconds: 3),
+    bool groupRepeatedLogs = true,
   }) {
     _controller.init(
       enabled: enabled,
@@ -102,6 +105,7 @@ class DebugKit {
       maxTraces: maxTraces,
       maxTraceEventsPerTrace: maxTraceEventsPerTrace,
       slowTraceThreshold: slowTraceThreshold,
+      groupRepeatedLogs: groupRepeatedLogs,
     );
   }
 
