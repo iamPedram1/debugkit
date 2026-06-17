@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- chore: update `repository` and `issue_tracker` URLs to reflect repository rename (`username/debug_kit` → `username/debugkit`).
+
 ## 0.5.0
 
 ### New: Error Digest / Error Intelligence

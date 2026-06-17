@@ -1,8 +1,8 @@
 name: debug_kit_dio
 description: "Dio network logging adapter for DebugKit. Automatically logs requests, responses, and errors with sanitization."
-version: 0.2.1
-repository: https://github.com/iamPedram1/debug_kit
-issue_tracker: https://github.com/iamPedram1/debug_kit/issues
+version: 0.2.2
+repository: https://github.com/iamPedram1/debugkit
+issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:
   - logging
   - dio

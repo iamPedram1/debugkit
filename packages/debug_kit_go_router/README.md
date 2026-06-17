@@ -10,8 +10,8 @@ Add both `debug_kit` and `debug_kit_go_router` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.5.0
-  debug_kit_go_router: ^0.2.0
+  debug_kit: ^0.5.1
+  debug_kit_go_router: ^0.2.2
 ```
 
 ## Setup
@@ -66,7 +66,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 ## Links
 
 - [DebugKit Core](https://pub.dev/packages/debug_kit)
-- [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example)
+- [Example App](https://github.com/iamPedram1/debugkit/tree/main/examples/debug_kit_example)
 
 ## Compatibility
 

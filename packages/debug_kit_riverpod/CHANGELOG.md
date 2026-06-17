@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- chore: update `repository` and `issue_tracker` URLs to reflect repository rename (`username/debug_kit` → `username/debugkit`).
+
 ## 0.2.1
 
 - Fix: add `TestWidgetsFlutterBinding.ensureInitialized()` to the test suite so trace store event tests pass reliably when the Flutter scheduler binding is required.
