@@ -10,8 +10,8 @@ Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.2.2
-  debug_kit_dio: ^0.1.0
+  debug_kit: ^0.5.0
+  debug_kit_dio: ^0.2.0
 ```
 
 ## Setup
@@ -77,6 +77,12 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 - [DebugKit Core](https://pub.dev/packages/debug_kit)
 - [Example App](https://github.com/iamPedram1/debug_kit/tree/main/examples/debug_kit_example)
+
+## Compatibility
+
+| `debug_kit_dio` | `debug_kit` |
+|---|---|
+| 0.2.x | ≥ 0.5.0 |
 
 ## License
 

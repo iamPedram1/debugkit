@@ -13,10 +13,10 @@ Packages must be published in dependency order. Core first, then adapters.
 
 | Order | Package | Version | Notes |
 | :---: | :--- | :--- | :--- |
-| 1 | `debug_kit` | 0.2.2 | Core — publish first, no local deps |
-| 2 | `debug_kit_dio` | 0.1.0 | Depends on `debug_kit` |
-| 3 | `debug_kit_go_router` | 0.1.0 | Depends on `debug_kit` |
-| 4 | `debug_kit_riverpod` | 0.1.0 | Depends on `debug_kit` |
+| 1 | `debug_kit` | 0.5.0 | Core — publish first, no local deps |
+| 2 | `debug_kit_dio` | 0.2.1 | Depends on `debug_kit` |
+| 3 | `debug_kit_go_router` | 0.2.1 | Depends on `debug_kit` |
+| 4 | `debug_kit_riverpod` | 0.2.1 | Depends on `debug_kit` |
 
 **Why this order matters:** Adapter packages declare `debug_kit: ^<version>` in their `pubspec.yaml`. If the core has not yet been published, pub.dev cannot resolve the constraint during adapter publication.
 
@@ -103,12 +103,12 @@ dart pub publish --dry-run
 
 | Package | Expected result |
 | :--- | :--- |
-| `debug_kit` | `Package has 0 warnings.` — or only the dirty-git-state warning if uncommitted files exist |
-| `debug_kit_dio` | `Package has 0 warnings and 1 hint.` (pubspec_overrides hint) |
-| `debug_kit_go_router` | `Package has 0 warnings and 1 hint.` (pubspec_overrides hint) |
-| `debug_kit_riverpod` | `Package has 0 warnings and 1 hint.` (pubspec_overrides hint) |
+| `debug_kit` | `Package has 0 warnings.` — or the dirty-git-state warning if uncommitted files exist |
+| `debug_kit_dio` | `Package has 1 warning and 1 hint.` — warning: dirty git state (before commit); hint: pubspec_overrides.yaml |
+| `debug_kit_go_router` | `Package has 1 warning and 1 hint.` — warning: dirty git state (before commit); hint: pubspec_overrides.yaml |
+| `debug_kit_riverpod` | `Package has 1 warning and 1 hint.` — warning: dirty git state (before commit); hint: pubspec_overrides.yaml |
 
-If any package shows **warnings** (not hints), fix them before publishing.
+After committing all changes, the dirty-git warning disappears. The pubspec_overrides hint is always present in local development and is safe to ignore — it does not affect the published package.
 
 ---
 

@@ -4,6 +4,8 @@ import 'package:debug_kit/debug_kit.dart';
 import 'package:debug_kit_go_router/debug_kit_go_router.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late DebugKitController controller;
   late DebugKitGoRouterObserver observer;
 

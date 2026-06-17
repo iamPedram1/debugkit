@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Fix: add `TestWidgetsFlutterBinding.ensureInitialized()` to the test suite so trace store event tests pass reliably when the Flutter scheduler binding is required.
+- Bump minimum `debug_kit` constraint to `^0.5.0` to align with the Error Digest release.
+- Update README install snippet to current versions.
+
 ## 0.2.0
 
 - **Trace correlation**: Navigation events that occur inside an active `DebugKit.trace.run()` zone now automatically carry `traceId` and `traceName` on the log entry.

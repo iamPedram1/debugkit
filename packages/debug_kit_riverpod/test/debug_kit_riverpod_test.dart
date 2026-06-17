@@ -13,6 +13,8 @@ class SensitiveObject {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late DebugKitController controller;
 
   setUp(() {
