@@ -231,6 +231,49 @@ class MyHomePage extends ConsumerWidget {
                 child: const Text('Clear Traces'),
               ),
             ]),
+
+            const Divider(height: 32),
+
+            // --- Error Digest Demo ---
+            _SectionTitle('Error Digest'),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              ElevatedButton(
+                onPressed: () {
+                  // Repeated error — should group in digest
+                  for (var i = 0; i < 5; i++) {
+                    DebugKit.log.error(
+                      'Auth token expired',
+                      error:
+                          Exception('InvalidTokenException: token has expired'),
+                    );
+                  }
+                },
+                child: const Text('Repeated Error ×5'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Unique error — different type
+                  DebugKit.log.error(
+                    'Failed to parse response',
+                    error: Exception('FormatException: unexpected character'),
+                  );
+                },
+                child: const Text('Unique Error'),
+              ),
+              ElevatedButton(
+                onPressed: () => _runFailedDigestTrace(),
+                child: const Text('Failed Trace Error'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    await dio.get(
+                        'https://pub.dev/api/packages/nonexistent_xyz_404');
+                  } catch (_) {}
+                },
+                child: const Text('Dio 404 Error'),
+              ),
+            ]),
           ],
         ),
       ),
@@ -309,6 +352,25 @@ class MyHomePage extends ConsumerWidget {
     DebugKit.trace.step('prepare_upload', traceId: traceId);
     DebugKit.log.info('Upload prepared');
     DebugKit.trace.cancel('user_cancelled', traceId: traceId);
+  }
+
+  Future<void> _runFailedDigestTrace() async {
+    try {
+      await DebugKit.trace.run(
+        'checkout_flow',
+        () async {
+          DebugKit.trace.step('validate_cart');
+          DebugKit.log.error(
+            'Cart validation failed',
+            error: Exception('ValidationException: item out of stock'),
+          );
+          throw Exception('Cart validation failed — item out of stock');
+        },
+        metadata: {'source': 'checkout_button'},
+      );
+    } catch (_) {
+      // Expected
+    }
   }
 }
 

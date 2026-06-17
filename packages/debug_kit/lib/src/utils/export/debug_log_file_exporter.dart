@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_trace.dart';
 import 'debug_log_export_formatter.dart';
@@ -27,36 +28,35 @@ class DebugLogFileExporter {
     return 'debugkit-logs-$formatted.txt';
   }
 
-  /// Formats [logs] (and optional [traces]) and copies the result to the
-  /// system clipboard.
+  /// Formats [logs] (and optional [traces] and [digest]) and copies the result
+  /// to the system clipboard.
   ///
   /// - [logs]: log entries to include.
   /// - [traces]: optional trace entries appended as a separate section.
+  /// - [digest]: optional error digest appended as a final section.
   static Future<void> exportToClipboard(
     List<DebugLogEntry> logs, {
     List<DebugTrace>? traces,
+    DebugErrorDigest? digest,
   }) async {
-    final content = DebugLogExportFormatter.formatLogs(logs, traces: traces);
+    final content = DebugLogExportFormatter.formatLogs(logs,
+        traces: traces, digest: digest);
     await Clipboard.setData(ClipboardData(text: content));
   }
 
-  /// Formats [logs] (and optional [traces]), writes the result to a temporary
-  /// file, and opens the platform share sheet via `share_plus`.
-  ///
-  /// The file is written to [getTemporaryDirectory] and named with
-  /// [buildFileName]. The share subject is `'DebugKit Logs Export'`.
-  ///
-  /// Throws if the temporary directory is unavailable or the share sheet
-  /// fails. The console screen catches this and falls back to
-  /// [exportToClipboard].
+  /// Formats [logs] (and optional [traces] and [digest]), writes the result to
+  /// a temporary file, and opens the platform share sheet via `share_plus`.
   ///
   /// - [logs]: log entries to include.
   /// - [traces]: optional trace entries appended as a separate section.
+  /// - [digest]: optional error digest appended as a final section.
   static Future<void> shareLogs(
     List<DebugLogEntry> logs, {
     List<DebugTrace>? traces,
+    DebugErrorDigest? digest,
   }) async {
-    final content = DebugLogExportFormatter.formatLogs(logs, traces: traces);
+    final content = DebugLogExportFormatter.formatLogs(logs,
+        traces: traces, digest: digest);
     final directory = await getTemporaryDirectory();
     final fileName = buildFileName(DateTime.now());
     final file = File('${directory.path}/$fileName');

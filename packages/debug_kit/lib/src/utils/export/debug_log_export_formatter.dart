@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_trace.dart';
 import 'debug_trace_export_formatter.dart';
@@ -13,7 +14,7 @@ import 'debug_trace_export_formatter.dart';
 /// Used by [DebugLogFileExporter] to produce the exported `.txt` file content
 /// and by the clipboard copy action in the console screen.
 class DebugLogExportFormatter {
-  /// Formats [logs] (and optionally [traces]) into a complete export string.
+  /// Formats [logs] (and optionally [traces] and [digest]) into a complete export string.
   ///
   /// Grouped entries (where [DebugLogEntry.repeatCount] > 1) are exported as
   /// a single block with repeat count, first-seen, and last-seen timestamps.
@@ -21,8 +22,12 @@ class DebugLogExportFormatter {
   ///
   /// - [logs]: the list of [DebugLogEntry] instances to format.
   /// - [traces]: optional list of [DebugTrace] instances appended after logs.
-  static String formatLogs(List<DebugLogEntry> logs,
-      {List<DebugTrace>? traces}) {
+  /// - [digest]: optional [DebugErrorDigest] appended as a final section.
+  static String formatLogs(
+    List<DebugLogEntry> logs, {
+    List<DebugTrace>? traces,
+    DebugErrorDigest? digest,
+  }) {
     final buffer = StringBuffer();
     final now = DateTime.now();
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
@@ -54,6 +59,15 @@ class DebugLogExportFormatter {
         buffer.writeln();
         buffer.write(failedSummary);
       }
+    }
+
+    // Append error digest section if provided
+    if (digest != null && !digest.isEmpty) {
+      buffer.writeln();
+      buffer.writeln(
+          '============================================================');
+      buffer.writeln();
+      buffer.write(DebugErrorDigestExportFormatter.formatDigest(digest));
     }
 
     return buffer.toString();
@@ -125,6 +139,116 @@ class DebugLogExportFormatter {
     if (entry.stackTrace != null) {
       buffer.writeln('Stack:');
       buffer.writeln(entry.stackTrace);
+    }
+
+    return buffer.toString();
+  }
+}
+
+/// Pure, stateless formatter for exporting [DebugErrorDigest] data as
+/// human-readable plain text.
+///
+/// Only sanitized values are formatted — this class never re-sanitizes or
+/// inspects raw data. It trusts that the digest was built from already-safe
+/// store contents.
+class DebugErrorDigestExportFormatter {
+  static final _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+
+  /// Formats [digest] as a complete "DebugKit Error Digest" section.
+  static String formatDigest(DebugErrorDigest digest) {
+    final buffer = StringBuffer();
+
+    buffer.writeln('DebugKit Error Digest');
+    buffer.writeln('Generated : ${_dateFormat.format(digest.generatedAt)}');
+    buffer.writeln('Total     : ${digest.totalErrors} occurrences');
+    buffer.writeln('Unique    : ${digest.uniqueErrors} error classes');
+    if (digest.failedNetworkCount > 0) {
+      buffer.writeln(
+          'Network   : ${digest.failedNetworkCount} failed request(s)');
+    }
+    if (digest.failedTraceCount > 0) {
+      buffer.writeln('Traces    : ${digest.failedTraceCount} failed trace(s)');
+    }
+    buffer.writeln(
+        '============================================================');
+    buffer.writeln();
+
+    for (final entry in digest.entries) {
+      buffer.writeln(formatDigestEntry(entry));
+      buffer.writeln(
+          '------------------------------------------------------------');
+    }
+
+    return buffer.toString();
+  }
+
+  /// Formats a single [DebugErrorDigestEntry] as a multi-line block.
+  ///
+  /// Example output:
+  /// ```
+  /// [ERROR][DIO] GET /api/profile · 401 ×12
+  ///   Severity   : ERROR
+  ///   Source     : DIO
+  ///   Count      : ×12
+  ///   First seen : 2026-06-17 10:00:00
+  ///   Last seen  : 2026-06-17 10:05:00
+  ///   Error      : DioException [bad response]: ...
+  ///   Frame      : auth_repository.dart:42
+  ///   Traces     : login_flow, refresh_profile
+  ///   Requests   : dio_1, dio_8
+  ///   Hints      : HTTP 401 — check authentication/authorization
+  /// ```
+  static String formatDigestEntry(entry) {
+    // entry is DebugErrorDigestEntry (imported via DebugErrorDigest)
+    final buffer = StringBuffer();
+
+    buffer.write('[${entry.severity.label}][${entry.source.label}] ');
+    buffer.write(entry.title);
+    if (entry.count > 1) buffer.write(' ×${entry.count}');
+    buffer.writeln();
+
+    buffer.writeln('  Severity   : ${entry.severity.label}');
+    buffer.writeln('  Source     : ${entry.source.label}');
+    buffer.writeln('  Count      : ×${entry.count}');
+    buffer.writeln('  First seen : ${_dateFormat.format(entry.firstSeenAt)}');
+    buffer.writeln('  Last seen  : ${_dateFormat.format(entry.lastSeenAt)}');
+
+    if (entry.latestError != null) {
+      buffer.writeln('  Error      : ${entry.latestError}');
+    }
+
+    if (entry.firstUsefulStackFrame != null) {
+      buffer.writeln('  Frame      : ${entry.firstUsefulStackFrame}');
+    }
+
+    if (entry.relatedTraceNames.isNotEmpty) {
+      buffer.writeln('  Traces     : ${entry.relatedTraceNames.join(', ')}');
+    }
+
+    if (entry.relatedRequestIds.isNotEmpty) {
+      buffer.writeln('  Requests   : ${entry.relatedRequestIds.join(', ')}');
+    }
+
+    if (entry.relatedRoutes.isNotEmpty) {
+      buffer.writeln('  Routes     : ${entry.relatedRoutes.join(', ')}');
+    }
+
+    if (entry.relatedProviderNames.isNotEmpty) {
+      buffer.writeln('  Providers  : ${entry.relatedProviderNames.join(', ')}');
+    }
+
+    if (entry.healthHints.isNotEmpty) {
+      for (final hint in entry.healthHints) {
+        buffer.writeln('  Hint       : $hint');
+      }
+    }
+
+    if (entry.latestStackTrace != null) {
+      buffer.writeln('  Stack:');
+      // Indent each stack line for readability
+      for (final line in entry.latestStackTrace!.split('\n').take(10)) {
+        buffer.writeln('    $line');
+      }
     }
 
     return buffer.toString();

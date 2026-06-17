@@ -12,6 +12,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Mobile-First UI**: A floating, draggable button that works on real devices.
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
+- **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
@@ -24,7 +25,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.4.0
+  debug_kit: ^0.5.0
 ```
 
 ## 5-Minute Setup
@@ -195,6 +196,122 @@ DebugKit uses conservative best-effort sanitization to protect sensitive informa
 > [!IMPORTANT]
 > While DebugKit provides robust automatic sanitization, developers should still avoid intentionally logging raw production secrets.
 
+## Error Digest
+
+DebugKit groups repeated and related errors into a digest so you can quickly see
+what failed most often and where it happened.
+
+The digest is built on demand from the current log and trace stores. It is
+accessible via the new **Errors** tab in the console UI, via the programmatic API,
+and in the `.txt` export.
+
+### What the digest detects
+
+- Logs with `level == error`
+- Warning-level logs that carry an `error` field
+- Failed `DebugTrace` instances (when the trace system is in use)
+- Dio failed requests (when `debug_kit_dio` is installed)
+- Riverpod provider failures (when `debug_kit_riverpod` is installed)
+
+### Fingerprint strategy
+
+Two errors are considered the same class of failure and merged into one digest
+entry when their fingerprint matches:
+
+| Error source | Fingerprint key |
+|---|---|
+| Dio network error | `method + path + status code` |
+| Riverpod provider failure | `provider_name + error type prefix` |
+| App / trace error | `error type prefix + normalized message + first useful stack frame` |
+
+Different exception types, different HTTP status codes, and different provider
+names always stay as separate entries.
+
+### Programmatic access
+
+```dart
+// Build the digest on demand
+final digest = DebugKit.errors.buildDigest();
+
+print('Unique errors  : ${digest.uniqueErrors}');
+print('Total occurred : ${digest.totalErrors}');
+print('Failed requests: ${digest.failedNetworkCount}');
+print('Failed traces  : ${digest.failedTraceCount}');
+
+for (final entry in digest.entries) {
+  print('${entry.title}  ×${entry.count}  [${entry.severity.label}]');
+  if (entry.relatedTraceNames.isNotEmpty) {
+    print('  Traces: ${entry.relatedTraceNames.join(', ')}');
+  }
+}
+```
+
+> **Do not call `buildDigest()` on every frame.** Compute it once per user
+> interaction or store change, then cache the result.
+
+### Count behavior with repeated logs
+
+`DebugLogEntry.repeatCount` contributes to the digest entry count. A log emitted
+5 times and stored as a single grouped entry (with `repeatCount = 5`) will produce
+a digest entry with `count = 5`, not `count = 1`.
+
+### In the console UI
+
+The **Errors** tab shows:
+
+- A summary bar with unique error count, total occurrences, failed network requests,
+  and failed traces.
+- A list of error entries sorted by severity → frequency → recency.
+- Each tile: severity badge, title, `×N` count badge, source chip, last-seen time,
+  first useful stack frame, and related context chips (traces, providers, requests).
+- Tap any entry to open the detail screen: full error, stack trace, related context,
+  and health hints. Copy summary to clipboard.
+
+### In exports
+
+The `.txt` export includes a `DebugKit Error Digest` section after the Traces
+section:
+
+```
+DebugKit Error Digest
+Generated : 2026-06-17 10:05:00
+Total     : 12 occurrences
+Unique    : 3 error classes
+Network   : 2 failed request(s)
+============================================================
+
+[ERROR][RVP] Provider failed: authProvider ×8
+  Severity   : ERROR
+  Source     : RVP
+  Count      : ×8
+  First seen : 2026-06-17 10:00:00
+  Last seen  : 2026-06-17 10:04:58
+  Error      : Exception: invalid token
+  Traces     : login_flow, refresh_profile
+  Hint       : Provider: authProvider
+  Hint       : Occurred 8 times
+------------------------------------------------------------
+```
+
+### Sanitization guarantees
+
+- All digest fields contain only already-sanitized values from the log store.
+- No request/response bodies are included.
+- No route `extra` objects are included.
+- No provider state objects are included.
+- Fingerprinting operates on sanitized values — raw secrets never reach the
+  comparison logic.
+
+### Limitations
+
+- The digest is a session-only, in-memory snapshot. It is not persisted across
+  app restarts.
+- The digest only covers errors observed since the last `DebugKit.init()` call
+  or `DebugKit.clearLogs()`.
+- Call-site location is not extracted for digest entries (only for raw log entries).
+- Global Flutter error capture (`FlutterError.onError`) is not automatically hooked
+  — see the roadmap.
+
 ## Roadmap
 
 - [x] Core logging engine and console UI
@@ -204,6 +321,8 @@ DebugKit uses conservative best-effort sanitization to protect sensitive informa
 - [x] Riverpod Observer (`debug_kit_riverpod`)
 - [x] Repeated log grouping (Chrome DevTools-style `×N` badge)
 - [x] Trace system with timeline, health analysis, and adapter correlation
+- [x] Error Digest — grouped, de-duplicated error intelligence
+- [ ] Global Flutter error capture (opt-in `FlutterError.onError` hook)
 - [ ] AI Prompt Builder (Phase 3)
 - [ ] Snapshots & Reproduction Sessions (Phase 4)
 

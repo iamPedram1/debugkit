@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/debug_kit_config.dart';
+import '../models/debug_error_digest.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
 import '../models/debug_log_source.dart';
@@ -8,6 +9,7 @@ import '../store/debug_log_store.dart';
 import '../store/debug_trace_store.dart';
 import '../trace/debug_trace_controller.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
+import '../../utils/errors/debug_error_digest_builder.dart';
 
 /// Central controller that owns the log store, trace store, and adapter lifecycle.
 ///
@@ -329,6 +331,41 @@ class DebugKitController extends ChangeNotifier {
     if (entry != null) {
       _store.updateEntry(entry.id, update);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Error Digest
+  // ---------------------------------------------------------------------------
+
+  /// Builds and returns an [DebugErrorDigest] from the current log and trace
+  /// stores.
+  ///
+  /// The digest groups repeated and related errors into [DebugErrorDigestEntry]
+  /// instances, sorted by severity and frequency.
+  ///
+  /// This is a **pure, on-demand computation** — it reads the current store
+  /// snapshots and returns a new [DebugErrorDigest] each time. Callers should
+  /// avoid calling this on every frame build; instead, compute once per
+  /// user interaction or store change, and cache the result locally.
+  ///
+  /// Returns an empty [DebugErrorDigest] when DebugKit is disabled.
+  DebugErrorDigest buildErrorDigest() {
+    if (!_config.enabled) {
+      return DebugErrorDigest(
+        generatedAt: DateTime.now(),
+        totalErrors: 0,
+        uniqueErrors: 0,
+        entries: const [],
+        topRepeatedErrors: const [],
+        latestErrors: const [],
+        failedTraceCount: 0,
+        failedNetworkCount: 0,
+      );
+    }
+    return DebugErrorDigestBuilder.build(
+      logs: _store.logs.toList(),
+      traces: _traceStore.traces.toList(),
+    );
   }
 
   // ---------------------------------------------------------------------------

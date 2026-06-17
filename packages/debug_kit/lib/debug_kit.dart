@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 
 import 'src/core/controller/debug_kit_controller.dart';
 export 'src/core/controller/debug_kit_controller.dart';
+import 'src/core/models/debug_error_digest.dart';
 import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
 import 'src/core/adapters/debug_kit_adapter.dart';
@@ -30,6 +31,9 @@ export 'src/core/models/debug_trace.dart';
 export 'src/core/models/debug_trace_event.dart';
 export 'src/core/models/debug_trace_event_type.dart';
 export 'src/core/models/debug_trace_status.dart';
+export 'src/core/models/debug_error_digest.dart';
+export 'src/core/models/debug_error_digest_entry.dart';
+export 'src/core/models/debug_error_digest_severity.dart';
 export 'src/core/adapters/debug_kit_adapter.dart';
 export 'src/core/trace/debug_trace_controller.dart'
     show
@@ -124,6 +128,20 @@ class DebugKit {
   ///
   /// No-op when [isEnabled] is `false`.
   static void clearTraces() => _controller.traceStore.clear();
+
+  /// Builds and returns an error digest from the current log and trace stores.
+  ///
+  /// Groups repeated and related errors into a single [DebugErrorDigest] that
+  /// summarizes what failed, how often, and where.
+  ///
+  /// This is a pure, on-demand computation. Do not call on every frame —
+  /// compute once per user interaction or store change and cache the result.
+  ///
+  /// ```dart
+  /// final digest = DebugKit.errors.buildDigest();
+  /// print('Unique errors: ${digest.uniqueErrors}');
+  /// ```
+  static final DebugKitErrors errors = DebugKitErrors(_controller);
 
   /// The manual logging API.
   ///
@@ -454,4 +472,38 @@ class DebugKitTrace {
     Map<String, String>? metadata,
   }) =>
       _tc.run(name, callback, metadata: metadata);
+}
+
+// ---------------------------------------------------------------------------
+// DebugKitErrors — error digest API
+// ---------------------------------------------------------------------------
+
+/// The error digest API accessed via [DebugKit.errors].
+///
+/// Provides on-demand access to the [DebugErrorDigest] — a grouped,
+/// de-duplicated summary of all errors observed in the current session.
+///
+/// ```dart
+/// final digest = DebugKit.errors.buildDigest();
+/// print('Unique errors: ${digest.uniqueErrors}');
+/// for (final entry in digest.entries) {
+///   print('${entry.title} ×${entry.count}');
+/// }
+/// ```
+class DebugKitErrors {
+  final DebugKitController _controller;
+
+  /// @nodoc — constructed by [DebugKit].
+  DebugKitErrors(this._controller);
+
+  /// Builds and returns a fresh [DebugErrorDigest] from the current log and
+  /// trace store contents.
+  ///
+  /// This is a pure, on-demand computation — it reads the current store
+  /// snapshot and returns a new digest each time. Callers should avoid
+  /// calling this on every frame build; cache the result and recompute only
+  /// when the log store notifies listeners of a change.
+  ///
+  /// Returns an empty [DebugErrorDigest] when DebugKit is disabled.
+  DebugErrorDigest buildDigest() => _controller.buildErrorDigest();
 }

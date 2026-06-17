@@ -10,6 +10,7 @@ import '../widgets/debug_log_list.dart';
 import '../widgets/debug_log_filter_bar.dart';
 import '../widgets/debug_trace_status_badge.dart';
 import 'debug_trace_detail_screen.dart';
+import 'debug_error_digest_screen.dart';
 
 class DebugKitConsoleScreen extends StatefulWidget {
   const DebugKitConsoleScreen({super.key});
@@ -26,7 +27,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -111,6 +112,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
               tabs: const [
                 Tab(text: 'Logs'),
                 Tab(text: 'Traces'),
+                Tab(text: 'Errors'),
               ],
             ),
           ),
@@ -137,6 +139,9 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
 
               // --- Traces tab ---
               _buildTracesTab(allTraces.toList()),
+
+              // --- Errors tab ---
+              const DebugErrorDigestScreen(),
             ],
           ),
         );
@@ -287,7 +292,9 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
 
   Future<void> _copyAll(
       List<DebugLogEntry> logs, List<DebugTrace> traces) async {
-    await DebugLogFileExporter.exportToClipboard(logs, traces: traces);
+    final digest = DebugKitController().buildErrorDigest();
+    await DebugLogFileExporter.exportToClipboard(logs,
+        traces: traces, digest: digest.isEmpty ? null : digest);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -311,11 +318,14 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
       }
       return;
     }
+    final digest = DebugKitController().buildErrorDigest();
     try {
-      await DebugLogFileExporter.shareLogs(logs, traces: traces);
+      await DebugLogFileExporter.shareLogs(logs,
+          traces: traces, digest: digest.isEmpty ? null : digest);
     } catch (_) {
       try {
-        await DebugLogFileExporter.exportToClipboard(logs, traces: traces);
+        await DebugLogFileExporter.exportToClipboard(logs,
+            traces: traces, digest: digest.isEmpty ? null : digest);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

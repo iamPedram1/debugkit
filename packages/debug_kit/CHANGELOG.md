@@ -1,5 +1,97 @@
 # Changelog
 
+## 0.5.0
+
+### New: Error Digest / Error Intelligence
+
+DebugKit now groups repeated and related errors into a digest so you can immediately
+see what failed, how often, and where — instead of scrolling through raw logs.
+
+#### Error Digest Model
+
+- **`DebugErrorDigest`**: on-demand snapshot of all distinct error classes in the
+  current session. Contains `totalErrors`, `uniqueErrors`, `failedTraceCount`,
+  `failedNetworkCount`, sorted `entries`, `topRepeatedErrors`, and `latestErrors`.
+- **`DebugErrorDigestEntry`**: a single grouped error class with: `fingerprint`,
+  `title`, `message`, `normalizedMessage`, `severity`, `source`, `count`,
+  `firstSeenAt`, `lastSeenAt`, `relatedTraceIds`, `relatedTraceNames`,
+  `relatedRequestIds`, `relatedRoutes`, `relatedProviderNames`, `latestError`,
+  `latestStackTrace`, `firstUsefulStackFrame`, and `healthHints`.
+- **`DebugErrorDigestSeverity`**: `fatal`, `error`, `warning` — used for sorting
+  and color-coding in the UI.
+
+#### Error Fingerprinting
+
+- **`DebugErrorFingerprintBuilder`**: stable, collision-resistant fingerprint strategy.
+  - Dio errors: fingerprinted by `method|path|statusCode` — different status codes
+    never group; different paths never group.
+  - Riverpod failures: fingerprinted by `provider_name|error_type_prefix` — different
+    providers never group.
+  - App/trace errors: fingerprinted by `error_type_prefix|normalized_message|first_useful_frame`.
+  - Volatile values stripped: durations (`after 5000ms`), UUIDs, memory addresses.
+  - `DebugErrorFingerprintBuilder.normalizeMessage()` is public for testing.
+
+#### Digest Builder
+
+- **`DebugErrorDigestBuilder.build(logs:, traces:)`**: pure, stateless builder.
+  - Sources errors from: `level == error` logs, warning-level logs with an `error`
+    field, and failed `DebugTrace` instances.
+  - `DebugLogEntry.repeatCount` contributes to the digest entry count.
+  - Collects related trace IDs/names, request IDs, route paths, and provider names
+    from log metadata.
+  - Sorts entries: severity → count → most recent.
+
+#### Controller and Facade
+
+- **`DebugKitController.buildErrorDigest()`**: builds and returns a `DebugErrorDigest`
+  from the current store snapshot. Returns an empty digest when disabled.
+- **`DebugKit.errors.buildDigest()`**: public facade. On-demand — do not call on
+  every frame.
+
+#### Console UI: Errors Tab
+
+- New **Errors** tab (third tab alongside Logs and Traces).
+- Summary bar: unique error count, total occurrences, failed network count, failed
+  trace count.
+- Error list: severity badge, title, count badge (×N), source chip, last-seen time,
+  first useful stack frame, related trace/provider/request chips.
+- **Error detail screen**: full message, count, first/last seen, latest error,
+  stack trace with first useful frame, related traces, request IDs, routes, providers,
+  and health hints. Copy summary action.
+- Empty state: "No errors detected" when no errors are present.
+
+#### Export
+
+- `.txt` export now includes a `DebugKit Error Digest` section after the Traces
+  section when errors are present.
+- Each entry exports: severity, source, count, first/last seen, error, frame, traces,
+  requests, routes, providers, hints, and first 10 stack trace lines.
+- Export is never expanded into N duplicate lines for grouped errors.
+- `DebugLogExportFormatter.formatLogs()` now accepts an optional `digest` parameter.
+- `DebugErrorDigestExportFormatter` is available for standalone digest formatting.
+- `DebugLogFileExporter.exportToClipboard()` and `shareLogs()` now accept an
+  optional `digest` parameter — the console passes it automatically.
+
+#### Security
+
+- All digest fields contain only already-sanitized values from the store.
+- No raw secrets, tokens, request/response bodies, route extras, or provider state
+  objects are stored in any digest field.
+- Fingerprinting operates on sanitized stored values — raw secrets never reach the
+  comparison logic.
+
+#### Performance
+
+- Digest is computed on demand, not on every frame or every log append.
+- Builder is pure and stateless — no background processing, no subscriptions.
+- Disabled mode returns an empty digest immediately with zero overhead.
+- No unbounded memory growth: the digest is a transient snapshot, not a store.
+
+#### Example App
+
+- New "Error Digest" section with: repeated error ×5, unique error, failed trace
+  error, Dio 404 error — all visible in the Errors tab.
+
 ## 0.4.0
 
 ### New: Repeated Log Grouping
