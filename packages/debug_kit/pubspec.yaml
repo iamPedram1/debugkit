@@ -1,6 +1,6 @@
 name: debug_kit
 description: "A mobile-first in-app DevTools/log console for Flutter apps with automatic sanitization and export support."
-version: 0.5.1
+version: 0.5.2
 repository: https://github.com/iamPedram1/debugkit
 issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:
@@ -18,8 +18,8 @@ dependencies:
   flutter:
     sdk: flutter
   path_provider: ^2.1.2
-  share_plus: ^10.0.0
-  intl: ^0.19.0
+  share_plus: ">=10.0.0 <14.0.0"
+  intl: ">=0.19.0 <0.21.0"
 
 dev_dependencies:
   flutter_test:

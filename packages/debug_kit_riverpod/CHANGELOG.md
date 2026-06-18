@@ -2,7 +2,10 @@
 
 ## 0.2.2
 
-- chore: update `repository` and `issue_tracker` URLs to reflect repository rename (`username/debug_kit` → `username/debugkit`).
+- fix: widen `flutter_riverpod` constraint to `">=2.0.0 <4.0.0"` (was `^2.0.0`) to allow apps using Riverpod 3.x.
+- chore: update `repository` and `issue_tracker` URLs to reflect repository rename.
+- No runtime behavior changes. `ProviderObserver.providerDidFail` and `didUpdateProvider` are unchanged in Riverpod 3.
+- No API changes.
 
 ## 0.2.1
 

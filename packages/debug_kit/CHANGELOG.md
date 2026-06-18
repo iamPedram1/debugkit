@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2
+
+- fix: widen `share_plus` constraint to `">=10.0.0 <14.0.0"` (was `^10.0.0`) to allow apps using share_plus 11, 12, or 13.
+- fix: widen `intl` constraint to `">=0.19.0 <0.21.0"` (was `^0.19.0`) to allow apps using intl 0.20.x.
+- No runtime behavior changes. No API changes.
+
 ## 0.5.1
 
 - chore: update `repository` and `issue_tracker` URLs to reflect repository rename (`username/debug_kit` → `username/debugkit`).
