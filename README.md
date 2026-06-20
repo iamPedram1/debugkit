@@ -2,7 +2,7 @@
 
 A mobile-first, in-app DevTools cockpit for Flutter apps.
 
-DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls, and debug state transitions without needing to attach a debugger or tail server logs.
+DebugKit provides a searchable, filterable log viewer directly inside your app. It helps developers inspect logs, verify network calls, summarize network behavior, and debug state transitions without needing to attach a debugger or tail server logs.
 
 ## Monorepo Overview
 
@@ -12,8 +12,8 @@ This repository is managed as a monorepo using [Melos](https://melos.invertase.d
 
 | Package | Version | Description |
 | :--- | :--- | :--- |
-| [**debug_kit**](packages/debug_kit) | 0.5.2 | Core logging engine, UI console, and Error Digest. |
-| [**debug_kit_dio**](packages/debug_kit_dio) | 0.2.2 | Dio interceptor for network observability. |
+| [**debug_kit**](packages/debug_kit) | 0.6.0 | Core logging engine, UI console, Error Digest, and Network Summary. |
+| [**debug_kit_dio**](packages/debug_kit_dio) | 0.3.0 | Dio interceptor for network observability and backend correlation capture. |
 | [**debug_kit_go_router**](packages/debug_kit_go_router) | 0.2.2 | GoRouter observer for navigation logs. |
 | [**debug_kit_riverpod**](packages/debug_kit_riverpod) | 0.2.2 | Riverpod observer for state changes. |
 
@@ -23,6 +23,7 @@ A full demonstration of DebugKit and all its official adapters working together 
 It showcases:
 - Manual Logs & Sanitization
 - Network Interceptors
+- Network Summary
 - Navigation Observers
 - State Observers
 
@@ -72,7 +73,7 @@ debugkit/
 - **Phase 1**: Core MVP (Logging, Sanitization, Console UI). [COMPLETED]
 - **Phase 2**: Essential Adapters (Dio, Riverpod, GoRouter). [COMPLETED]
 - **Phase 3**: Error Digest / Error Intelligence. [COMPLETED]
-- **Phase 4**: Enhanced Diagnosis (Global error capture, Network summary).
+- **Phase 4**: Enhanced Diagnosis (Network Summary complete; Global error capture pending).
 - **Phase 5**: Advanced Features (AI Prompt Builder, Reproduction Sessions).
 
 ## Documentation

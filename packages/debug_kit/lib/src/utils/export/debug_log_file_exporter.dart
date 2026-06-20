@@ -6,11 +6,12 @@ import 'package:intl/intl.dart';
 import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_trace.dart';
+import '../../core/models/debug_network_summary.dart';
 import 'debug_log_export_formatter.dart';
 
-/// Platform-level export helper that writes log (and trace) data to a
-/// temporary file and opens the system share sheet, or copies to the
-/// clipboard as a fallback.
+/// Platform-level export helper that writes log, trace, and optional network
+/// summary data to a temporary file and opens the system share sheet, or
+/// copies to the clipboard as a fallback.
 ///
 /// All content is produced by [DebugLogExportFormatter], which only uses
 /// already-sanitized values from the in-memory store.
@@ -38,9 +39,10 @@ class DebugLogFileExporter {
     List<DebugLogEntry> logs, {
     List<DebugTrace>? traces,
     DebugErrorDigest? digest,
+    DebugNetworkSummary? networkSummary,
   }) async {
     final content = DebugLogExportFormatter.formatLogs(logs,
-        traces: traces, digest: digest);
+        traces: traces, digest: digest, networkSummary: networkSummary);
     await Clipboard.setData(ClipboardData(text: content));
   }
 
@@ -54,9 +56,10 @@ class DebugLogFileExporter {
     List<DebugLogEntry> logs, {
     List<DebugTrace>? traces,
     DebugErrorDigest? digest,
+    DebugNetworkSummary? networkSummary,
   }) async {
     final content = DebugLogExportFormatter.formatLogs(logs,
-        traces: traces, digest: digest);
+        traces: traces, digest: digest, networkSummary: networkSummary);
     final directory = await getTemporaryDirectory();
     final fileName = buildFileName(DateTime.now());
     final file = File('${directory.path}/$fileName');

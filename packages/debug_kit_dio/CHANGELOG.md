@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- feat: capture safe backend correlation IDs from allowlisted response headers only.
+- feat: enrich Dio network logs with generic network summary metadata (`kind`, `method`, `path`, `phase`, `status`).
+- fix: keep network requests as a single updateable log entry while preserving requestId-based enrichment and cancellation behavior.
+
 ## 0.2.2
 
 - chore: update `repository` and `issue_tracker` URLs to reflect repository rename (`username/debug_kit` → `username/debugkit`).

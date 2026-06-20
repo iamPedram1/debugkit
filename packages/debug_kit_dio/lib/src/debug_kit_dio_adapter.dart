@@ -24,8 +24,8 @@ import 'debug_kit_dio_interceptor.dart';
 ///
 /// **What is logged:**
 /// - HTTP method and sanitized URL (sensitive query parameters masked).
-/// - Response status code and round-trip duration.
-/// - Sanitized request and response headers.
+/// - Request path, phase, response status code, and round-trip duration.
+/// - Safe backend correlation IDs from allowlisted response headers.
 /// - Error type and message on failure.
 /// - `'cancelled'` status for Dio cancel exceptions.
 ///
@@ -33,6 +33,7 @@ import 'debug_kit_dio_interceptor.dart';
 /// - Request bodies — never captured to prevent PII leakage.
 /// - Response bodies — never captured by default.
 /// - Binary or multipart payloads — always ignored.
+/// - Authorization, Cookie, Set-Cookie, and arbitrary headers — never stored.
 ///
 /// **Trace correlation:** requests made inside an active [DebugKit.trace.run]
 /// zone automatically carry [DebugLogEntry.traceId] and a corresponding

@@ -13,6 +13,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
+- **Network Summary**: A generic network intelligence tab that summarizes request volume, status families, slow endpoints, and backend correlation IDs when `debug_kit_dio` is installed.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
@@ -25,7 +26,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.5.2
+  debug_kit: ^0.6.0
 ```
 
 ## 5-Minute Setup
@@ -95,7 +96,7 @@ if (DebugKit.isEnabled) { ... }
 
 DebugKit relies on separate optional adapter packages to log automated events without bloating the core:
 
-- [`debug_kit_dio`](https://pub.dev/packages/debug_kit_dio) — Dio HTTP interceptor
+- [`debug_kit_dio`](https://pub.dev/packages/debug_kit_dio) — Dio HTTP interceptor that feeds Network Summary
 - [`debug_kit_go_router`](https://pub.dev/packages/debug_kit_go_router) — GoRouter navigation observer
 - [`debug_kit_riverpod`](https://pub.dev/packages/debug_kit_riverpod) — Riverpod state observer
 
@@ -179,6 +180,7 @@ Exported file name format: `debugkit-logs-YYYYMMDD-HHMMSS.txt`
 
 > [!IMPORTANT]
 > Exported logs contain only the already-sanitized values stored in memory. Raw tokens, passwords, API keys, private keys, cookies, and mnemonic phrases are never written to the export file. Request and response bodies are not captured or exported by default.
+> When network transactions are present, exports also include a sanitized Network Summary section. It is derived from already-stored values only and never includes request/response bodies or arbitrary headers.
 
 If the share sheet fails, DebugKit automatically falls back to copying the formatted text to the clipboard and shows a SnackBar notification.
 
@@ -311,6 +313,34 @@ Network   : 2 failed request(s)
 - Call-site location is not extracted for digest entries (only for raw log entries).
 - Global Flutter error capture (`FlutterError.onError`) is not automatically hooked
   — see the roadmap.
+
+## Network Summary
+
+The **Network** tab gives you a quick, in-app overview of HTTP behavior when
+`debug_kit_dio` is installed.
+
+It summarizes:
+
+- Total, completed, failed, pending, and slow requests
+- Status breakdown: 2xx, 3xx, 4xx, 5xx, and unknown
+- Average, max, and min duration plus the configured slow threshold
+- Top failing endpoints and slowest endpoints
+- Backend correlation IDs when the adapter captures them from response headers
+
+The summary is built on demand from the bounded in-memory log store and is safe
+to export or copy because it uses only already-sanitized values.
+
+Set `slowRequestThresholdMs` in `DebugKit.init()` if you want a threshold
+other than the 500ms default.
+
+```dart
+final summary = DebugKit.controller.buildNetworkSummary();
+print('Requests: ${summary.totalRequests}');
+print('Slow: ${summary.slowRequests}');
+```
+
+If no Dio adapter is installed yet, the Network tab shows an empty state that
+explains how to enable it.
 
 ## Roadmap
 

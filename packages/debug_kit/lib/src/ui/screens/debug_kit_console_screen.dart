@@ -3,14 +3,17 @@ import 'package:intl/intl.dart';
 import '../../core/controller/debug_kit_controller.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_trace.dart';
+import '../../core/models/debug_network_summary.dart';
 import '../../utils/filtering/debug_log_filter.dart';
 import '../../utils/export/debug_log_file_exporter.dart';
+import '../../utils/network/debug_network_summary_builder.dart';
 import '../../utils/trace/debug_trace_analyzer.dart';
 import '../widgets/debug_log_list.dart';
 import '../widgets/debug_log_filter_bar.dart';
 import '../widgets/debug_trace_status_badge.dart';
 import 'debug_trace_detail_screen.dart';
 import 'debug_error_digest_screen.dart';
+import 'debug_network_summary_screen.dart';
 
 class DebugKitConsoleScreen extends StatefulWidget {
   const DebugKitConsoleScreen({super.key});
@@ -27,7 +30,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -48,6 +51,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
         final filteredLogs = _filterState.apply(allLogs.toList());
         final totalCount = allLogs.length;
         final allTraces = DebugKitController().traceStore.traces;
+        final networkSummary = DebugKitController().buildNetworkSummary();
 
         return Scaffold(
           backgroundColor: const Color(0xFF111111),
@@ -68,7 +72,8 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
                 ),
                 Text(
                   '$totalCount ${totalCount == 1 ? 'entry' : 'entries'}'
-                  '  ·  ${allTraces.length} ${allTraces.length == 1 ? 'trace' : 'traces'}',
+                  '  ·  ${allTraces.length} ${allTraces.length == 1 ? 'trace' : 'traces'}'
+                  '  ·  ${networkSummary.totalRequests} network',
                   style: TextStyle(
                     color: Colors.grey[500],
                     fontSize: 11,
@@ -92,6 +97,13 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
                       ? filteredLogs
                       : allLogs.toList(),
                   allTraces.toList(),
+                  networkSummary: DebugNetworkSummaryBuilder.build(
+                    _filterState.hasActiveFilters
+                        ? filteredLogs
+                        : allLogs.toList(),
+                    slowRequestThresholdMs:
+                        DebugKitController().config.slowRequestThresholdMs,
+                  ),
                 ),
               ),
               IconButton(
@@ -111,6 +123,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
               ),
               tabs: const [
                 Tab(text: 'Logs'),
+                Tab(text: 'Network'),
                 Tab(text: 'Traces'),
                 Tab(text: 'Errors'),
               ],
@@ -136,6 +149,9 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
                   ),
                 ],
               ),
+
+              // --- Network tab ---
+              const DebugNetworkSummaryScreen(),
 
               // --- Traces tab ---
               _buildTracesTab(allTraces.toList()),
@@ -293,8 +309,15 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
   Future<void> _copyAll(
       List<DebugLogEntry> logs, List<DebugTrace> traces) async {
     final digest = DebugKitController().buildErrorDigest();
+    final summary = DebugNetworkSummaryBuilder.build(
+      logs,
+      slowRequestThresholdMs:
+          DebugKitController().config.slowRequestThresholdMs,
+    );
     await DebugLogFileExporter.exportToClipboard(logs,
-        traces: traces, digest: digest.isEmpty ? null : digest);
+        traces: traces,
+        digest: digest.isEmpty ? null : digest,
+        networkSummary: summary.isEmpty ? null : summary);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -306,7 +329,10 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
   }
 
   Future<void> _shareLogs(
-      List<DebugLogEntry> logs, List<DebugTrace> traces) async {
+    List<DebugLogEntry> logs,
+    List<DebugTrace> traces, {
+    DebugNetworkSummary? networkSummary,
+  }) async {
     if (logs.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -321,11 +347,15 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
     final digest = DebugKitController().buildErrorDigest();
     try {
       await DebugLogFileExporter.shareLogs(logs,
-          traces: traces, digest: digest.isEmpty ? null : digest);
+          traces: traces,
+          digest: digest.isEmpty ? null : digest,
+          networkSummary: networkSummary);
     } catch (_) {
       try {
         await DebugLogFileExporter.exportToClipboard(logs,
-            traces: traces, digest: digest.isEmpty ? null : digest);
+            traces: traces,
+            digest: digest.isEmpty ? null : digest,
+            networkSummary: networkSummary);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

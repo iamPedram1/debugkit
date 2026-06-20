@@ -5,13 +5,14 @@ import 'dio_log_sanitizer_helpers.dart';
 /// A Dio [Interceptor] that logs network transactions to DebugKit.
 ///
 /// Lifecycle:
-/// 1. **[onRequest]**: Creates a pending log entry with the sanitized URL and
-///    headers. Assigns a unique `request_id` and records the start timestamp
-///    in `options.extra`.
+/// 1. **[onRequest]**: Creates a pending log entry with the sanitized URL.
+///    Assigns a unique `request_id`, captures the request path/method, and
+///    records the start timestamp in `options.extra`.
 /// 2. **[onResponse]**: Updates the pending log entry (by `request_id`) with
-///    the status code, duration, and sanitized response headers.
+///    the status code, duration, phase, and safe backend correlation IDs from
+///    allowlisted response headers.
 /// 3. **[onError]**: Updates the pending log entry with the error type, status
-///    code (if available), and duration. Sets the level to
+///    code (if available), phase, and duration. Sets the level to
 ///    [DebugLogLevel.error]. Handles Dio cancel exceptions gracefully.
 ///
 /// The "pending → final" update pattern means the console always shows one
@@ -62,8 +63,11 @@ class DebugKitDioInterceptor extends Interceptor {
       traceId: traceId,
       traceName: traceName,
       metadata: {
+        'kind': 'networkTransaction',
+        'method': method,
+        'path': options.uri.path.isEmpty ? '/' : options.uri.path,
+        'phase': 'pending',
         'request_id': requestId,
-        ...DioLogSanitizerHelpers.sanitizeHeaders(options.headers),
       },
     );
 
@@ -98,6 +102,10 @@ class DebugKitDioInterceptor extends Interceptor {
       final url = DioLogSanitizerHelpers.sanitizeUrl(
           response.requestOptions.uri.toString());
       final statusCode = response.statusCode;
+      final backendMetadata =
+          DioLogSanitizerHelpers.extractBackendCorrelationHeaders(
+        response.headers.map,
+      );
 
       final traceId =
           response.requestOptions.extra['debugKitTraceId'] as String?;
@@ -108,10 +116,17 @@ class DebugKitDioInterceptor extends Interceptor {
           message: '$method $url · $statusCode · $durationStr',
           metadata: {
             ...entry.metadata ?? {},
+            'kind': 'networkTransaction',
+            'method': method,
+            'path': response.requestOptions.uri.path.isEmpty
+                ? '/'
+                : response.requestOptions.uri.path,
+            'phase': 'completed',
+            'status': statusCode?.toString() ?? '',
+            'status_code': statusCode?.toString() ?? '',
             if (durationMs != null) 'duration_ms': durationMs.toString(),
-            'response_headers':
-                DioLogSanitizerHelpers.sanitizeHeaders(response.headers.map)
-                    .toString(),
+            if (durationMs != null) 'durationMs': durationMs.toString(),
+            ...backendMetadata,
           },
         );
       });
@@ -123,8 +138,16 @@ class DebugKitDioInterceptor extends Interceptor {
           requestId: requestId,
           durationMs: durationMs,
           metadata: {
+            'kind': 'networkTransaction',
+            'method': method,
+            'path': response.requestOptions.uri.path.isEmpty
+                ? '/'
+                : response.requestOptions.uri.path,
+            'phase': 'completed',
+            'status': statusCode?.toString() ?? '',
             'status_code': statusCode?.toString() ?? '',
             if (durationMs != null) 'duration_ms': durationMs.toString(),
+            ...backendMetadata,
           },
         );
       }
@@ -153,6 +176,11 @@ class DebugKitDioInterceptor extends Interceptor {
       final isCancelled = err.type == DioExceptionType.cancel;
       final statusLabel = isCancelled ? 'cancelled' : 'failed';
       final statusCode = err.response?.statusCode ?? statusLabel;
+      final backendMetadata = err.response != null
+          ? DioLogSanitizerHelpers.extractBackendCorrelationHeaders(
+              err.response!.headers.map,
+            )
+          : <String, String>{};
 
       final traceId = err.requestOptions.extra['debugKitTraceId'] as String?;
 
@@ -164,8 +192,20 @@ class DebugKitDioInterceptor extends Interceptor {
           error: err.toString(),
           metadata: {
             ...entry.metadata ?? {},
+            'kind': 'networkTransaction',
+            'method': method,
+            'path': err.requestOptions.uri.path.isEmpty
+                ? '/'
+                : err.requestOptions.uri.path,
+            'phase': isCancelled ? 'cancelled' : 'failed',
+            if (err.response?.statusCode != null)
+              'status': err.response!.statusCode.toString(),
+            if (err.response?.statusCode != null)
+              'status_code': err.response!.statusCode.toString(),
             if (durationMs != null) 'duration_ms': durationMs.toString(),
+            if (durationMs != null) 'durationMs': durationMs.toString(),
             'error_type': err.type.toString(),
+            ...backendMetadata,
           },
         );
       });
@@ -178,8 +218,20 @@ class DebugKitDioInterceptor extends Interceptor {
           durationMs: durationMs,
           error: err.toString(),
           metadata: {
+            'kind': 'networkTransaction',
+            'method': method,
+            'path': err.requestOptions.uri.path.isEmpty
+                ? '/'
+                : err.requestOptions.uri.path,
+            'phase': isCancelled ? 'cancelled' : 'failed',
+            if (err.response?.statusCode != null)
+              'status': err.response!.statusCode.toString(),
+            if (err.response?.statusCode != null)
+              'status_code': err.response!.statusCode.toString(),
             'error_type': err.type.toString(),
             if (durationMs != null) 'duration_ms': durationMs.toString(),
+            if (durationMs != null) 'durationMs': durationMs.toString(),
+            ...backendMetadata,
           },
         );
       }

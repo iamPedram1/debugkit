@@ -78,6 +78,12 @@ class DebugKitConfig {
   /// Defaults to 3 seconds.
   final Duration slowTraceThreshold;
 
+  /// Duration in milliseconds above which a network request is considered
+  /// slow by the Network Summary builder.
+  ///
+  /// Defaults to `500`.
+  final int slowRequestThresholdMs;
+
   /// Whether consecutive identical log entries are collapsed into a single
   /// grouped entry with a [DebugLogEntry.repeatCount] counter.
   ///
@@ -111,6 +117,7 @@ class DebugKitConfig {
     this.maxTraces = 50,
     this.maxTraceEventsPerTrace = 200,
     this.slowTraceThreshold = const Duration(seconds: 3),
+    this.slowRequestThresholdMs = 500,
     this.groupRepeatedLogs = true,
   });
 }

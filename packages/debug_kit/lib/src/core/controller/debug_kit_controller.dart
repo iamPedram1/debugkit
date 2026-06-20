@@ -4,12 +4,14 @@ import '../models/debug_error_digest.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
 import '../models/debug_log_source.dart';
+import '../models/debug_network_summary.dart';
 import '../adapters/debug_kit_adapter.dart';
 import '../store/debug_log_store.dart';
 import '../store/debug_trace_store.dart';
 import '../trace/debug_trace_controller.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
 import '../../utils/errors/debug_error_digest_builder.dart';
+import '../../utils/network/debug_network_summary_builder.dart';
 
 /// Central controller that owns the log store, trace store, and adapter lifecycle.
 ///
@@ -80,6 +82,8 @@ class DebugKitController extends ChangeNotifier {
   /// - [maxTraceEventsPerTrace]: maximum events per trace. Defaults to `200`.
   /// - [slowTraceThreshold]: duration above which [DebugTraceAnalyzer] warns
   ///   about a slow trace. Defaults to 3 seconds.
+  /// - [slowRequestThresholdMs]: duration above which the Network Summary
+  ///   marks a request as slow. Defaults to 500ms.
   /// - [groupRepeatedLogs]: collapse consecutive identical logs into a single
   ///   entry with a repeat counter. Defaults to `true`.
   void init({
@@ -92,6 +96,7 @@ class DebugKitController extends ChangeNotifier {
     int maxTraces = 50,
     int maxTraceEventsPerTrace = 200,
     Duration slowTraceThreshold = const Duration(seconds: 3),
+    int slowRequestThresholdMs = 500,
     bool groupRepeatedLogs = true,
   }) {
     _config = DebugKitConfig(
@@ -103,6 +108,7 @@ class DebugKitController extends ChangeNotifier {
       maxTraces: maxTraces,
       maxTraceEventsPerTrace: maxTraceEventsPerTrace,
       slowTraceThreshold: slowTraceThreshold,
+      slowRequestThresholdMs: slowRequestThresholdMs,
       groupRepeatedLogs: groupRepeatedLogs,
     );
     _store = DebugLogStore(maxLogs: maxLogs, groupRepeated: groupRepeatedLogs);
@@ -365,6 +371,25 @@ class DebugKitController extends ChangeNotifier {
     return DebugErrorDigestBuilder.build(
       logs: _store.logs.toList(),
       traces: _traceStore.traces.toList(),
+    );
+  }
+
+  /// Builds and returns a [DebugNetworkSummary] from the current log store.
+  ///
+  /// The summary is computed on demand from sanitized, bounded in-memory log
+  /// data. Callers should cache the result if they need it across frames.
+  DebugNetworkSummary buildNetworkSummary({int? slowRequestThresholdMs}) {
+    if (!_config.enabled) {
+      return DebugNetworkSummary.empty(
+        slowRequestThresholdMs:
+            slowRequestThresholdMs ?? _config.slowRequestThresholdMs,
+      );
+    }
+
+    return DebugNetworkSummaryBuilder.build(
+      _store.logs.toList(),
+      slowRequestThresholdMs:
+          slowRequestThresholdMs ?? _config.slowRequestThresholdMs,
     );
   }
 

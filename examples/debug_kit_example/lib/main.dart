@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
@@ -180,6 +181,10 @@ class MyHomePage extends ConsumerWidget {
                   } catch (_) {}
                 },
                 child: const Text('GET 404'),
+              ),
+              ElevatedButton(
+                onPressed: () => _runSlowNetworkRequest(dio),
+                child: const Text('Slow Request'),
               ),
             ]),
             const Divider(height: 32),
@@ -372,6 +377,23 @@ class MyHomePage extends ConsumerWidget {
       // Expected
     }
   }
+
+  Future<void> _runSlowNetworkRequest(Dio dio) async {
+    final previousAdapter = dio.httpClientAdapter;
+    dio.httpClientAdapter = _SlowMockAdapter(
+      delay: const Duration(milliseconds: 900),
+      body: '{"status":"ok","demo":"slow"}',
+      statusCode: 200,
+    );
+
+    try {
+      await dio.get('https://api.example.com/demo/slow');
+    } catch (_) {
+      // Expected to stay silent if the temporary adapter changes behavior.
+    } finally {
+      dio.httpClientAdapter = previousAdapter;
+    }
+  }
 }
 
 class DetailsPage extends StatelessWidget {
@@ -411,4 +433,36 @@ class _SectionTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SlowMockAdapter implements HttpClientAdapter {
+  final Duration delay;
+  final String body;
+  final int statusCode;
+
+  _SlowMockAdapter({
+    required this.delay,
+    required this.body,
+    required this.statusCode,
+  });
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    await Future<void>.delayed(delay);
+    return ResponseBody.fromString(
+      body,
+      statusCode,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+        'x-request-id': ['demo-slow-request'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

@@ -34,6 +34,9 @@ export 'src/core/models/debug_trace_status.dart';
 export 'src/core/models/debug_error_digest.dart';
 export 'src/core/models/debug_error_digest_entry.dart';
 export 'src/core/models/debug_error_digest_severity.dart';
+export 'src/core/models/debug_network_summary.dart';
+export 'src/core/models/debug_network_endpoint_stats.dart';
+export 'src/core/models/debug_network_status_breakdown.dart';
 export 'src/core/adapters/debug_kit_adapter.dart';
 export 'src/core/trace/debug_trace_controller.dart'
     show
@@ -85,6 +88,8 @@ class DebugKit {
   /// - [maxTraceEventsPerTrace]: per-trace event limit. Defaults to `200`.
   /// - [slowTraceThreshold]: duration that triggers a "slow trace" health
   ///   warning. Defaults to 3 seconds.
+  /// - [slowRequestThresholdMs]: duration above which a network request is
+  ///   treated as slow in the Network Summary. Defaults to 500ms.
   /// - [groupRepeatedLogs]: collapse consecutive identical log entries into a
   ///   single row with a `×N` repeat badge. Defaults to `true`.
   static void init({
@@ -97,6 +102,7 @@ class DebugKit {
     int maxTraces = 50,
     int maxTraceEventsPerTrace = 200,
     Duration slowTraceThreshold = const Duration(seconds: 3),
+    int slowRequestThresholdMs = 500,
     bool groupRepeatedLogs = true,
   }) {
     _controller.init(
@@ -109,6 +115,7 @@ class DebugKit {
       maxTraces: maxTraces,
       maxTraceEventsPerTrace: maxTraceEventsPerTrace,
       slowTraceThreshold: slowTraceThreshold,
+      slowRequestThresholdMs: slowRequestThresholdMs,
       groupRepeatedLogs: groupRepeatedLogs,
     );
   }

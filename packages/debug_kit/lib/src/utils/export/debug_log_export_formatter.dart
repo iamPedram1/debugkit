@@ -1,11 +1,13 @@
 import 'package:intl/intl.dart';
 import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
+import '../../core/models/debug_network_endpoint_stats.dart';
 import '../../core/models/debug_trace.dart';
+import '../../core/models/debug_network_summary.dart';
 import 'debug_trace_export_formatter.dart';
 
-/// Pure, stateless formatter that converts log entries and traces to a
-/// human-readable plain-text export string.
+/// Pure, stateless formatter that converts log entries, traces, and optional
+/// diagnostic summaries to a human-readable plain-text export string.
 ///
 /// All inputs are expected to already be sanitized — this class never
 /// re-sanitizes or inspects values for secrets. It trusts that the store
@@ -27,6 +29,7 @@ class DebugLogExportFormatter {
     List<DebugLogEntry> logs, {
     List<DebugTrace>? traces,
     DebugErrorDigest? digest,
+    DebugNetworkSummary? networkSummary,
   }) {
     final buffer = StringBuffer();
     final now = DateTime.now();
@@ -59,6 +62,16 @@ class DebugLogExportFormatter {
         buffer.writeln();
         buffer.write(failedSummary);
       }
+    }
+
+    if (networkSummary != null && !networkSummary.isEmpty) {
+      buffer.writeln();
+      buffer.writeln(
+          '============================================================');
+      buffer.writeln();
+      buffer.write(DebugNetworkSummaryExportFormatter.formatSummary(
+        networkSummary,
+      ));
     }
 
     // Append error digest section if provided
@@ -142,6 +155,92 @@ class DebugLogExportFormatter {
     }
 
     return buffer.toString();
+  }
+}
+
+/// Pure formatter for exporting [DebugNetworkSummary] data as plain text.
+class DebugNetworkSummaryExportFormatter {
+  static final _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+
+  static String formatSummary(DebugNetworkSummary summary) {
+    final buffer = StringBuffer();
+    final maxDuration =
+        summary.maxDurationMs != null ? '${summary.maxDurationMs}ms' : 'n/a';
+    final minDuration =
+        summary.minDurationMs != null ? '${summary.minDurationMs}ms' : 'n/a';
+
+    buffer.writeln('Network Summary');
+    buffer.writeln('Generated : ${_dateFormat.format(summary.generatedAt)}');
+    buffer.writeln('Total     : ${summary.totalRequests}');
+    buffer.writeln('Completed : ${summary.completedRequests}');
+    buffer.writeln('Failed    : ${summary.failedRequests}');
+    buffer.writeln('Pending   : ${summary.pendingRequests}');
+    buffer.writeln('Slow      : ${summary.slowRequests}');
+    buffer.writeln(
+        'Status    : 2xx=${summary.statusBreakdown.status2xx}, 3xx=${summary.statusBreakdown.status3xx}, 4xx=${summary.statusBreakdown.status4xx}, 5xx=${summary.statusBreakdown.status5xx}, unknown=${summary.statusBreakdown.statusUnknown}');
+    buffer.writeln(
+        'Timing    : avg=${summary.averageDurationMs}ms max=$maxDuration min=$minDuration slow>=${summary.slowRequestThresholdMs}ms');
+
+    if (summary.topFailingEndpoints.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Top failing endpoints:');
+      for (final endpoint in summary.topFailingEndpoints) {
+        final lastStatus = endpoint.lastStatusCode != null
+            ? '${endpoint.lastStatusCode}'
+            : 'unknown';
+        buffer.writeln(
+          '  - ${endpoint.method} ${endpoint.path} — failed=${endpoint.failedCount}/${endpoint.totalCount}, lastStatus=$lastStatus',
+        );
+        _writeEndpointContext(buffer, endpoint);
+      }
+    }
+
+    if (summary.slowestEndpoints.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Slowest endpoints:');
+      for (final endpoint in summary.slowestEndpoints) {
+        buffer.writeln(
+          '  - ${endpoint.method} ${endpoint.path} — max=${endpoint.maxDurationMs ?? 'n/a'}ms, avg=${endpoint.averageDurationMs ?? 'n/a'}ms, slow=${endpoint.slowCount}/${endpoint.totalCount}',
+        );
+        _writeEndpointContext(buffer, endpoint);
+      }
+    }
+
+    if (summary.mostCalledEndpoints.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Most called endpoints:');
+      for (final endpoint in summary.mostCalledEndpoints) {
+        buffer.writeln(
+          '  - ${endpoint.method} ${endpoint.path} — total=${endpoint.totalCount}, lastSeen=${endpoint.lastSeenAt != null ? _dateFormat.format(endpoint.lastSeenAt!) : 'n/a'}',
+        );
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  static void _writeEndpointContext(
+    StringBuffer buffer,
+    DebugNetworkEndpointStats endpoint,
+  ) {
+    if (endpoint.relatedTraceIds.isNotEmpty) {
+      buffer.writeln('    traces=${endpoint.relatedTraceIds.join(', ')}');
+    }
+    if (endpoint.relatedRequestIds.isNotEmpty) {
+      buffer.writeln('    requests=${endpoint.relatedRequestIds.join(', ')}');
+    }
+    if (endpoint.backendRequestIds.isNotEmpty) {
+      buffer.writeln(
+          '    backendRequestIds=${endpoint.backendRequestIds.join(', ')}');
+    }
+    if (endpoint.backendCorrelationIds.isNotEmpty) {
+      buffer.writeln(
+          '    backendCorrelationIds=${endpoint.backendCorrelationIds.join(', ')}');
+    }
+    if (endpoint.backendTraceIds.isNotEmpty) {
+      buffer.writeln(
+          '    backendTraceIds=${endpoint.backendTraceIds.join(', ')}');
+    }
   }
 }
 

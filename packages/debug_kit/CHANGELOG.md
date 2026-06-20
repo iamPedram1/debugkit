@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- feat: add Network Summary models, builder, console tab, and export section.
+- feat: expose `DebugKitController.buildNetworkSummary()` and `DebugKit.init(slowRequestThresholdMs:)`.
+- feat: add public network summary models for endpoint and status breakdowns.
+- fix: keep network summary generation bounded to the in-memory log store and ignore malformed network metadata safely.
+
 ## 0.5.2
 
 - fix: widen `share_plus` constraint to `">=10.0.0 <14.0.0"` (was `^10.0.0`) to allow apps using share_plus 11, 12, or 13.

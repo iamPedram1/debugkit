@@ -34,6 +34,31 @@ class ErrorMockAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class ErrorWithResponseMockAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(RequestOptions options,
+      Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    throw DioException(
+      requestOptions: options,
+      response: Response(
+        requestOptions: options,
+        statusCode: 503,
+        data: null,
+        headers: Headers.fromMap({
+          'x-request-id': ['backend-req-error'],
+          'x-correlation-id': ['backend-corr-error'],
+          'x-trace-id': ['backend-trace-error'],
+        }),
+      ),
+      error: 'Server error',
+      type: DioExceptionType.badResponse,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 class CancelMockAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(RequestOptions options,
@@ -78,6 +103,9 @@ void main() {
     dio.httpClientAdapter = MockAdapter(
       ResponseBody.fromString('{"status":"ok"}', 200, headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
+        'x-request-id': ['backend-req-123'],
+        'x-correlation-id': ['backend-corr-456'],
+        'x-trace-id': ['backend-trace-789'],
       }),
     );
     dio.interceptors.add(DebugKitDioInterceptor(controller));
@@ -92,8 +120,15 @@ void main() {
 
     // Verify metadata
     expect(log.metadata?['request_id'], isNotNull);
+    expect(log.metadata?['kind'], 'networkTransaction');
+    expect(log.metadata?['method'], 'GET');
+    expect(log.metadata?['path'], '/users');
+    expect(log.metadata?['phase'], 'completed');
+    expect(log.metadata?['status'], '200');
     expect(log.metadata?['duration_ms'], isNotNull);
-    expect(log.metadata?['response_headers'], contains('content-type'));
+    expect(log.metadata?['backendRequestId'], 'backend-req-123');
+    expect(log.metadata?['backendCorrelationId'], 'backend-corr-456');
+    expect(log.metadata?['backendTraceId'], 'backend-trace-789');
   });
 
   test('DebugKitDioInterceptor logs errors', () async {
@@ -111,6 +146,23 @@ void main() {
     expect(log.metadata?['error_type'], contains('connectionTimeout'));
   });
 
+  test('error responses capture backend correlation metadata in-place',
+      () async {
+    dio.httpClientAdapter = ErrorWithResponseMockAdapter();
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    try {
+      await dio.get('https://api.example.com/users');
+    } catch (_) {}
+
+    expect(controller.store.logs.length, 1);
+    final log = controller.store.logs.first;
+    expect(log.level, DebugLogLevel.error);
+    expect(log.metadata?['backendRequestId'], 'backend-req-error');
+    expect(log.metadata?['backendCorrelationId'], 'backend-corr-error');
+    expect(log.metadata?['backendTraceId'], 'backend-trace-error');
+  });
+
   test('DebugKitDioInterceptor handles cancelled requests', () async {
     dio.httpClientAdapter = CancelMockAdapter();
     dio.interceptors.add(DebugKitDioInterceptor(controller));
@@ -125,23 +177,46 @@ void main() {
     expect(log.level, DebugLogLevel.error);
   });
 
-  test('Sanitization of headers', () async {
-    dio.httpClientAdapter = MockAdapter(ResponseBody.fromString('{}', 200));
+  test('captures only allowlisted backend correlation headers', () async {
+    dio.httpClientAdapter =
+        MockAdapter(ResponseBody.fromString('{}', 200, headers: {
+      'authorization': ['Bearer secret'],
+      'cookie': ['session=abc'],
+      'set-cookie': ['session=abc'],
+      'x-request-id': ['backend-req-1'],
+      'request-id': ['backend-req-2'],
+      'x-correlation-id': ['backend-corr-1'],
+      'x-trace-id': ['backend-trace-1'],
+      'trace-id': ['backend-trace-2'],
+    }));
     dio.interceptors.add(DebugKitDioInterceptor(controller));
 
     await dio.get(
       'https://api.example.com/users',
-      options: Options(headers: {
-        'Authorization': 'Bearer secret_token',
-        'Cookie': 'session=abc',
-        'X-Public': 'public_info',
-      }),
     );
 
     final metadata = controller.store.logs.first.metadata!;
-    expect(metadata['Authorization'], contains('***'));
-    expect(metadata['Cookie'], contains('***'));
-    expect(metadata['X-Public'], 'public_info');
+    expect(metadata['backendRequestId'], 'backend-req-1');
+    expect(metadata['backendCorrelationId'], 'backend-corr-1');
+    expect(metadata['backendTraceId'], 'backend-trace-1');
+    expect(metadata.containsKey('authorization'), isFalse);
+    expect(metadata.containsKey('cookie'), isFalse);
+    expect(metadata.containsKey('set-cookie'), isFalse);
+  });
+
+  test('truncates backend correlation values to 64 characters', () async {
+    final longValue = 'x' * 80;
+    dio.httpClientAdapter =
+        MockAdapter(ResponseBody.fromString('{}', 200, headers: {
+      'x-request-id': [longValue],
+    }));
+    dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+    await dio.get('https://api.example.com/users');
+
+    final metadata = controller.store.logs.first.metadata!;
+    expect(metadata['backendRequestId'], isNotNull);
+    expect(metadata['backendRequestId']!.length, 64);
   });
 
   test('Does not log request or response bodies by default', () async {
