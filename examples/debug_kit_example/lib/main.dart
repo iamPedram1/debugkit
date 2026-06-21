@@ -30,7 +30,13 @@ void main() {
     maxTraceEventsPerTrace: 200,
     slowTraceThreshold: const Duration(seconds: 3),
     adapters: [
-      DebugKitDioAdapter(dio),
+      DebugKitDioAdapter(
+        dio,
+        config: const DebugKitDioConfig(
+          captureRequestHeaders: true,
+          captureResponseHeaders: true,
+        ),
+      ),
     ],
   );
 
@@ -168,7 +174,12 @@ class MyHomePage extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () async {
                   try {
-                    await dio.get('https://pub.dev/api/packages/dio');
+                    await dio.get(
+                      'https://pub.dev/api/packages/dio',
+                      options: Options(headers: {
+                        'X-Debug-Demo': 'network-inspector',
+                      }),
+                    );
                   } catch (_) {}
                 },
                 child: const Text('GET Success'),

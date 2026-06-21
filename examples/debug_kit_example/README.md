@@ -11,7 +11,7 @@ A complete demonstration of [DebugKit](../../packages/debug_kit) and all officia
 | Dio network success | `debug_kit_dio` | **GET Success** |
 | Dio network error (404) | `debug_kit_dio` | **GET 404** |
 | Slow Dio request demo | `debug_kit_dio` | **Slow Request** |
-| Network Summary tab | `debug_kit` + `debug_kit_dio` | **Network** tab |
+| Network Inspector tab | `debug_kit` + `debug_kit_dio` | **Network** tab |
 | GoRouter navigation push/replace | `debug_kit_go_router` | **Navigation** section |
 | Riverpod provider update | `debug_kit_riverpod` | **Update Provider** |
 | Riverpod provider failure | `debug_kit_riverpod` | **Trigger Failure** |
@@ -33,7 +33,7 @@ Follow this sequence to produce a rich, varied log console for screenshots:
 10. Tap **Trigger Failure** — a Riverpod error log appears in red.
 11. Tap **Error** from Manual Logs — the overlay button badge counter increases.
 12. Open the DebugKit console by tapping the floating button.
-13. Use the **Network** tab to inspect status breakdowns, slow endpoints, and backend correlation IDs.
+13. Use the **Network** tab to inspect the request list, summary strip, waterfall timing, and backend correlation IDs.
 14. Use the **level/source filter chips** to isolate logs by type.
 15. Tap a log entry to **expand** and see metadata, timestamps, and stack traces.
 16. Long-press a log entry to **copy** its message to the clipboard.

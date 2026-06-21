@@ -1,5 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
+import 'package:dio/dio.dart';
+
+import 'debug_kit_dio_config.dart';
 import 'dio_log_sanitizer_helpers.dart';
 
 /// A Dio [Interceptor] that logs network transactions to DebugKit.
@@ -24,6 +26,7 @@ import 'dio_log_sanitizer_helpers.dart';
 /// correctly associated even when the response arrives in a different Zone.
 class DebugKitDioInterceptor extends Interceptor {
   final DebugKitController _controller;
+  final DebugKitDioConfig config;
 
   /// Per-interceptor counter used to generate unique `request_id` strings.
   ///
@@ -31,7 +34,8 @@ class DebugKitDioInterceptor extends Interceptor {
   int _idCounter = 0;
 
   /// Creates a [DebugKitDioInterceptor] backed by [controller].
-  DebugKitDioInterceptor(this._controller);
+  DebugKitDioInterceptor(this._controller,
+      {this.config = const DebugKitDioConfig()});
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -53,30 +57,59 @@ class DebugKitDioInterceptor extends Interceptor {
     }
 
     final method = options.method.toUpperCase();
-    final url = DioLogSanitizerHelpers.sanitizeUrl(options.uri.toString());
+    final sanitizedUrl =
+        DioLogSanitizerHelpers.sanitizeUrl(options.uri.toString());
+    final requestHeadersPreview =
+        DioLogSanitizerHelpers.buildRequestHeadersPreview(
+      options.headers,
+      captureHeaders: config.captureRequestHeaders,
+      maxPreviewChars: config.maxBodyPreviewChars,
+    );
+    final requestBodyPreview = DioLogSanitizerHelpers.buildBodyPreview(
+      options.data,
+      captureBody: config.captureRequestBody,
+      maxCaptureBytes: config.maxCaptureBytes,
+      maxPreviewChars: config.maxBodyPreviewChars,
+    );
+    final path = options.uri.path.isEmpty ? '/' : options.uri.path;
+    final parsedSanitizedUri = Uri.tryParse(sanitizedUrl);
+    final normalizedQuery = (parsedSanitizedUri?.query.isNotEmpty ?? false)
+        ? parsedSanitizedUri!.query
+        : null;
+    final host = options.uri.host.isEmpty ? null : options.uri.host;
+    final baseMetadata = <String, String>{
+      'kind': 'networkTransaction',
+      'method': method,
+      'path': path,
+      if (sanitizedUrl.isNotEmpty) 'sanitizedUrl': sanitizedUrl,
+      if (sanitizedUrl.isNotEmpty) 'url': sanitizedUrl,
+      if (normalizedQuery != null && normalizedQuery.isNotEmpty)
+        'query': normalizedQuery,
+      if (host != null && host.isNotEmpty) 'host': host,
+      'phase': 'pending',
+      'request_id': requestId,
+      'requestId': requestId,
+      if (requestHeadersPreview != null)
+        'requestHeadersPreview': requestHeadersPreview,
+      if (requestBodyPreview != null) 'requestBodyPreview': requestBodyPreview,
+    };
 
     _controller.log(
-      message: '$method $url · pending',
+      message: '$method $sanitizedUrl · pending',
       level: DebugLogLevel.info,
       source: DebugLogSource.dio,
       requestId: requestId,
       traceId: traceId,
       traceName: traceName,
-      metadata: {
-        'kind': 'networkTransaction',
-        'method': method,
-        'path': options.uri.path.isEmpty ? '/' : options.uri.path,
-        'phase': 'pending',
-        'request_id': requestId,
-      },
+      metadata: baseMetadata,
     );
 
     // Record the request start as a network trace event
     if (traceId != null) {
       _controller.traceController.recordNetworkEvent(
-        message: '$method $url · pending',
+        message: '$method $sanitizedUrl · pending',
         requestId: requestId,
-        metadata: {'request_id': requestId},
+        metadata: baseMetadata,
       );
     }
 
@@ -101,10 +134,32 @@ class DebugKitDioInterceptor extends Interceptor {
       final method = response.requestOptions.method.toUpperCase();
       final url = DioLogSanitizerHelpers.sanitizeUrl(
           response.requestOptions.uri.toString());
+      final path = response.requestOptions.uri.path.isEmpty
+          ? '/'
+          : response.requestOptions.uri.path;
+      final parsedSanitizedUri = Uri.tryParse(url);
+      final normalizedQuery = (parsedSanitizedUri?.query.isNotEmpty ?? false)
+          ? parsedSanitizedUri!.query
+          : null;
+      final host = response.requestOptions.uri.host.isEmpty
+          ? null
+          : response.requestOptions.uri.host;
       final statusCode = response.statusCode;
       final backendMetadata =
           DioLogSanitizerHelpers.extractBackendCorrelationHeaders(
         response.headers.map,
+      );
+      final responseHeadersPreview =
+          DioLogSanitizerHelpers.buildResponseHeadersPreview(
+        response.headers.map,
+        captureHeaders: config.captureResponseHeaders,
+        maxPreviewChars: config.maxBodyPreviewChars,
+      );
+      final responseBodyPreview = DioLogSanitizerHelpers.buildBodyPreview(
+        response.data,
+        captureBody: config.captureResponseBody,
+        maxCaptureBytes: config.maxCaptureBytes,
+        maxPreviewChars: config.maxBodyPreviewChars,
       );
 
       final traceId =
@@ -118,14 +173,21 @@ class DebugKitDioInterceptor extends Interceptor {
             ...entry.metadata ?? {},
             'kind': 'networkTransaction',
             'method': method,
-            'path': response.requestOptions.uri.path.isEmpty
-                ? '/'
-                : response.requestOptions.uri.path,
+            'path': path,
+            if (url.isNotEmpty) 'sanitizedUrl': url,
+            if (url.isNotEmpty) 'url': url,
+            if (normalizedQuery != null && normalizedQuery.isNotEmpty)
+              'query': normalizedQuery,
+            if (host != null && host.isNotEmpty) 'host': host,
             'phase': 'completed',
             'status': statusCode?.toString() ?? '',
             'status_code': statusCode?.toString() ?? '',
             if (durationMs != null) 'duration_ms': durationMs.toString(),
             if (durationMs != null) 'durationMs': durationMs.toString(),
+            if (responseHeadersPreview != null)
+              'responseHeadersPreview': responseHeadersPreview,
+            if (responseBodyPreview != null)
+              'responseBodyPreview': responseBodyPreview,
             ...backendMetadata,
           },
         );
@@ -140,13 +202,19 @@ class DebugKitDioInterceptor extends Interceptor {
           metadata: {
             'kind': 'networkTransaction',
             'method': method,
-            'path': response.requestOptions.uri.path.isEmpty
-                ? '/'
-                : response.requestOptions.uri.path,
+            'path': path,
+            if (url.isNotEmpty) 'sanitizedUrl': url,
+            if (normalizedQuery != null && normalizedQuery.isNotEmpty)
+              'query': normalizedQuery,
+            if (host != null && host.isNotEmpty) 'host': host,
             'phase': 'completed',
             'status': statusCode?.toString() ?? '',
             'status_code': statusCode?.toString() ?? '',
             if (durationMs != null) 'duration_ms': durationMs.toString(),
+            if (responseHeadersPreview != null)
+              'responseHeadersPreview': responseHeadersPreview,
+            if (responseBodyPreview != null)
+              'responseBodyPreview': responseBodyPreview,
             ...backendMetadata,
           },
         );
@@ -172,6 +240,16 @@ class DebugKitDioInterceptor extends Interceptor {
       final method = err.requestOptions.method.toUpperCase();
       final url =
           DioLogSanitizerHelpers.sanitizeUrl(err.requestOptions.uri.toString());
+      final path = err.requestOptions.uri.path.isEmpty
+          ? '/'
+          : err.requestOptions.uri.path;
+      final parsedSanitizedUri = Uri.tryParse(url);
+      final normalizedQuery = (parsedSanitizedUri?.query.isNotEmpty ?? false)
+          ? parsedSanitizedUri!.query
+          : null;
+      final host = err.requestOptions.uri.host.isEmpty
+          ? null
+          : err.requestOptions.uri.host;
 
       final isCancelled = err.type == DioExceptionType.cancel;
       final statusLabel = isCancelled ? 'cancelled' : 'failed';
@@ -181,6 +259,27 @@ class DebugKitDioInterceptor extends Interceptor {
               err.response!.headers.map,
             )
           : <String, String>{};
+      final responseHeadersPreview = err.response != null
+          ? DioLogSanitizerHelpers.buildResponseHeadersPreview(
+              err.response!.headers.map,
+              captureHeaders: config.captureResponseHeaders,
+              maxPreviewChars: config.maxBodyPreviewChars,
+            )
+          : null;
+      final responseBodyPreview = err.response != null
+          ? DioLogSanitizerHelpers.buildBodyPreview(
+              err.response!.data,
+              captureBody: config.captureResponseBody,
+              maxCaptureBytes: config.maxCaptureBytes,
+              maxPreviewChars: config.maxBodyPreviewChars,
+            )
+          : null;
+      final errorMessage = DebugLogSanitizer.sanitizeMessage(
+        err.message ?? err.error?.toString() ?? err.toString(),
+      );
+      final sanitizedStackTrace = DebugLogSanitizer.trimStackTrace(
+        DebugLogSanitizer.sanitizeMessage(err.stackTrace.toString()),
+      );
 
       final traceId = err.requestOptions.extra['debugKitTraceId'] as String?;
 
@@ -189,14 +288,18 @@ class DebugKitDioInterceptor extends Interceptor {
         return entry.copyWith(
           message: '$method $url · $statusCode · $durationStr',
           level: DebugLogLevel.error,
-          error: err.toString(),
+          error: errorMessage,
+          stackTrace: sanitizedStackTrace,
           metadata: {
             ...entry.metadata ?? {},
             'kind': 'networkTransaction',
             'method': method,
-            'path': err.requestOptions.uri.path.isEmpty
-                ? '/'
-                : err.requestOptions.uri.path,
+            'path': path,
+            if (url.isNotEmpty) 'sanitizedUrl': url,
+            if (url.isNotEmpty) 'url': url,
+            if (normalizedQuery != null && normalizedQuery.isNotEmpty)
+              'query': normalizedQuery,
+            if (host != null && host.isNotEmpty) 'host': host,
             'phase': isCancelled ? 'cancelled' : 'failed',
             if (err.response?.statusCode != null)
               'status': err.response!.statusCode.toString(),
@@ -204,7 +307,14 @@ class DebugKitDioInterceptor extends Interceptor {
               'status_code': err.response!.statusCode.toString(),
             if (durationMs != null) 'duration_ms': durationMs.toString(),
             if (durationMs != null) 'durationMs': durationMs.toString(),
+            'errorType': err.type.toString(),
             'error_type': err.type.toString(),
+            'errorMessage': errorMessage,
+            'error_message': errorMessage,
+            if (responseHeadersPreview != null)
+              'responseHeadersPreview': responseHeadersPreview,
+            if (responseBodyPreview != null)
+              'responseBodyPreview': responseBodyPreview,
             ...backendMetadata,
           },
         );
@@ -216,21 +326,30 @@ class DebugKitDioInterceptor extends Interceptor {
           message: '$method $url · $statusCode · $durationStr',
           requestId: requestId,
           durationMs: durationMs,
-          error: err.toString(),
+          error: errorMessage,
           metadata: {
             'kind': 'networkTransaction',
             'method': method,
-            'path': err.requestOptions.uri.path.isEmpty
-                ? '/'
-                : err.requestOptions.uri.path,
+            'path': path,
+            if (url.isNotEmpty) 'sanitizedUrl': url,
+            if (normalizedQuery != null && normalizedQuery.isNotEmpty)
+              'query': normalizedQuery,
+            if (host != null && host.isNotEmpty) 'host': host,
             'phase': isCancelled ? 'cancelled' : 'failed',
             if (err.response?.statusCode != null)
               'status': err.response!.statusCode.toString(),
             if (err.response?.statusCode != null)
               'status_code': err.response!.statusCode.toString(),
+            'errorType': err.type.toString(),
             'error_type': err.type.toString(),
+            'errorMessage': errorMessage,
+            'error_message': errorMessage,
             if (durationMs != null) 'duration_ms': durationMs.toString(),
             if (durationMs != null) 'durationMs': durationMs.toString(),
+            if (responseHeadersPreview != null)
+              'responseHeadersPreview': responseHeadersPreview,
+            if (responseBodyPreview != null)
+              'responseBodyPreview': responseBodyPreview,
             ...backendMetadata,
           },
         );

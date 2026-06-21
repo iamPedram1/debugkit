@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- feat: capture safe network transaction metadata needed by the new Network inspector, including sanitized URL parts, host, query, and error details.
+- feat: add opt-in preview configuration for request headers, response headers, request bodies, and response bodies with safe defaults.
+- fix: keep one request equal to one updateable log entry while preserving cancellation and backend correlation behavior.
+
 ## 0.3.0
 
 - feat: capture safe backend correlation IDs from allowlisted response headers only.

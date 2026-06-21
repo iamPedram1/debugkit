@@ -10,8 +10,8 @@ Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.6.0
-  debug_kit_dio: ^0.3.0
+  debug_kit: ^0.7.0
+  debug_kit_dio: ^0.4.0
 ```
 
 ## Setup
@@ -45,30 +45,60 @@ dio.interceptors.add(DebugKitDioInterceptor(DebugKit.controller));
 
 ## What is Logged
 
-- HTTP method and sanitized URL (query params masked)
-- HTTP path and request phase metadata for DebugKit Network Summary
-- Response status code, duration, and phase updates
-- Error type and message on failure
+- HTTP method plus sanitized URL, host, path, and query metadata
+- Request and response phase updates for the Network Inspector
+- Response status code, duration, and error metadata
 - Backend correlation IDs from allowlisted response headers only
 - Cancelled request status
+- Optional sanitized request/response header previews when enabled
+- Optional request/response body previews when explicitly enabled
 
-The adapter also feeds the DebugKit Network Summary tab with generic
-aggregates such as total requests, status families, slow endpoints, and
-backend correlation IDs.
+The adapter also feeds the DebugKit Network Inspector with the request list,
+summary strip, detail tabs, and waterfall timing.
 
 ## What is NOT Logged
 
-- Request bodies — never logged to prevent PII leakage
+- Request bodies — never logged by default
 - Response bodies — never logged by default
 - Binary or multipart payloads — always ignored
-- Authorization, Cookie, Set-Cookie, or arbitrary response headers — not stored
+- Authorization, Cookie, Set-Cookie, or arbitrary response headers — not stored by default
 - Raw backend headers outside the allowlist below
 
 ## Security & Sanitization
 
 - URLs: Sensitive query parameters (e.g., `api_key`, `token`, `password`) are masked using smart length-aware masking.
 - Response headers: Only the allowlisted backend correlation headers below are captured, and values are sanitized and truncated to 64 characters.
-- Bodies: Request and response bodies are never captured.
+- Headers: request header previews are opt-in and sanitized; response header previews use a safe allowlist only.
+- Bodies: request and response body previews are opt-in and disabled by default.
+
+## Preview Config
+
+Use `DebugKitDioConfig` when you want safe previews in the Network Inspector:
+
+```dart
+DebugKit.init(
+  adapters: [
+    DebugKitDioAdapter(
+      dio,
+      config: const DebugKitDioConfig(
+        captureRequestHeaders: true,
+        captureResponseHeaders: true,
+        captureRequestBody: false,
+        captureResponseBody: false,
+      ),
+    ),
+  ],
+);
+```
+
+Defaults stay safe:
+
+- `captureRequestHeaders: false`
+- `captureResponseHeaders: false`
+- `captureRequestBody: false`
+- `captureResponseBody: false`
+- `maxBodyPreviewChars: 1000`
+- `maxCaptureBytes: 65536`
 
 ### Allowlisted backend correlation headers
 
@@ -94,7 +124,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 | `debug_kit_dio` | `debug_kit` |
 |---|---|
-| 0.3.x | ≥ 0.6.0 |
+| 0.4.x | ≥ 0.7.0 |
 
 ## License
 

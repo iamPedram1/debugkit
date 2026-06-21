@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- feat: add a Chrome-style Network inspector with searchable, filterable request rows, detail sheets, sorting, and a lightweight waterfall.
+- feat: introduce `DebugNetworkTransaction` plus transaction builders, filter state, and selective network clearing.
+- feat: expose `DebugKit.clearNetworkTransactions()` and a transaction-aware export section for network requests.
+- feat: update exports and the example app to surface the new network transaction details and compact overview strip.
+- fix: derive Network Summary from normalized network transactions and keep malformed network metadata ignored safely.
+
 ## 0.6.0
 
 - feat: add Network Summary models, builder, console tab, and export section.

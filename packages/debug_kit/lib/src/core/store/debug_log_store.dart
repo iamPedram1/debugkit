@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
+import '../models/debug_log_source.dart';
 
 /// Bounded in-memory store for [DebugLogEntry] instances.
 ///
@@ -126,6 +127,33 @@ class DebugLogStore extends ChangeNotifier {
   void clear() {
     _logs.clear();
     _safeNotify();
+  }
+
+  /// Removes every entry that matches [predicate] and notifies listeners.
+  ///
+  /// Returns the number of removed entries. Safe for selective clearing
+  /// without disturbing unrelated logs, traces, or errors.
+  int clearWhere(bool Function(DebugLogEntry entry) predicate) {
+    final before = _logs.length;
+    _logs.removeWhere(predicate);
+    if (_logs.length != before) {
+      _safeNotify();
+    }
+    return before - _logs.length;
+  }
+
+  /// Removes all network transactions from the store and notifies listeners.
+  ///
+  /// Matches entries emitted by the Dio adapter or any future adapter that
+  /// marks logs with `kind=networkTransaction`.
+  int clearNetworkTransactions() {
+    return clearWhere((entry) {
+      final metadata = entry.metadata;
+      final kind = metadata?['kind'];
+      return entry.requestId != null ||
+          entry.source == DebugLogSource.dio ||
+          kind?.toLowerCase() == 'networktransaction';
+    });
   }
 
   /// Returns the next monotonically increasing entry ID and advances the counter.

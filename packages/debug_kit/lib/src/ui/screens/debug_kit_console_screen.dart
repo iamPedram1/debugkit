@@ -13,7 +13,7 @@ import '../widgets/debug_log_filter_bar.dart';
 import '../widgets/debug_trace_status_badge.dart';
 import 'debug_trace_detail_screen.dart';
 import 'debug_error_digest_screen.dart';
-import 'debug_network_summary_screen.dart';
+import 'debug_network_inspector_screen.dart';
 
 class DebugKitConsoleScreen extends StatefulWidget {
   const DebugKitConsoleScreen({super.key});

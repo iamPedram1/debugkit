@@ -2,8 +2,10 @@ import 'package:intl/intl.dart';
 import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_network_endpoint_stats.dart';
+import '../../core/models/debug_network_transaction.dart';
 import '../../core/models/debug_trace.dart';
 import '../../core/models/debug_network_summary.dart';
+import '../../utils/network/debug_network_transaction_builder.dart';
 import 'debug_trace_export_formatter.dart';
 
 /// Pure, stateless formatter that converts log entries, traces, and optional
@@ -72,6 +74,19 @@ class DebugLogExportFormatter {
       buffer.write(DebugNetworkSummaryExportFormatter.formatSummary(
         networkSummary,
       ));
+    }
+
+    final networkTransactions = DebugNetworkTransactionBuilder.build(logs);
+    if (networkTransactions.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln(
+          '============================================================');
+      buffer.writeln();
+      buffer.write(
+        DebugNetworkTransactionExportFormatter.formatTransactions(
+          networkTransactions,
+        ),
+      );
     }
 
     // Append error digest section if provided
@@ -155,6 +170,111 @@ class DebugLogExportFormatter {
     }
 
     return buffer.toString();
+  }
+}
+
+/// Pure formatter for exporting transaction rows and transaction details.
+class DebugNetworkTransactionExportFormatter {
+  static final _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+
+  static String formatTransactions(List<DebugNetworkTransaction> transactions) {
+    final buffer = StringBuffer();
+
+    buffer.writeln('Network Requests');
+    buffer.writeln('Total     : ${transactions.length}');
+    buffer.writeln(
+        '============================================================');
+    buffer.writeln();
+
+    for (final transaction in transactions) {
+      buffer.writeln(formatTransaction(transaction));
+      buffer.writeln(
+          '------------------------------------------------------------');
+    }
+
+    return buffer.toString();
+  }
+
+  static String formatTransaction(DebugNetworkTransaction transaction) {
+    final buffer = StringBuffer();
+    buffer.write(
+      '[${transaction.method}] ${transaction.displayPath} · ${transaction.statusLabel} · ${transaction.phase.label}',
+    );
+    buffer.writeln();
+    buffer
+        .writeln('  Started   : ${_dateFormat.format(transaction.startedAt)}');
+    if (transaction.completedAt != null) {
+      buffer.writeln(
+        '  Completed : ${_dateFormat.format(transaction.completedAt!)}',
+      );
+    }
+    buffer.writeln('  Duration  : ${transaction.durationLabel}');
+    if (transaction.requestId != null) {
+      buffer.writeln('  RequestId : ${transaction.requestId}');
+    }
+    if (transaction.traceId != null) {
+      buffer.write(
+          '  Trace     : ${transaction.traceName ?? transaction.traceId}');
+      if (transaction.traceStep != null) {
+        buffer.write(' step=${transaction.traceStep}');
+      }
+      buffer.writeln();
+    }
+    if (transaction.backendRequestId != null) {
+      buffer.writeln('  Backend   : request=${transaction.backendRequestId}');
+    }
+    if (transaction.backendCorrelationId != null) {
+      buffer.writeln(
+        '             correlation=${transaction.backendCorrelationId}',
+      );
+    }
+    if (transaction.backendTraceId != null) {
+      buffer.writeln('             trace=${transaction.backendTraceId}');
+    }
+    if (transaction.errorType != null || transaction.errorMessage != null) {
+      buffer.writeln(
+        '  Error     : ${transaction.errorType ?? ''}${transaction.errorType != null && transaction.errorMessage != null ? ' — ' : ''}${transaction.errorMessage ?? ''}',
+      );
+    }
+    if (transaction.stackTrace != null) {
+      buffer.writeln('  Stack     :');
+      for (final line in transaction.stackTrace!.split('\n').take(10)) {
+        buffer.writeln('    $line');
+      }
+    }
+    if (transaction.requestHeadersPreview != null) {
+      buffer.writeln('  Request headers:');
+      buffer.writeln(_indent(transaction.requestHeadersPreview!));
+    }
+    if (transaction.responseHeadersPreview != null) {
+      buffer.writeln('  Response headers:');
+      buffer.writeln(_indent(transaction.responseHeadersPreview!));
+    }
+    if (transaction.requestBodyPreview != null) {
+      buffer.writeln('  Request body:');
+      buffer.writeln(_indent(transaction.requestBodyPreview!));
+    }
+    if (transaction.responseBodyPreview != null) {
+      buffer.writeln('  Response body:');
+      buffer.writeln(_indent(transaction.responseBodyPreview!));
+    }
+    if (transaction.metadata.isNotEmpty) {
+      final entries = transaction.metadata.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      buffer.writeln('  Meta      :');
+      for (final entry in entries) {
+        buffer.writeln('    ${entry.key}=${entry.value}');
+      }
+    }
+    return buffer.toString();
+  }
+
+  static String formatTransactionDetail(DebugNetworkTransaction transaction) {
+    return formatTransaction(transaction);
+  }
+
+  static String _indent(String text) {
+    return text.split('\n').map((line) => '    $line').join('\n');
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
+import 'debug_kit_dio_config.dart';
 import 'debug_kit_dio_interceptor.dart';
 
 /// A [DebugKitAdapter] that integrates Dio network observability.
@@ -35,6 +36,10 @@ import 'debug_kit_dio_interceptor.dart';
 /// - Binary or multipart payloads — always ignored.
 /// - Authorization, Cookie, Set-Cookie, and arbitrary headers — never stored.
 ///
+/// Optional safe previews can be enabled through [DebugKitDioConfig].
+/// Request headers are sanitized when captured. Response headers are captured
+/// only from a safe allowlist. Request and response body previews remain opt-in.
+///
 /// **Trace correlation:** requests made inside an active [DebugKit.trace.run]
 /// zone automatically carry [DebugLogEntry.traceId] and a corresponding
 /// [DebugTraceEventType.network] event is recorded on the active trace.
@@ -42,10 +47,13 @@ class DebugKitDioAdapter extends DebugKitAdapter {
   /// The [Dio] instance whose network traffic will be logged.
   final Dio dio;
 
+  /// Safe opt-in capture settings for headers and body previews.
+  final DebugKitDioConfig config;
+
   DebugKitDioInterceptor? _interceptor;
 
   /// Creates a [DebugKitDioAdapter] for the given [dio] instance.
-  DebugKitDioAdapter(this.dio);
+  DebugKitDioAdapter(this.dio, {this.config = const DebugKitDioConfig()});
 
   /// Attaches a [DebugKitDioInterceptor] to [dio].
   ///
@@ -55,7 +63,7 @@ class DebugKitDioAdapter extends DebugKitAdapter {
   void attach(DebugKitController controller) {
     if (_interceptor != null) return;
 
-    _interceptor = DebugKitDioInterceptor(controller);
+    _interceptor = DebugKitDioInterceptor(controller, config: config);
     dio.interceptors.add(_interceptor!);
   }
 

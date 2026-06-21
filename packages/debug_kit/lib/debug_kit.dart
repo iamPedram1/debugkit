@@ -34,9 +34,14 @@ export 'src/core/models/debug_trace_status.dart';
 export 'src/core/models/debug_error_digest.dart';
 export 'src/core/models/debug_error_digest_entry.dart';
 export 'src/core/models/debug_error_digest_severity.dart';
+export 'src/core/models/debug_network_filter_state.dart';
 export 'src/core/models/debug_network_summary.dart';
 export 'src/core/models/debug_network_endpoint_stats.dart';
 export 'src/core/models/debug_network_status_breakdown.dart';
+export 'src/core/models/debug_network_sort_option.dart';
+export 'src/core/models/debug_network_status_family.dart';
+export 'src/core/models/debug_network_transaction.dart';
+export 'src/core/models/debug_network_transaction_phase.dart';
 export 'src/core/adapters/debug_kit_adapter.dart';
 export 'src/core/trace/debug_trace_controller.dart'
     show
@@ -135,6 +140,12 @@ class DebugKit {
   ///
   /// No-op when [isEnabled] is `false`.
   static void clearTraces() => _controller.traceStore.clear();
+
+  /// Removes all network transaction logs from the in-memory store.
+  ///
+  /// No-op when [isEnabled] is `false`.
+  static void clearNetworkTransactions() =>
+      _controller.clearNetworkTransactions();
 
   /// Builds and returns an error digest from the current log and trace stores.
   ///

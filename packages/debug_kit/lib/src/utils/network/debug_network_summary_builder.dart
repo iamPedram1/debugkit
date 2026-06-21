@@ -1,9 +1,10 @@
 import '../../core/models/debug_log_entry.dart';
-import '../../core/models/debug_log_level.dart';
 import '../../core/models/debug_network_endpoint_stats.dart';
 import '../../core/models/debug_network_status_breakdown.dart';
 import '../../core/models/debug_network_summary.dart';
-import '../../core/models/debug_log_source.dart';
+import '../../core/models/debug_network_transaction.dart';
+import '../../core/models/debug_network_status_family.dart';
+import 'debug_network_transaction_builder.dart';
 
 /// Pure builder that derives a [DebugNetworkSummary] from sanitized log data.
 ///
@@ -17,6 +18,17 @@ class DebugNetworkSummaryBuilder {
 
   static DebugNetworkSummary build(
     List<DebugLogEntry> logs, {
+    int slowRequestThresholdMs = 500,
+  }) {
+    final transactions = DebugNetworkTransactionBuilder.build(logs);
+    return buildFromTransactions(
+      transactions,
+      slowRequestThresholdMs: slowRequestThresholdMs,
+    );
+  }
+
+  static DebugNetworkSummary buildFromTransactions(
+    List<DebugNetworkTransaction> transactions, {
     int slowRequestThresholdMs = 500,
   }) {
     final endpointMap = <String, _EndpointAccumulator>{};
@@ -37,76 +49,52 @@ class DebugNetworkSummaryBuilder {
     var status5xx = 0;
     var statusUnknown = 0;
 
-    for (final entry in logs) {
-      if (!_isNetworkTransaction(entry)) continue;
-
-      final method = _readMethod(entry);
-      final path = _readPath(entry);
-      if (method == null || path == null) continue;
-
+    for (final transaction in transactions) {
+      final method = transaction.method;
+      final path = transaction.path;
       final key = '$method|$path';
       final acc = endpointMap.putIfAbsent(
         key,
         () => _EndpointAccumulator(method: method, path: path),
       );
 
-      totalRequests += entry.repeatCount;
-      acc.totalCount += entry.repeatCount;
+      totalRequests += 1;
+      acc.totalCount += 1;
 
-      final phase = _readPhase(entry);
-      final statusCode = _readStatusCode(entry);
-      final durationMs = _readDurationMs(entry);
-      final requestId = entry.requestId;
-      final traceId = entry.traceId;
-      final backendRequestId = _readMetadataValue(entry, const [
-        'backendRequestId',
-        'backend_request_id',
-      ]);
-      final backendCorrelationId = _readMetadataValue(entry, const [
-        'backendCorrelationId',
-        'backend_correlation_id',
-      ]);
-      final backendTraceId = _readMetadataValue(entry, const [
-        'backendTraceId',
-        'backend_trace_id',
-      ]);
+      final statusCode = transaction.statusCode;
+      final durationMs = transaction.durationMs;
 
-      if (_isPending(phase, statusCode, durationMs)) {
-        pendingRequests += entry.repeatCount;
-      } else if (_isFailed(entry, phase, statusCode)) {
-        failedRequests += entry.repeatCount;
-        acc.failedCount += entry.repeatCount;
+      if (transaction.isPending) {
+        pendingRequests += 1;
+      } else if (transaction.isFailed) {
+        failedRequests += 1;
+        acc.failedCount += 1;
       } else {
-        completedRequests += entry.repeatCount;
-        acc.completedCount += entry.repeatCount;
+        completedRequests += 1;
+        acc.completedCount += 1;
       }
 
-      if (statusCode != null) {
-        switch (_statusBucket(statusCode)) {
-          case _StatusBucket.s2xx:
-            status2xx += entry.repeatCount;
-            acc.status2xx += entry.repeatCount;
-            break;
-          case _StatusBucket.s3xx:
-            status3xx += entry.repeatCount;
-            acc.status3xx += entry.repeatCount;
-            break;
-          case _StatusBucket.s4xx:
-            status4xx += entry.repeatCount;
-            acc.status4xx += entry.repeatCount;
-            break;
-          case _StatusBucket.s5xx:
-            status5xx += entry.repeatCount;
-            acc.status5xx += entry.repeatCount;
-            break;
-          case _StatusBucket.unknown:
-            statusUnknown += entry.repeatCount;
-            acc.statusUnknown += entry.repeatCount;
-            break;
-        }
-      } else {
-        statusUnknown += entry.repeatCount;
-        acc.statusUnknown += entry.repeatCount;
+      switch (transaction.statusFamily) {
+        case DebugNetworkStatusFamily.twoXX:
+          status2xx += 1;
+          acc.status2xx += 1;
+          break;
+        case DebugNetworkStatusFamily.threeXX:
+          status3xx += 1;
+          acc.status3xx += 1;
+          break;
+        case DebugNetworkStatusFamily.fourXX:
+          status4xx += 1;
+          acc.status4xx += 1;
+          break;
+        case DebugNetworkStatusFamily.fiveXX:
+          status5xx += 1;
+          acc.status5xx += 1;
+          break;
+        case DebugNetworkStatusFamily.unknown:
+          statusUnknown += 1;
+          acc.statusUnknown += 1;
+          break;
       }
 
       if (durationMs != null) {
@@ -131,23 +119,23 @@ class DebugNetworkSummaryBuilder {
       }
 
       if (durationMs != null && durationMs >= slowRequestThresholdMs) {
-        slowRequests += entry.repeatCount;
-        acc.slowCount += entry.repeatCount;
+        slowRequests += 1;
+        acc.slowCount += 1;
       }
 
       if (statusCode != null) {
         acc.lastStatusCode = statusCode;
       }
-      final seenAt = entry.lastSeenAt ?? entry.timestamp;
+      final seenAt = transaction.startedAt;
       if (acc.lastSeenAt == null || seenAt.isAfter(acc.lastSeenAt!)) {
         acc.lastSeenAt = seenAt;
       }
 
-      _addUnique(acc.relatedTraceIds, traceId);
-      _addUnique(acc.relatedRequestIds, requestId);
-      _addUnique(acc.backendRequestIds, backendRequestId);
-      _addUnique(acc.backendCorrelationIds, backendCorrelationId);
-      _addUnique(acc.backendTraceIds, backendTraceId);
+      _addUnique(acc.relatedTraceIds, transaction.traceId);
+      _addUnique(acc.relatedRequestIds, transaction.requestId);
+      _addUnique(acc.backendRequestIds, transaction.backendRequestId);
+      _addUnique(acc.backendCorrelationIds, transaction.backendCorrelationId);
+      _addUnique(acc.backendTraceIds, transaction.backendTraceId);
     }
 
     final endpoints = endpointMap.values.map((acc) => acc.build()).toList();
@@ -208,87 +196,6 @@ class DebugNetworkSummaryBuilder {
     );
   }
 
-  static bool _isNetworkTransaction(DebugLogEntry entry) {
-    final kind = _readMetadataValue(entry, const ['kind']);
-    if (kind?.toLowerCase() == 'networktransaction') return true;
-    if (entry.source == DebugLogSource.dio) return true;
-    return _readMethod(entry) != null && _readPath(entry) != null;
-  }
-
-  static String? _readMethod(DebugLogEntry entry) {
-    final method = _readMetadataValue(entry, const ['method']);
-    if (method == null || method.trim().isEmpty) return null;
-    return method.trim().toUpperCase();
-  }
-
-  static String? _readPath(DebugLogEntry entry) {
-    final rawPath = _readMetadataValue(entry, const ['path']);
-    if (rawPath == null || rawPath.trim().isEmpty) return null;
-    final trimmed = rawPath.trim();
-    try {
-      final uri = Uri.parse(trimmed);
-      final path = uri.path.isEmpty ? '/' : uri.path;
-      return path.startsWith('/') ? path : '/$path';
-    } catch (_) {
-      final pathOnly = trimmed.split('?').first;
-      if (pathOnly.isEmpty) return null;
-      return pathOnly.startsWith('/') ? pathOnly : '/$pathOnly';
-    }
-  }
-
-  static String? _readPhase(DebugLogEntry entry) {
-    final phase = _readMetadataValue(entry, const ['phase']);
-    if (phase == null || phase.trim().isEmpty) return null;
-    return phase.trim().toLowerCase();
-  }
-
-  static int? _readStatusCode(DebugLogEntry entry) {
-    final raw = _readMetadataValue(
-        entry, const ['status', 'status_code', 'statusCode']);
-    if (raw == null) return null;
-    return int.tryParse(raw);
-  }
-
-  static int? _readDurationMs(DebugLogEntry entry) {
-    final raw = _readMetadataValue(
-        entry, const ['durationMs', 'duration_ms', 'duration']);
-    if (raw == null) return null;
-    return int.tryParse(raw);
-  }
-
-  static String? _readMetadataValue(DebugLogEntry entry, List<String> keys) {
-    final metadata = entry.metadata;
-    if (metadata == null || metadata.isEmpty) return null;
-    for (final key in keys) {
-      final value = metadata[key];
-      if (value != null && value.trim().isNotEmpty) {
-        return value;
-      }
-    }
-    return null;
-  }
-
-  static bool _isPending(String? phase, int? statusCode, int? durationMs) {
-    if (phase == 'pending') return true;
-    return statusCode == null && durationMs == null;
-  }
-
-  static bool _isFailed(DebugLogEntry entry, String? phase, int? statusCode) {
-    if (phase == 'failed') return true;
-    if (phase == 'cancelled') return true;
-    if (entry.level == DebugLogLevel.error) return true;
-    if (statusCode != null && statusCode >= 400) return true;
-    return false;
-  }
-
-  static _StatusBucket _statusBucket(int statusCode) {
-    if (statusCode >= 200 && statusCode <= 299) return _StatusBucket.s2xx;
-    if (statusCode >= 300 && statusCode <= 399) return _StatusBucket.s3xx;
-    if (statusCode >= 400 && statusCode <= 499) return _StatusBucket.s4xx;
-    if (statusCode >= 500 && statusCode <= 599) return _StatusBucket.s5xx;
-    return _StatusBucket.unknown;
-  }
-
   static void _addUnique(List<String> values, String? value) {
     if (value == null || value.trim().isEmpty) return;
     if (values.contains(value)) return;
@@ -296,8 +203,6 @@ class DebugNetworkSummaryBuilder {
     values.add(value);
   }
 }
-
-enum _StatusBucket { s2xx, s3xx, s4xx, s5xx, unknown }
 
 class _EndpointAccumulator {
   final String method;

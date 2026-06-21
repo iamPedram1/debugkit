@@ -5,12 +5,14 @@ import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
 import '../models/debug_log_source.dart';
 import '../models/debug_network_summary.dart';
+import '../models/debug_network_transaction.dart';
 import '../adapters/debug_kit_adapter.dart';
 import '../store/debug_log_store.dart';
 import '../store/debug_trace_store.dart';
 import '../trace/debug_trace_controller.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
 import '../../utils/errors/debug_error_digest_builder.dart';
+import '../../utils/network/debug_network_transaction_builder.dart';
 import '../../utils/network/debug_network_summary_builder.dart';
 
 /// Central controller that owns the log store, trace store, and adapter lifecycle.
@@ -391,6 +393,23 @@ class DebugKitController extends ChangeNotifier {
       slowRequestThresholdMs:
           slowRequestThresholdMs ?? _config.slowRequestThresholdMs,
     );
+  }
+
+  /// Builds and returns the current network transactions from the store.
+  ///
+  /// Transactions are derived from the bounded in-memory log store and sorted
+  /// newest-first. Disabled mode returns an empty list immediately.
+  List<DebugNetworkTransaction> buildNetworkTransactions() {
+    if (!_config.enabled) return const [];
+    return DebugNetworkTransactionBuilder.build(_store.logs.toList());
+  }
+
+  /// Removes all network transaction logs from the store.
+  ///
+  /// Safe to call from the Network tab. Returns the number of removed entries.
+  int clearNetworkTransactions() {
+    if (!_config.enabled) return 0;
+    return _store.clearNetworkTransactions();
   }
 
   // ---------------------------------------------------------------------------

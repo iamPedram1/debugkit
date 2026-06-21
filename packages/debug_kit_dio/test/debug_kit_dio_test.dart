@@ -236,6 +236,78 @@ void main() {
     expect(log.responsePreview, isNull);
   });
 
+  test('captures safe previews only when explicitly enabled', () async {
+    dio.httpClientAdapter = MockAdapter(
+      ResponseBody.fromString('{"ok":true}', 200, headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+        'x-request-id': ['backend-req-preview'],
+        'x-secret-header': ['should-not-show'],
+      }),
+    );
+    dio.interceptors.add(
+      DebugKitDioInterceptor(
+        controller,
+        config: const DebugKitDioConfig(
+          captureRequestHeaders: true,
+          captureResponseHeaders: true,
+          captureRequestBody: true,
+          captureResponseBody: true,
+        ),
+      ),
+    );
+
+    await dio.post(
+      'https://api.example.com/users?token=secret123',
+      data: {'password': 'super-secret'},
+      options: Options(headers: {
+        'Authorization': 'Bearer raw-token',
+        'Cookie': 'session=abc',
+        'X-Custom': 'value',
+      }),
+    );
+
+    final log = controller.store.logs.first;
+    expect(log.metadata?['requestHeadersPreview'], contains('Authorization'));
+    expect(
+        log.metadata?['requestHeadersPreview'], isNot(contains('raw-token')));
+    expect(
+        log.metadata?['requestHeadersPreview'], isNot(contains('session=abc')));
+    expect(log.metadata?['requestHeadersPreview'], contains('X-Custom: value'));
+    expect(log.metadata?['requestBodyPreview'], contains('password'));
+    expect(
+        log.metadata?['requestBodyPreview'], isNot(contains('super-secret')));
+    expect(log.metadata?['responseHeadersPreview'], contains('content-type'));
+    expect(log.metadata?['responseHeadersPreview'],
+        isNot(contains('x-secret-header')));
+    expect(log.metadata?['responseBodyPreview'], contains('"ok":true'));
+    expect(log.metadata?['sanitizedUrl'], contains('token='));
+  });
+
+  test('skips large previews even when capture is enabled', () async {
+    final largeBody = 'x' * 70000;
+    dio.httpClientAdapter =
+        MockAdapter(ResponseBody.fromString(largeBody, 200));
+    dio.interceptors.add(
+      DebugKitDioInterceptor(
+        controller,
+        config: const DebugKitDioConfig(
+          captureRequestBody: true,
+          captureResponseBody: true,
+          maxCaptureBytes: 1024,
+        ),
+      ),
+    );
+
+    await dio.post(
+      'https://api.example.com/users',
+      data: largeBody,
+    );
+
+    final log = controller.store.logs.first;
+    expect(log.metadata?['requestBodyPreview'], isNull);
+    expect(log.metadata?['responseBodyPreview'], isNull);
+  });
+
   test('Disabled DebugKit does not log', () async {
     controller.init(enabled: false);
     dio.httpClientAdapter = MockAdapter(ResponseBody.fromString('{}', 200));

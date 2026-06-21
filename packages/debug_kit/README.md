@@ -13,7 +13,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
-- **Network Summary**: A generic network intelligence tab that summarizes request volume, status families, slow endpoints, and backend correlation IDs when `debug_kit_dio` is installed.
+- **Network Inspector**: A Chrome-like mobile-first network tab with searchable request rows, filtering, sorting, detail sheets, waterfall timing, and a compact summary strip when `debug_kit_dio` is installed.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
@@ -26,7 +26,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.6.0
+  debug_kit: ^0.7.0
 ```
 
 ## 5-Minute Setup
@@ -78,6 +78,10 @@ DebugKit.log.userAction('Tapped checkout button');
 DebugKit.clearLogs(); // Clears all in-memory logs
 ```
 
+```dart
+DebugKit.clearNetworkTransactions(); // Clears only network request entries
+```
+
 ### 5. Disabled Mode
 
 Pass `enabled: false` to completely disable DebugKit. No logs are stored, no overlay is shown, and there is zero runtime overhead:
@@ -96,7 +100,7 @@ if (DebugKit.isEnabled) { ... }
 
 DebugKit relies on separate optional adapter packages to log automated events without bloating the core:
 
-- [`debug_kit_dio`](https://pub.dev/packages/debug_kit_dio) — Dio HTTP interceptor that feeds Network Summary
+- [`debug_kit_dio`](https://pub.dev/packages/debug_kit_dio) — Dio HTTP interceptor that feeds the Network Inspector
 - [`debug_kit_go_router`](https://pub.dev/packages/debug_kit_go_router) — GoRouter navigation observer
 - [`debug_kit_riverpod`](https://pub.dev/packages/debug_kit_riverpod) — Riverpod state observer
 
@@ -180,7 +184,7 @@ Exported file name format: `debugkit-logs-YYYYMMDD-HHMMSS.txt`
 
 > [!IMPORTANT]
 > Exported logs contain only the already-sanitized values stored in memory. Raw tokens, passwords, API keys, private keys, cookies, and mnemonic phrases are never written to the export file. Request and response bodies are not captured or exported by default.
-> When network transactions are present, exports also include a sanitized Network Summary section. It is derived from already-stored values only and never includes request/response bodies or arbitrary headers.
+> When network transactions are present, exports also include a sanitized Network Summary section plus a Network Requests section. They are derived from already-stored values only and never include request/response bodies or arbitrary headers.
 
 If the share sheet fails, DebugKit automatically falls back to copying the formatted text to the clipboard and shows a SnackBar notification.
 
@@ -314,24 +318,27 @@ Network   : 2 failed request(s)
 - Global Flutter error capture (`FlutterError.onError`) is not automatically hooked
   — see the roadmap.
 
-## Network Summary
+## Network Inspector
 
-The **Network** tab gives you a quick, in-app overview of HTTP behavior when
-`debug_kit_dio` is installed.
+The **Network** tab is a mobile-first request inspector when `debug_kit_dio`
+is installed. It keeps the compact summary available, but the primary experience
+is a request list you can search, filter, sort, inspect, and clear.
 
-It summarizes:
+It shows:
 
-- Total, completed, failed, pending, and slow requests
-- Status breakdown: 2xx, 3xx, 4xx, 5xx, and unknown
-- Average, max, and min duration plus the configured slow threshold
-- Top failing endpoints and slowest endpoints
-- Backend correlation IDs when the adapter captures them from response headers
+- A searchable request list with method, path, status, phase, duration, IDs, and a lightweight waterfall bar
+- Filters for method, status family, slow-only, errors-only, and pending requests
+- Sorting by newest, duration, status, method, path, or phase
+- A request detail sheet with overview, headers, request preview, response preview, error, and timing tabs
+- A compact summary strip with total, failed, pending, slow, and average duration
+- Safe backend correlation IDs and sanitized URL parts when the adapter emits them
 
-The summary is built on demand from the bounded in-memory log store and is safe
-to export or copy because it uses only already-sanitized values.
+The inspector is built on demand from the bounded in-memory log store and only
+uses already-sanitized values. Request/response body previews remain opt-in and
+are not captured by default.
 
-Set `slowRequestThresholdMs` in `DebugKit.init()` if you want a threshold
-other than the 500ms default.
+Set `slowRequestThresholdMs` in `DebugKit.init()` if you want a threshold other
+than the 500ms default.
 
 ```dart
 final summary = DebugKit.controller.buildNetworkSummary();
