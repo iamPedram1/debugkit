@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.1
+
+### Changed
+
+- Compact Network tab chrome so the request list gets more vertical space on mobile.
+- Collapsed the network search and filter controls on scroll down, then restored them on scroll up.
+- Tightened the summary strip and filter indicators so they stay readable without dominating the layout.
+
+### Added
+
+- Added a manual show/hide control for the shared timeline overview while preserving selection and range state.
+
+### Fixed
+
+- Improved Network tab usability when fixed controls were reducing request list space on smaller screens.
+
 ## 0.8.0
 
 ### Added
@@ -18,6 +34,10 @@
 - Kept request cards focused on method, path, status, duration, phase, request IDs, and slow/error/pending state.
 - Improved Timeline tab copy and labels to clarify app-level Dio timing.
 - Disabled horizontal console tab swiping so interactive debug panels can own horizontal gestures.
+- Compact Network tab chrome so the request list gets more vertical space on mobile.
+- Collapsed the network search and filter controls on scroll down, then restored them on scroll up.
+- Added a manual show/hide control for the shared timeline overview while preserving selection and range state.
+- Tightened the summary strip and filter indicators so they stay readable without dominating the layout.
 
 ### Fixed
 

@@ -33,7 +33,7 @@ Follow this sequence to produce a rich, varied log console for screenshots:
 10. Tap **Trigger Failure** — a Riverpod error log appears in red.
 11. Tap **Error** from Manual Logs — the overlay button badge counter increases.
 12. Open the DebugKit console by tapping the floating button.
-13. Use the **Network** tab to inspect the request list, summary strip, shared timeline overview, and backend correlation IDs.
+13. Use the **Network** tab to inspect the request list, compact controls, summary strip, shared timeline overview, and backend correlation IDs.
 14. Use the **level/source filter chips** to isolate logs by type.
 15. Tap a log entry to **expand** and see metadata, timestamps, and stack traces.
 16. Long-press a log entry to **copy** its message to the clipboard.

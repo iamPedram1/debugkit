@@ -13,7 +13,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
-- **Network Inspector**: A Chrome-inspired mobile-first network tab with a shared top timeline overview, compact inline-expand request cards, color-coded method badges, tabbed detail (Overview / Headers / Request / Response / Error / Timeline), filtering, sorting, a lightweight request timeline / mini waterfall, request selection highlighting, and a slim summary strip — when `debug_kit_dio` is installed.
+- **Network Inspector**: A Chrome-inspired mobile-first network tab with compact, scroll-aware controls, a shared top timeline overview, color-coded method badges, tabbed detail (Overview / Headers / Request / Response / Error / Timeline), filtering, sorting, a lightweight request timeline / mini waterfall, request selection highlighting, and a slim summary strip — when `debug_kit_dio` is installed.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
@@ -22,13 +22,15 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 
 The Network Inspector uses a shared, app-level timeline based on request start time and duration across the currently visible requests. Pending requests extend to "now" while they are still in flight. It does not expose Chrome-level DNS/TCP/TLS/TTFB phases unless a future adapter provides that data.
 
+The Network tab keeps the request list as the primary focus. Search and filter controls auto-hide as you scroll the list down, active filters stay visible in compact mode, and the shared timeline overview can be shown or hidden without losing range or selection state.
+
 ## Installation
 
 Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.8.0
+  debug_kit: ^0.8.1
 ```
 
 ## 5-Minute Setup
