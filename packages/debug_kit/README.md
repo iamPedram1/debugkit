@@ -13,12 +13,14 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
-- **Network Inspector**: A Chrome-like mobile-first network tab with searchable request rows, filtering, sorting, detail sheets, waterfall timing, and a compact summary strip when `debug_kit_dio` is installed.
+- **Network Inspector**: A Chrome-inspired mobile-first network tab with a shared top timeline overview, compact inline-expand request cards, color-coded method badges, tabbed detail (Overview / Headers / Request / Response / Error / Timeline), filtering, sorting, a lightweight request timeline / mini waterfall, request selection highlighting, and a slim summary strip — when `debug_kit_dio` is installed.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
 - **Trace System**: Named async traces with timeline, health analysis, and correlation to logs, network, navigation, and state events.
 - **Manual Logging API**: Easy-to-use API for application-level logs and user actions.
+
+The Network Inspector uses a shared, app-level timeline based on request start time and duration across the currently visible requests. Pending requests extend to "now" while they are still in flight. It does not expose Chrome-level DNS/TCP/TLS/TTFB phases unless a future adapter provides that data.
 
 ## Installation
 
@@ -26,7 +28,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.7.0
+  debug_kit: ^0.8.0
 ```
 
 ## 5-Minute Setup
@@ -320,25 +322,64 @@ Network   : 2 failed request(s)
 
 ## Network Inspector
 
-The **Network** tab is a mobile-first request inspector when `debug_kit_dio`
-is installed. It keeps the compact summary available, but the primary experience
-is a request list you can search, filter, sort, inspect, and clear.
+The **Network** tab is a compact, mobile-first request inspector that feels like Chrome DevTools on a phone. It requires `debug_kit_dio` to be installed as the data source.
 
-It shows:
+DebugKit shows a lightweight request timeline based on request start time and duration across the currently visible set of requests. Pending requests extend to "now" so they remain visible while they are still in flight. Low-level browser phases such as DNS, TCP, TLS, and TTFB are not available from Dio by default.
 
-- A searchable request list with method, path, status, phase, duration, IDs, and a lightweight waterfall bar
-- Filters for method, status family, slow-only, errors-only, and pending requests
-- Sorting by newest, duration, status, method, path, or phase
-- A request detail sheet with overview, headers, request preview, response preview, error, and timing tabs
-- A compact summary strip with total, failed, pending, slow, and average duration
-- Safe backend correlation IDs and sanitized URL parts when the adapter emits them
+Selecting a request highlights that bar and dims the others. Use the timeline header's **Show all** action to clear selection and return to the full set of visible requests. This is separate from **Reset** on the time range brush, which only restores the selected time window.
 
-The inspector is built on demand from the bounded in-memory log store and only
-uses already-sanitized values. Request/response body previews remain opt-in and
-are not captured by default.
+### Request list
 
-Set `slowRequestThresholdMs` in `DebugKit.init()` if you want a threshold other
-than the 500ms default.
+Each request appears as a compact card showing:
+
+- Color-coded method badge (GET blue, POST green, PUT/PATCH amber, DELETE red)
+- Path with single-line ellipsis, request ID, and trace name when available
+- Status badge (2xx green, 3xx blue, 4xx amber, 5xx red, pending amber)
+- Duration label — highlighted amber when the request is slow
+- No per-card timeline footer; the shared overview above the list is the primary timeline surface
+
+Tap a card to expand it inline. Only one card expands at a time to keep the list scannable.
+
+### Inline detail tabs
+
+Each expanded card reveals tabbed detail without leaving the list:
+
+| Tab | Contents |
+|---|---|
+| Overview | Method, URL, status, phase, duration, request ID, trace, backend correlation IDs |
+| Headers | Request headers preview / Response headers preview (opt-in via `DebugKitDioConfig`) |
+| Request | Sanitized request body preview (opt-in) |
+| Response | Sanitized response body preview (opt-in) |
+| Error | Error type, message, status, stack trace — only shown when the transaction has an error |
+| Timeline | Start time, duration, phase, visible-window timing labels, and the request's relation to the shared timeline brush |
+
+Tap the expand icon (⤢) on any card to open the same content in a full-screen sheet for easier reading.
+
+### Toolbar
+
+- Search field (36px height) matched against path, URL, status, IDs, errors, trace names, and metadata
+- Sort button: Newest, Oldest, Longest, Shortest, Status, Method, Path, Phase
+- Clear network button (removes only network transactions, not all logs)
+
+### Filter chips
+
+A horizontally scrollable single row of compact chips:
+
+- Method chips: GET, POST, PUT, PATCH, DELETE
+- Status chips: All, Pending, Failed, 2xx, 3xx, 4xx, 5xx
+- Slow chip: requests above the configured threshold (default 500ms)
+
+Active filter count and request count are shown in a slim banner below the chips.
+
+### Summary strip
+
+A slim horizontally scrollable strip showing: Total, Failed (when > 0), Pending (when > 0), Slow (when > 0), Avg duration.
+
+### Safety defaults
+
+Request and response body previews are opt-in and disabled by default. When not enabled, each tab shows a clear message explaining how to enable capture via `DebugKitDioConfig`. Authorization headers, cookies, and API keys are never captured regardless of config.
+
+Set `slowRequestThresholdMs` in `DebugKit.init()` to change the slow threshold from the 500ms default.
 
 ```dart
 final summary = DebugKit.controller.buildNetworkSummary();
@@ -346,8 +387,7 @@ print('Requests: ${summary.totalRequests}');
 print('Slow: ${summary.slowRequests}');
 ```
 
-If no Dio adapter is installed yet, the Network tab shows an empty state that
-explains how to enable it.
+If no Dio adapter is installed yet, the Network tab shows an empty state explaining how to enable it.
 
 ## Roadmap
 

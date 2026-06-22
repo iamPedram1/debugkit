@@ -1,8 +1,40 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+
+- Added a shared Network Timeline overview inspired by DevTools-style waterfall workflows.
+- Added draggable timeline range selection.
+- Added lane-packed request bars for a cleaner overview with many requests.
+- Added request selection from the timeline overview.
+- Added selected request highlighting and dimming for non-selected request bars.
+- Added smooth auto-scroll from overview selection to the matching request card.
+- Added clear-selection affordances to return from selected request state to all requests.
+
+### Changed
+
+- Removed noisy per-card timeline footer from collapsed request cards.
+- Kept request cards focused on method, path, status, duration, phase, request IDs, and slow/error/pending state.
+- Improved Timeline tab copy and labels to clarify app-level Dio timing.
+- Disabled horizontal console tab swiping so interactive debug panels can own horizontal gestures.
+
+### Fixed
+
+- Fixed timeline drag gestures switching DebugKit tabs.
+- Fixed selected timeline request expanding without scrolling into view.
+- Fixed confusing selected-request state by adding clear/show-all interactions.
+- Fixed timeline overview visual clutter by using lane-packed bars.
+
+### Notes
+
+- DebugKit still shows app-level request timing only.
+- DNS, TCP, TLS, SSL, TTFB, upload, and download phase timings are not faked.
+- Future adapters may provide richer phase timing later.
+
 ## 0.7.0
 
-- feat: add a Chrome-style Network inspector with searchable, filterable request rows, detail sheets, sorting, and a lightweight waterfall.
+- feat: add a Chrome-style Network inspector with searchable, filterable request rows, detail sheets, sorting, and a lightweight timeline.
 - feat: introduce `DebugNetworkTransaction` plus transaction builders, filter state, and selective network clearing.
 - feat: expose `DebugKit.clearNetworkTransactions()` and a transaction-aware export section for network requests.
 - feat: update exports and the example app to surface the new network transaction details and compact overview strip.
@@ -11,7 +43,7 @@
 ## 0.6.0
 
 - feat: add Network Summary models, builder, console tab, and export section.
-- feat: expose `DebugKitController.buildNetworkSummary()` and `DebugKit.init(slowRequestThresholdMs:)`.
+- feat: expose `DebugNetworkSummaryBuilder.build()` and `DebugKit.init(slowRequestThresholdMs:)`.
 - feat: add public network summary models for endpoint and status breakdowns.
 - fix: keep network summary generation bounded to the in-memory log store and ignore malformed network metadata safely.
 
@@ -101,9 +133,8 @@ see what failed, how often, and where — instead of scrolling through raw logs.
 
 - All digest fields contain only already-sanitized values from the store.
 - No raw secrets, tokens, request/response bodies, route extras, or provider state
-  objects are stored in any digest field.
-- Fingerprinting operates on sanitized stored values — raw secrets never reach the
-  comparison logic.
+  are reintroduced by digest generation or export.
+- The digest is constructed from stored values only; no extra capture occurs.
 
 #### Performance
 
@@ -162,55 +193,6 @@ repeat counter, mirroring Chrome DevTools console behavior.
   without leaking per-request data.
 
 ## 0.3.0
-
-### New: Trace System
-
-- **`DebugKit.trace` API**: Full trace lifecycle — `start()`, `step()`, `end()`, `fail()`, `cancel()`, and `run()`.
-- **Scoped async traces**: `DebugKit.trace.run('name', callback)` wraps async callbacks in a Dart Zone that propagates the active trace ID. Marks success on return, failure on throw, and always rethrows the original exception.
-- **Nested traces**: `parentTraceId` is automatically set when `run()` is called inside another active `run()` zone.
-- **Zone-based correlation**: Logs, Dio requests, GoRouter navigation, and Riverpod failures emitted inside an active trace automatically carry `traceId` and `traceName`.
-- **`DebugTraceStore`**: Bounded in-memory store (default 50 traces, 200 events per trace). Evicts oldest completed traces when full.
-- **`DebugTraceAnalyzer`**: Lightweight stateless health analyzer. Warns on failed traces, slow traces, stale running traces, failed network events, high event counts, and repeated errors.
-- **Trace Console UI**: New "Traces" tab in the DebugKit console. Shows trace list with status badge, duration, event count, and health indicator. Tap any trace to see its full timeline.
-- **Trace Detail Screen**: Timeline of events with elapsed time, type badge, metadata, request IDs, and errors. Copy trace summary to clipboard.
-- **Export**: `.txt` export now includes a full Traces section with timelines, health warnings, and a failed-trace summary.
-- **`DebugKit.clearTraces()`**: Clears all in-memory traces.
-- **New `DebugKit.init()` parameters**: `maxTraces`, `maxTraceEventsPerTrace`, `slowTraceThreshold`.
-
-### Security
-- All trace metadata, event messages, and error summaries are sanitized before storage.
-- No request/response bodies, route extras, or provider state objects are stored in traces.
-
-### Performance
-- Trace store is bounded — no unbounded memory growth.
-- Disabled mode is a strict no-op for all trace calls.
-- No heavy processing in build methods; `ListView.builder` used for all lists.
-
-## 0.2.3
-
-- **Export**: Filename format updated to `debugkit-logs-YYYYMMDD-HHMMSS.txt`.
-- **Export**: Share button now exports filtered logs when filters are active.
-- **Export**: Empty-log guard and share fallback to clipboard.
-- **Smart Masking**: Length-aware masking algorithm.
-- **Natural Language Sanitization**: Improved detection of secrets in plain text.
-- **Metadata Sanitization**: Log metadata automatically sanitized.
-
-## 0.2.1
-
-- **Overlay button**: Improved drag clamping, larger touch target, gradient background, error state.
-- **Log tile**: Colored left accent bar, chevron expand indicator, long-press-to-copy.
-- **Filter bar**: Per-source colors, compact density.
-- **Console screen**: Log count subtitle, distinct empty states.
-
-## 0.2.0
-
-- Added `DebugKit.clearLogs()` and `DebugKit.isEnabled`.
-- Removed accidental public export of `DebugKitConsoleScreen`.
-
-## 0.1.0
-
-- Initial MVP release.
-
 
 ### New: Trace System
 

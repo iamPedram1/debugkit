@@ -131,6 +131,9 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
           ),
           body: TabBarView(
             controller: _tabController,
+            // Tab swiping is disabled so interactive debug panels such as the
+            // Network timeline can own horizontal drag gestures.
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               // --- Logs tab ---
               Column(

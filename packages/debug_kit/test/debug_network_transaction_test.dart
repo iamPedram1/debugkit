@@ -275,7 +275,22 @@ void main() {
   });
 
   group('DebugNetworkWaterfallMetrics', () {
-    test('handles normal, missing, pending, and zero-duration requests', () {
+    test('empty transactions return safe metrics', () {
+      final generatedAt = DateTime(2026, 1, 1, 12, 0);
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions([],
+          generatedAt: generatedAt);
+
+      expect(metrics.rows, isEmpty);
+      expect(metrics.windowStart,
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true));
+      expect(metrics.windowEnd,
+          DateTime.fromMillisecondsSinceEpoch(1, isUtc: true));
+      expect(metrics.windowMs, 1);
+      expect(metrics.generatedAt, generatedAt);
+      expect(metrics.hasMeaningfulTiming, isFalse);
+    });
+
+    test('completed transactions compute a shared window correctly', () {
       final built = DebugNetworkTransactionBuilder.build([
         _networkEntry(
           id: 1,
@@ -283,15 +298,258 @@ void main() {
           path: '/a',
           phase: 'completed',
           status: 200,
-          durationMs: 0,
-          timestamp: DateTime(2026, 1, 1, 12, 0, 1),
+          durationMs: 100,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 0),
         ),
         _networkEntry(
           id: 2,
           method: 'GET',
           path: '/b',
+          phase: 'completed',
+          status: 200,
+          durationMs: 250,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 50),
+        ),
+      ]);
+
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+
+      expect(metrics.windowStart, DateTime(2026, 1, 1, 12, 0, 0));
+      expect(metrics.windowEnd, DateTime(2026, 1, 1, 12, 0, 0, 300));
+      expect(metrics.windowMs, 300);
+
+      final first = metrics.rowByLogEntryId(1)!;
+      final second = metrics.rowByLogEntryId(2)!;
+
+      expect(first.startOffsetMs, 0);
+      expect(first.endOffsetMs, 100);
+      expect(first.durationMs, 100);
+      expect(first.barStartFraction, closeTo(0.0, 0.0001));
+      expect(first.barWidthFraction, closeTo(100 / 300, 0.0001));
+
+      expect(second.startOffsetMs, 50);
+      expect(second.endOffsetMs, 300);
+      expect(second.durationMs, 250);
+      expect(second.barStartFraction, closeTo(50 / 300, 0.0001));
+      expect(second.barWidthFraction, closeTo(250 / 300, 0.0001));
+      expect(second.barStartFraction + second.barWidthFraction,
+          lessThanOrEqualTo(1.0));
+    });
+
+    test('pending transactions extend to the generated timestamp', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/pending',
           phase: 'pending',
-          timestamp: DateTime(2026, 1, 1, 12, 0, 2),
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 100),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/done',
+          phase: 'completed',
+          status: 200,
+          durationMs: 25,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 0),
+        ),
+      ]);
+
+      final generatedAt = DateTime(2026, 1, 1, 12, 0, 0, 400);
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: generatedAt,
+      );
+
+      final pending = metrics.rowByLogEntryId(1)!;
+      expect(metrics.windowEnd, generatedAt);
+      expect(pending.isPending, isTrue);
+      expect(pending.isEstimated, isTrue);
+      expect(pending.endOffsetMs, 400);
+      expect(pending.durationMs, 300);
+      expect(pending.durationLabel, '300ms');
+      expect(pending.timingLabel, '+100ms · pending');
+    });
+
+    test('zero-duration and very fast requests keep accurate labels', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/zero',
+          phase: 'completed',
+          status: 200,
+          durationMs: 0,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/fast',
+          phase: 'completed',
+          status: 200,
+          durationMs: 1,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 10),
+        ),
+        _networkEntry(
+          id: 3,
+          method: 'GET',
+          path: '/slow',
+          phase: 'completed',
+          status: 200,
+          durationMs: 100,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 20),
+        ),
+      ]);
+
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+
+      final zero = metrics.rowByLogEntryId(1)!;
+      final fast = metrics.rowByLogEntryId(2)!;
+
+      expect(zero.durationLabel, '0ms');
+      expect(zero.renderBarWidthFraction(0.06), closeTo(0.06, 0.0001));
+      expect(fast.durationLabel, '1ms');
+      expect(fast.renderBarWidthFraction(0.06),
+          greaterThan(fast.barWidthFraction));
+      expect(fast.timingLabel, '+10ms · 1ms');
+    });
+
+    test('missing duration and completion data are handled safely', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/unknown',
+          phase: 'completed',
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+      ]);
+
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+
+      final row = metrics.rowByLogEntryId(1)!;
+      expect(row.isEstimated, isTrue);
+      expect(row.durationMs, 0);
+      expect(row.durationLabel, 'unknown');
+      expect(row.barWidthFraction, 0);
+      expect(row.renderBarWidthFraction(0.06), closeTo(0.06, 0.0001));
+    });
+
+    test('rows can be looked up by transaction and logEntryId', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/first',
+          phase: 'completed',
+          status: 200,
+          durationMs: 30,
+          requestId: 'req-1',
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/second',
+          phase: 'completed',
+          status: 200,
+          durationMs: 60,
+          requestId: 'req-2',
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 40),
+        ),
+      ]);
+
+      final reversed = built.reversed.toList(growable: false);
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        reversed,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+
+      final tx = reversed.firstWhere((tx) => tx.logEntryId == 1);
+      expect(metrics.rowByLogEntryId(1)?.transaction.logEntryId, 1);
+      expect(metrics.rowForTransaction(tx)?.transaction.requestId, 'req-1');
+    });
+
+    test('sorting and filtering do not break row lookup', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/a',
+          phase: 'completed',
+          status: 200,
+          durationMs: 300,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/b',
+          phase: 'completed',
+          status: 200,
+          durationMs: 50,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 20),
+        ),
+        _networkEntry(
+          id: 3,
+          method: 'POST',
+          path: '/c',
+          phase: 'completed',
+          status: 201,
+          durationMs: 150,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 40),
+        ),
+      ]);
+
+      final filtered = applyNetworkFiltersAndSort(
+        built,
+        const DebugNetworkFilterState(
+          sortOption: DebugNetworkSortOption.durationAscending,
+          methods: {'GET', 'POST'},
+        ),
+      );
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        filtered,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+
+      expect(filtered.map((tx) => tx.logEntryId), [2, 3, 1]);
+      for (final tx in filtered) {
+        expect(metrics.rowForTransaction(tx)?.transaction.logEntryId,
+            tx.logEntryId);
+      }
+    });
+
+    test('fractions stay clamped and rows share the same visible window', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/a',
+          phase: 'completed',
+          status: 200,
+          durationMs: 40,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/b',
+          phase: 'completed',
+          status: 200,
+          durationMs: 400,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 20),
         ),
         _networkEntry(
           id: 3,
@@ -299,16 +557,194 @@ void main() {
           path: '/c',
           phase: 'completed',
           status: 200,
-          durationMs: 250,
-          timestamp: DateTime(2026, 1, 1, 12, 0, 3),
+          durationMs: 5,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 30),
         ),
       ]);
 
-      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(built);
-      expect(metrics.rows, hasLength(3));
-      expect(metrics.windowMs, greaterThan(0));
-      expect(metrics.rows.first.barWidthFraction, greaterThan(0));
-      expect(metrics.rows[1].isPending, isTrue);
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+
+      for (final row in metrics.rows) {
+        expect(row.barStartFraction, inInclusiveRange(0.0, 1.0));
+        expect(row.barWidthFraction, inInclusiveRange(0.0, 1.0));
+        expect(row.barStartFraction + row.barWidthFraction,
+            lessThanOrEqualTo(1.0));
+      }
+      expect(metrics.rows.map((row) => row.transaction.startedAt),
+          everyElement(isA<DateTime>()));
+      expect(metrics.rows.map((row) => row.transaction.logEntryId),
+          unorderedEquals([1, 2, 3]));
+    });
+
+    test('timeline labels are human-readable and flags are preserved', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/pending',
+          phase: 'pending',
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 20),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/failed',
+          phase: 'failed',
+          status: 500,
+          durationMs: 90,
+          errorType: 'DioExceptionType.badResponse',
+          errorMessage: 'Server exploded',
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+      ]);
+
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 0, 200),
+      );
+
+      final pending = metrics.rowByLogEntryId(1)!;
+      final failed = metrics.rowByLogEntryId(2)!;
+
+      expect(pending.startOffsetLabel, '+20ms');
+      expect(pending.timingLabel, contains('pending'));
+      expect(failed.transaction.isFailed, isTrue);
+      expect(failed.transaction.isPending, isFalse);
+      expect(failed.durationLabel, '90ms');
+    });
+  });
+
+  group('DebugNetworkTimelineViewport', () {
+    test('defaults to a full, unclamped range', () {
+      final viewport = DebugNetworkTimelineViewport.full();
+
+      expect(viewport.rangeStartFraction, 0);
+      expect(viewport.rangeEndFraction, 1);
+      expect(viewport.selectedLogEntryId, isNull);
+      expect(viewport.isFull, isTrue);
+    });
+
+    test('selected request id does not affect full-range state', () {
+      final viewport = DebugNetworkTimelineViewport.full(
+        selectedLogEntryId: 42,
+      );
+
+      expect(viewport.isFull, isTrue);
+      expect(viewport.selectedLogEntryId, 42);
+    });
+
+    test('clearing selection keeps the current time range', () {
+      const viewport = DebugNetworkTimelineViewport(
+        rangeStartFraction: 0.2,
+        rangeEndFraction: 0.6,
+        selectedLogEntryId: 7,
+      );
+
+      final cleared = viewport.clearSelection();
+
+      expect(cleared.rangeStartFraction, viewport.rangeStartFraction);
+      expect(cleared.rangeEndFraction, viewport.rangeEndFraction);
+      expect(cleared.selectedLogEntryId, isNull);
+      expect(cleared.isFull, isFalse);
+    });
+
+    test('normalizes and clamps to bounds with minimum width', () {
+      final viewport = const DebugNetworkTimelineViewport(
+        rangeStartFraction: -0.2,
+        rangeEndFraction: 0.01,
+      ).normalized(minRangeFraction: 0.1);
+
+      expect(viewport.rangeStartFraction, 0);
+      expect(viewport.rangeEndFraction, closeTo(0.1, 0.0001));
+      expect(viewport.rangeDurationMs(1000), 100);
+    });
+
+    test('moving a range preserves width and clamps to the window', () {
+      const viewport = DebugNetworkTimelineViewport(
+        rangeStartFraction: 0.2,
+        rangeEndFraction: 0.4,
+      );
+
+      final moved = viewport.moveByFraction(0.5);
+
+      expect(moved.rangeEndFraction - moved.rangeStartFraction,
+          closeTo(0.2, 0.0001));
+      expect(moved.rangeStartFraction, closeTo(0.7, 0.0001));
+      expect(moved.rangeEndFraction, closeTo(0.9, 0.0001));
+
+      final clamped = viewport.moveByFraction(0.9);
+      expect(clamped.rangeEndFraction, 1);
+      expect(clamped.rangeStartFraction, closeTo(0.8, 0.0001));
+    });
+
+    test('resizing handles enforces the minimum width', () {
+      const viewport = DebugNetworkTimelineViewport(
+        rangeStartFraction: 0.2,
+        rangeEndFraction: 0.5,
+      );
+
+      final resizedLeft = viewport.resizeLeftToFraction(0.48);
+      expect(resizedLeft.rangeEndFraction - resizedLeft.rangeStartFraction,
+          closeTo(0.05, 0.0001));
+      expect(resizedLeft.rangeStartFraction, closeTo(0.45, 0.0001));
+
+      final resizedRight = viewport.resizeRightToFraction(0.21);
+      expect(resizedRight.rangeEndFraction - resizedRight.rangeStartFraction,
+          closeTo(0.05, 0.0001));
+      expect(resizedRight.rangeEndFraction, closeTo(0.25, 0.0001));
+    });
+
+    test('range labels are human-readable', () {
+      const viewport = DebugNetworkTimelineViewport(
+        rangeStartFraction: 0.1,
+        rangeEndFraction: 0.35,
+      );
+
+      expect(viewport.rangeLabel(1000), '100ms → 350ms');
+      expect(viewport.durationLabel(1000), 'Range: 250ms');
+      expect(viewport.rangeStartMs(1000), 100);
+      expect(viewport.rangeEndMs(1000), 350);
+    });
+
+    test('row intersection respects the selected time range', () {
+      final built = DebugNetworkTransactionBuilder.build([
+        _networkEntry(
+          id: 1,
+          method: 'GET',
+          path: '/a',
+          phase: 'completed',
+          status: 200,
+          durationMs: 100,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+        ),
+        _networkEntry(
+          id: 2,
+          method: 'GET',
+          path: '/b',
+          phase: 'completed',
+          status: 200,
+          durationMs: 100,
+          timestamp: DateTime(2026, 1, 1, 12, 0, 0, 300),
+        ),
+      ]);
+
+      final metrics = DebugNetworkWaterfallMetrics.fromTransactions(
+        built,
+        generatedAt: DateTime(2026, 1, 1, 12, 0, 1),
+      );
+      const viewport = DebugNetworkTimelineViewport(
+        rangeStartFraction: 0.0,
+        rangeEndFraction: 0.25,
+      );
+
+      final first = metrics.rowByLogEntryId(1)!;
+      final second = metrics.rowByLogEntryId(2)!;
+
+      expect(viewport.intersectsRow(first, metrics.windowMs), isTrue);
+      expect(viewport.intersectsRow(second, metrics.windowMs), isFalse);
     });
   });
 

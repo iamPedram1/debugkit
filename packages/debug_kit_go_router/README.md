@@ -10,7 +10,7 @@ Add both `debug_kit` and `debug_kit_go_router` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.5.1
+  debug_kit: ^0.8.0
   debug_kit_go_router: ^0.2.2
 ```
 
@@ -72,7 +72,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 
 | `debug_kit_go_router` | `debug_kit` |
 |---|---|
-| 0.2.x | ≥ 0.5.0 |
+| 0.2.x | ≥ 0.8.0 |
 
 ## License
 

@@ -35,6 +35,8 @@ void main() {
         config: const DebugKitDioConfig(
           captureRequestHeaders: true,
           captureResponseHeaders: true,
+          captureRequestBody: true,
+          captureResponseBody: true,
         ),
       ),
     ],
