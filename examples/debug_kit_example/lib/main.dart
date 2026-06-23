@@ -1,12 +1,13 @@
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:debug_kit/debug_kit.dart';
 import 'package:debug_kit_dio/debug_kit_dio.dart';
 import 'package:debug_kit_go_router/debug_kit_go_router.dart';
 import 'package:debug_kit_riverpod/debug_kit_riverpod.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 // --- Riverpod Providers ---
 final exampleCounterProvider = StateProvider<int>((ref) => 0);
@@ -29,6 +30,15 @@ void main() {
     maxTraces: 50,
     maxTraceEventsPerTrace: 200,
     slowTraceThreshold: const Duration(seconds: 3),
+    printToConsole: true,
+    consolePrintFormat: DebugConsolePrintFormat.tiny,
+    colorizeConsoleOutput: true,
+    printManualLogs: true,
+    printNetworkLogs: true,
+    printRouterLogs: true,
+    printRiverpodLogs: true,
+    printTraceLogs: true,
+    printErrorLogs: true,
     adapters: [
       DebugKitDioAdapter(
         dio,

@@ -10,7 +10,7 @@ Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.8.1
+  debug_kit: ^0.9.0
   debug_kit_riverpod: ^0.2.2
 ```
 

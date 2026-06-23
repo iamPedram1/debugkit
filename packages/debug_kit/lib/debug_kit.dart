@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'src/core/controller/debug_kit_controller.dart';
 export 'src/core/controller/debug_kit_controller.dart';
 import 'src/core/models/debug_error_digest.dart';
+import 'src/core/models/debug_console_print_format.dart';
 import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
 import 'src/core/adapters/debug_kit_adapter.dart';
@@ -26,6 +27,7 @@ import 'src/ui/screens/debug_kit_console_screen.dart';
 
 export 'src/core/models/debug_log_level.dart';
 export 'src/core/models/debug_log_source.dart';
+export 'src/core/models/debug_console_print_format.dart';
 export 'src/core/models/debug_log_entry.dart';
 export 'src/core/models/debug_trace.dart';
 export 'src/core/models/debug_trace_event.dart';
@@ -97,6 +99,12 @@ class DebugKit {
   ///   treated as slow in the Network Summary. Defaults to 500ms.
   /// - [groupRepeatedLogs]: collapse consecutive identical log entries into a
   ///   single row with a `×N` repeat badge. Defaults to `true`.
+  /// - [printToConsole]: mirror sanitized logs to the Flutter / IDE console.
+  ///   Defaults to `true`.
+  /// - [consolePrintFormat]: output style used for console mirroring.
+  ///   Defaults to [DebugConsolePrintFormat.dev].
+  /// - [colorizeConsoleOutput]: whether terminal output uses ANSI colors.
+  ///   Defaults to `true`.
   static void init({
     bool enabled = true,
     int maxLogs = 300,
@@ -109,6 +117,15 @@ class DebugKit {
     Duration slowTraceThreshold = const Duration(seconds: 3),
     int slowRequestThresholdMs = 500,
     bool groupRepeatedLogs = true,
+    bool printToConsole = true,
+    bool printManualLogs = true,
+    bool printNetworkLogs = true,
+    bool printRouterLogs = true,
+    bool printRiverpodLogs = true,
+    bool printTraceLogs = true,
+    bool printErrorLogs = true,
+    DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
+    bool colorizeConsoleOutput = true,
   }) {
     _controller.init(
       enabled: enabled,
@@ -122,6 +139,15 @@ class DebugKit {
       slowTraceThreshold: slowTraceThreshold,
       slowRequestThresholdMs: slowRequestThresholdMs,
       groupRepeatedLogs: groupRepeatedLogs,
+      printToConsole: printToConsole,
+      printManualLogs: printManualLogs,
+      printNetworkLogs: printNetworkLogs,
+      printRouterLogs: printRouterLogs,
+      printRiverpodLogs: printRiverpodLogs,
+      printTraceLogs: printTraceLogs,
+      printErrorLogs: printErrorLogs,
+      consolePrintFormat: consolePrintFormat,
+      colorizeConsoleOutput: colorizeConsoleOutput,
     );
   }
 

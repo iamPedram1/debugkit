@@ -12,6 +12,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Mobile-First UI**: A floating, draggable button that works on real devices.
 - **Search & Filter**: Quickly find logs by level (Debug, Info, Warning, Error), source, or text.
 - **Repeated Log Grouping**: Consecutive identical logs are collapsed into a single row with a `×N` repeat badge — like Chrome DevTools console.
+- **Console Mirroring**: Sanitized logs print to the Flutter / IDE console by default using configurable `tiny`, `short`, `dev`, or `detailed` formats.
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
 - **Network Inspector**: A Chrome-inspired mobile-first network tab with compact, scroll-aware controls, a shared top timeline overview, color-coded method badges, tabbed detail (Overview / Headers / Request / Response / Error / Timeline), filtering, sorting, a lightweight request timeline / mini waterfall, request selection highlighting, and a slim summary strip — when `debug_kit_dio` is installed.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
@@ -24,13 +25,15 @@ The Network Inspector uses a shared, app-level timeline based on request start t
 
 The Network tab keeps the request list as the primary focus. Search and filter controls auto-hide as you scroll the list down, active filters stay visible in compact mode, and the shared timeline overview can be shown or hidden without losing range or selection state.
 
+DebugKit also mirrors sanitized logs to the terminal by default, so the same events stay visible in both the in-app console and the Flutter / IDE output. Terminal output is colorized by default, uses compact `·` separators for scannable rows, and keeps ANSI codes out of the in-app UI and exports.
+
 ## Installation
 
 Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.8.1
+  debug_kit: ^0.9.0
 ```
 
 ## 5-Minute Setup
@@ -44,9 +47,52 @@ void main() {
   DebugKit.init(
     enabled: true, // Use kDebugMode in production apps
     maxLogs: 300,
+    printToConsole: true,
+    consolePrintFormat: DebugConsolePrintFormat.dev,
   );
   runApp(const MyApp());
 }
+```
+
+Console mirroring is enabled by default. You can turn it off entirely with `printToConsole: false`, or keep it enabled and switch formats:
+
+```dart
+DebugKit.init(
+  enabled: true,
+  printToConsole: true,
+  consolePrintFormat: DebugConsolePrintFormat.short,
+  colorizeConsoleOutput: true,
+  printNetworkLogs: true,
+  printRouterLogs: true,
+  printRiverpodLogs: true,
+);
+```
+
+Supported console formats:
+
+- `tiny` - absolute minimum signal, segmented with `·` separators
+- `short` - timestamped one-line output for chronological scanning
+- `dev` - default compact developer-friendly output with status symbols
+- `detailed` - multi-line structured output for diagnostics and copy/paste reports
+
+Colorization is terminal-only and enabled by default. Disable it with `colorizeConsoleOutput: false` if you prefer plain text.
+
+Format guide:
+
+| Format | Purpose | Shape |
+|---|---|---|
+| `tiny` | Noisy terminals | One line, minimal signal |
+| `short` | Chronological scanning | `HH:mm:ss` + compact source label |
+| `dev` | Everyday development | Symbol-led, status-aware, scan-friendly |
+| `detailed` | Diagnostics / support | Multiline structured report |
+
+Examples:
+
+```text
+tiny: INFO · App started
+short: 10:14:09 · INFO · app · App started
+dev:   ℹ app · App started
+detailed: [DebugKit][2026-06-23T10:14:09.613][INFO][APP]
 ```
 
 ### 2. Add the Overlay

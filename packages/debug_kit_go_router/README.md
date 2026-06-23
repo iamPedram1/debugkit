@@ -10,7 +10,7 @@ Add both `debug_kit` and `debug_kit_go_router` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.8.1
+  debug_kit: ^0.9.0
   debug_kit_go_router: ^0.2.2
 ```
 

@@ -54,6 +54,15 @@ class DebugTraceStore extends ChangeNotifier {
     }
   }
 
+  /// Returns the trace with the given [id], regardless of status, or `null`.
+  DebugTrace? getTraceById(String id) {
+    try {
+      return _traces.firstWhere((t) => t.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns the most recently started trace that is still running, or `null`.
   ///
   /// Used by [DebugTraceController] as a fallback when no Zone-based trace ID

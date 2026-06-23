@@ -7,11 +7,13 @@ A complete demonstration of [DebugKit](../../packages/debug_kit) and all officia
 | Feature | Package | Button in App |
 |---|---|---|
 | Manual debug/info/warning/error logs | `debug_kit` | **Manual Logs** section |
+| Sanitized console mirroring | `debug_kit` | Terminal output while actions run |
 | Sensitive data masking (password/token) | `debug_kit` | **Sensitive Log** |
 | Dio network success | `debug_kit_dio` | **GET Success** |
 | Dio network error (404) | `debug_kit_dio` | **GET 404** |
 | Slow Dio request demo | `debug_kit_dio` | **Slow Request** |
 | Network Inspector tab | `debug_kit` + `debug_kit_dio` | **Network** tab |
+| Compact Network controls | `debug_kit` + `debug_kit_dio` | Search/filter controls and show/hide timeline actions |
 | GoRouter navigation push/replace | `debug_kit_go_router` | **Navigation** section |
 | Riverpod provider update | `debug_kit_riverpod` | **Update Provider** |
 | Riverpod provider failure | `debug_kit_riverpod` | **Trigger Failure** |
@@ -34,11 +36,12 @@ Follow this sequence to produce a rich, varied log console for screenshots:
 11. Tap **Error** from Manual Logs — the overlay button badge counter increases.
 12. Open the DebugKit console by tapping the floating button.
 13. Use the **Network** tab to inspect the request list, compact controls, summary strip, shared timeline overview, and backend correlation IDs.
-14. Use the **level/source filter chips** to isolate logs by type.
-15. Tap a log entry to **expand** and see metadata, timestamps, and stack traces.
-16. Long-press a log entry to **copy** its message to the clipboard.
-17. Use the **share** icon in the AppBar to export all logs.
-18. Use the **delete** icon to clear all logs.
+14. Watch the Flutter / IDE console while tapping actions to confirm sanitized logs mirror to the terminal.
+15. Use the **level/source filter chips** to isolate logs by type.
+16. Tap a log entry to **expand** and see metadata, timestamps, and stack traces.
+17. Long-press a log entry to **copy** its message to the clipboard.
+18. Use the **share** icon in the AppBar to export all logs.
+19. Use the **delete** icon to clear all logs.
 
 ## Screenshot targets
 

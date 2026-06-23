@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/debug_console_print_format.dart';
 import '../models/debug_kit_config.dart';
+import '../debug_console_printer.dart';
 import '../models/debug_error_digest.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
@@ -35,6 +37,7 @@ class DebugKitController extends ChangeNotifier {
   late DebugLogStore _store;
   late DebugTraceStore _traceStore;
   late DebugTraceController _traceController;
+  late DebugConsolePrinter _consolePrinter;
 
   /// Active configuration snapshot. Starts with `enabled: false` until
   /// [init] is called.
@@ -88,6 +91,12 @@ class DebugKitController extends ChangeNotifier {
   ///   marks a request as slow. Defaults to 500ms.
   /// - [groupRepeatedLogs]: collapse consecutive identical logs into a single
   ///   entry with a repeat counter. Defaults to `true`.
+  /// - [printToConsole]: mirror sanitized logs to the Flutter / IDE console.
+  ///   Defaults to `true`.
+  /// - [consolePrintFormat]: console mirroring style. Defaults to
+  ///   [DebugConsolePrintFormat.dev].
+  /// - [colorizeConsoleOutput]: whether mirrored logs use ANSI colors.
+  ///   Defaults to `true`.
   void init({
     bool enabled = true,
     int maxLogs = 300,
@@ -100,6 +109,15 @@ class DebugKitController extends ChangeNotifier {
     Duration slowTraceThreshold = const Duration(seconds: 3),
     int slowRequestThresholdMs = 500,
     bool groupRepeatedLogs = true,
+    bool printToConsole = true,
+    bool printManualLogs = true,
+    bool printNetworkLogs = true,
+    bool printRouterLogs = true,
+    bool printRiverpodLogs = true,
+    bool printTraceLogs = true,
+    bool printErrorLogs = true,
+    DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
+    bool colorizeConsoleOutput = true,
   }) {
     _config = DebugKitConfig(
       enabled: enabled,
@@ -112,15 +130,26 @@ class DebugKitController extends ChangeNotifier {
       slowTraceThreshold: slowTraceThreshold,
       slowRequestThresholdMs: slowRequestThresholdMs,
       groupRepeatedLogs: groupRepeatedLogs,
+      printToConsole: printToConsole,
+      printManualLogs: printManualLogs,
+      printNetworkLogs: printNetworkLogs,
+      printRouterLogs: printRouterLogs,
+      printRiverpodLogs: printRiverpodLogs,
+      printTraceLogs: printTraceLogs,
+      printErrorLogs: printErrorLogs,
+      consolePrintFormat: consolePrintFormat,
+      colorizeConsoleOutput: colorizeConsoleOutput,
     );
     _store = DebugLogStore(maxLogs: maxLogs, groupRepeated: groupRepeatedLogs);
     _traceStore = DebugTraceStore(
       maxTraces: maxTraces,
       maxEventsPerTrace: maxTraceEventsPerTrace,
     );
+    _consolePrinter = DebugConsolePrinter(config: _config);
     _traceController = DebugTraceController(
       store: _traceStore,
       isEnabled: () => _config.enabled,
+      consolePrinter: _consolePrinter,
     );
 
     // Dispose old adapters before replacing them
@@ -188,10 +217,13 @@ class DebugKitController extends ChangeNotifier {
     final sanitizedMessage = DebugLogSanitizer.sanitizeMessage(message);
     final sanitizedError =
         error != null ? DebugLogSanitizer.sanitizeMessage(error) : null;
+    final sanitizedTraceName = traceName != null
+        ? DebugLogSanitizer.sanitizeMessage(traceName)
+        : _traceController.activeTraceName;
 
     // Resolve trace context from Zone if not explicitly provided
     final resolvedTraceId = traceId ?? _traceController.activeTraceId;
-    final resolvedTraceName = traceName ?? _traceController.activeTraceName;
+    final resolvedTraceName = sanitizedTraceName;
 
     String? location;
     if (_config.captureAppCallLocation && source == DebugLogSource.app) {
@@ -215,6 +247,7 @@ class DebugKitController extends ChangeNotifier {
     );
 
     _store.addLog(entry);
+    _consolePrinter.printLogEntry(entry);
 
     // Mirror as a log event on the active trace
     if (resolvedTraceId != null) {
@@ -322,6 +355,10 @@ class DebugKitController extends ChangeNotifier {
   void updateLog(int id, DebugLogEntry Function(DebugLogEntry) update) {
     if (!_config.enabled) return;
     _store.updateEntry(id, update);
+    final updatedEntry = _store.getEntryById(id);
+    if (updatedEntry != null) {
+      _consolePrinter.printLogEntry(updatedEntry);
+    }
   }
 
   /// Replaces the log entry whose [DebugLogEntry.requestId] matches [requestId]
@@ -338,6 +375,10 @@ class DebugKitController extends ChangeNotifier {
     final entry = _store.getEntryByRequestId(requestId);
     if (entry != null) {
       _store.updateEntry(entry.id, update);
+      final updatedEntry = _store.getEntryById(entry.id);
+      if (updatedEntry != null) {
+        _consolePrinter.printLogEntry(updatedEntry);
+      }
     }
   }
 

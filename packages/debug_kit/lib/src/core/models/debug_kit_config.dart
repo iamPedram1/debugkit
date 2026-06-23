@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'debug_console_print_format.dart';
 
 /// Immutable configuration snapshot used by [DebugKitController].
 ///
@@ -105,6 +106,55 @@ class DebugKitConfig {
   /// Defaults to `true`.
   final bool groupRepeatedLogs;
 
+  /// Whether sanitized DebugKit logs should also be mirrored to the Flutter
+  /// / IDE console.
+  ///
+  /// Defaults to `true`.
+  final bool printToConsole;
+
+  /// Whether manually emitted app logs should be mirrored to the console.
+  ///
+  /// Applies to [DebugLogSource.app] and [DebugLogSource.userAction].
+  /// Defaults to `true`.
+  final bool printManualLogs;
+
+  /// Whether network logs from adapters should be mirrored to the console.
+  ///
+  /// Defaults to `true`.
+  final bool printNetworkLogs;
+
+  /// Whether navigation logs from the GoRouter adapter should be mirrored to
+  /// the console.
+  ///
+  /// Defaults to `true`.
+  final bool printRouterLogs;
+
+  /// Whether Riverpod logs should be mirrored to the console.
+  ///
+  /// Defaults to `true`.
+  final bool printRiverpodLogs;
+
+  /// Whether trace lifecycle events should be mirrored to the console.
+  ///
+  /// Defaults to `true`.
+  final bool printTraceLogs;
+
+  /// Whether error-level logs should be mirrored to the console.
+  ///
+  /// Defaults to `true`.
+  final bool printErrorLogs;
+
+  /// Console format used when mirroring logs to the terminal.
+  ///
+  /// Defaults to [DebugConsolePrintFormat.dev].
+  final DebugConsolePrintFormat consolePrintFormat;
+
+  /// Whether console-mirrored logs should use ANSI color codes.
+  ///
+  /// Applies only to terminal output. In-app UI and exports remain plain text.
+  /// Defaults to `true`.
+  final bool colorizeConsoleOutput;
+
   /// Creates an immutable [DebugKitConfig].
   ///
   /// All parameters have safe defaults suitable for a development build.
@@ -119,5 +169,14 @@ class DebugKitConfig {
     this.slowTraceThreshold = const Duration(seconds: 3),
     this.slowRequestThresholdMs = 500,
     this.groupRepeatedLogs = true,
+    this.printToConsole = true,
+    this.printManualLogs = true,
+    this.printNetworkLogs = true,
+    this.printRouterLogs = true,
+    this.printRiverpodLogs = true,
+    this.printTraceLogs = true,
+    this.printErrorLogs = true,
+    this.consolePrintFormat = DebugConsolePrintFormat.dev,
+    this.colorizeConsoleOutput = true,
   });
 }

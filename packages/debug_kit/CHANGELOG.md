@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.0
+
+### Added
+
+- Added sanitized console mirroring for DebugKit logs.
+- Added configurable console print formats: `tiny`, `short`, `dev`, and `detailed`.
+- Added category-specific console print toggles for manual, network, router, Riverpod, trace, and error logs.
+- Added console output support for logs produced by official adapters.
+
+### Changed
+
+- DebugKit now prints sanitized logs to the Flutter / IDE console by default.
+- Console output uses the `dev` format by default.
+- Network, router, Riverpod, trace, and error logs now share the same core console formatting pipeline.
+- Console formats now have distinct output shapes: `tiny`, `short`, `dev`, and `detailed` each serve a different terminal workflow.
+- Console output is colorized by default and uses segmented `·` separators for more scannable compact lines.
+
+### Security
+
+- Console logs are sanitized before printing.
+- Sensitive values such as tokens, API keys, passwords, authorization headers, cookies, private keys, and mnemonics remain redacted.
+
 ## 0.8.1
 
 ### Changed

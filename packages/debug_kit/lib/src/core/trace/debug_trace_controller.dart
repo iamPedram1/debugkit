@@ -4,6 +4,7 @@ import '../models/debug_trace_event.dart';
 import '../models/debug_trace_event_type.dart';
 import '../models/debug_trace_status.dart';
 import '../store/debug_trace_store.dart';
+import '../debug_console_printer.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
 
 /// Zone key used to propagate the active trace ID through async call stacks.
@@ -37,6 +38,7 @@ const Symbol debugKitActiveTraceNameKey = #debugKitActiveTraceName;
 /// inside the callback are correlated without explicit plumbing.
 class DebugTraceController {
   final DebugTraceStore _store;
+  final DebugConsolePrinter? _consolePrinter;
 
   /// Callback that returns the current enabled state of DebugKit.
   ///
@@ -54,8 +56,10 @@ class DebugTraceController {
   DebugTraceController({
     required DebugTraceStore store,
     required bool Function() isEnabled,
+    DebugConsolePrinter? consolePrinter,
   })  : _store = store,
-        _isEnabled = isEnabled;
+        _isEnabled = isEnabled,
+        _consolePrinter = consolePrinter;
 
   /// The [DebugTraceStore] owned by this controller.
   DebugTraceStore get store => _store;
@@ -105,17 +109,27 @@ class DebugTraceController {
 
     final id = _nextTraceId();
     final parentId = activeTraceId;
+    final sanitizedName = DebugLogSanitizer.sanitizeMessage(name);
+    final sanitizedMetadata = _sanitizeMetadata(metadata);
+    final startedAt = DateTime.now();
 
     final trace = DebugTrace(
       id: id,
-      name: name,
+      name: sanitizedName,
       status: DebugTraceStatus.running,
-      startedAt: DateTime.now(),
-      metadata: _sanitizeMetadata(metadata),
+      startedAt: startedAt,
+      metadata: sanitizedMetadata,
       parentTraceId: parentId,
     );
 
     _store.startTrace(trace);
+    _consolePrinter?.printTraceLifecycle(
+      event: 'start',
+      traceName: sanitizedName,
+      traceId: id,
+      startedAt: startedAt,
+      metadata: sanitizedMetadata,
+    );
     return id;
   }
 
@@ -134,12 +148,22 @@ class DebugTraceController {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
+    final sanitizedName = DebugLogSanitizer.sanitizeMessage(name);
+    final sanitizedMetadata = _sanitizeMetadata(metadata);
+    final traceName = _store.getTraceById(id)?.name ?? activeTraceName ?? id;
 
     _addEvent(
       traceId: id,
-      message: name,
+      message: sanitizedName,
       type: DebugTraceEventType.step,
-      metadata: metadata,
+      metadata: sanitizedMetadata,
+    );
+    _consolePrinter?.printTraceLifecycle(
+      event: 'step',
+      traceName: traceName,
+      traceId: id,
+      startedAt: _store.getTraceById(id)?.startedAt,
+      metadata: sanitizedMetadata,
     );
   }
 
@@ -151,7 +175,19 @@ class DebugTraceController {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
-    _store.finishTrace(id, DateTime.now());
+    final trace = _store.getTraceById(id);
+    final endedAt = DateTime.now();
+    _store.finishTrace(id, endedAt);
+    if (trace != null) {
+      _consolePrinter?.printTraceLifecycle(
+        event: 'end',
+        traceName: trace.name,
+        traceId: id,
+        startedAt: trace.startedAt,
+        endedAt: endedAt,
+        metadata: trace.metadata,
+      );
+    }
   }
 
   /// Marks the trace as [DebugTraceStatus.failed], records an error event, and
@@ -169,6 +205,8 @@ class DebugTraceController {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
+    final trace = _store.getTraceById(id);
+    final endedAt = DateTime.now();
 
     final sanitizedError = error != null
         ? DebugLogSanitizer.sanitizeMessage(error.toString())
@@ -181,7 +219,18 @@ class DebugTraceController {
       metadata: null,
     );
 
-    _store.failTrace(id, DateTime.now(), errorSummary: sanitizedError);
+    _store.failTrace(id, endedAt, errorSummary: sanitizedError);
+    if (trace != null) {
+      _consolePrinter?.printTraceLifecycle(
+        event: 'fail',
+        traceName: trace.name,
+        traceId: id,
+        startedAt: trace.startedAt,
+        endedAt: endedAt,
+        error: sanitizedError,
+        metadata: trace.metadata,
+      );
+    }
   }
 
   /// Marks the trace as [DebugTraceStatus.cancelled] and optionally records a
@@ -199,17 +248,31 @@ class DebugTraceController {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
+    final trace = _store.getTraceById(id);
+    final endedAt = DateTime.now();
 
     if (reason != null) {
       _addEvent(
         traceId: id,
-        message: reason,
+        message: DebugLogSanitizer.sanitizeMessage(reason),
         type: DebugTraceEventType.custom,
         metadata: {'reason': 'cancelled'},
       );
     }
 
-    _store.cancelTrace(id, DateTime.now());
+    _store.cancelTrace(id, endedAt);
+    if (trace != null) {
+      _consolePrinter?.printTraceLifecycle(
+        event: 'cancel',
+        traceName: trace.name,
+        traceId: id,
+        startedAt: trace.startedAt,
+        endedAt: endedAt,
+        error:
+            reason == null ? null : DebugLogSanitizer.sanitizeMessage(reason),
+        metadata: trace.metadata,
+      );
+    }
   }
 
   /// Runs [callback] inside a Dart Zone that carries the active trace context.
@@ -246,12 +309,13 @@ class DebugTraceController {
   }) async {
     if (!_isEnabled()) return callback();
 
-    final traceId = start(name, metadata: metadata);
+    final sanitizedName = DebugLogSanitizer.sanitizeMessage(name);
+    final traceId = start(sanitizedName, metadata: metadata);
     if (traceId.isEmpty) return callback();
 
     final zoneValues = {
       debugKitActiveTraceIdKey: traceId,
-      debugKitActiveTraceNameKey: name,
+      debugKitActiveTraceNameKey: sanitizedName,
     };
 
     try {
