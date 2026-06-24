@@ -14,9 +14,9 @@ Packages must be published in dependency order. Core first, then adapters.
 | Order | Package | Version | Notes |
 | :---: | :--- | :--- | :--- |
 | 1 | `debug_kit` | 0.9.0 | Core — publish first, no local deps |
-| 2 | `debug_kit_dio` | 0.4.0 | Depends on `debug_kit` |
-| 3 | `debug_kit_go_router` | 0.2.2 | Depends on `debug_kit` |
-| 4 | `debug_kit_riverpod` | 0.2.2 | Depends on `debug_kit` |
+| 2 | `debug_kit_dio` | 0.5.0 | Depends on `debug_kit` |
+| 3 | `debug_kit_go_router` | 0.3.0 | Depends on `debug_kit` |
+| 4 | `debug_kit_riverpod` | 0.2.3 | Depends on `debug_kit` |
 
 **Why this order matters:** Adapter packages declare `debug_kit: ^<version>` in their `pubspec.yaml`. If the core has not yet been published, pub.dev cannot resolve the constraint during adapter publication.
 
@@ -51,7 +51,7 @@ However, pub.dev will flag the overrides as a hint:
 ```
 
 This hint is **expected and safe** as long as:
-- The published `pubspec.yaml` uses a proper hosted version constraint (`^0.9.0` for `debug_kit`, `^0.4.0` for `debug_kit_dio`), not a `path:` dependency.
+- The published `pubspec.yaml` uses a proper hosted version constraint (`^0.9.0` for `debug_kit`, `^0.5.0` for `debug_kit_dio`), not a `path:` dependency.
 - The only issue in the dry-run output is this override hint.
 
 Do **not** delete `pubspec_overrides.yaml` before publishing. The pub tool resolves the hosted constraint from pub.dev when publishing, not from the override file.
@@ -149,9 +149,9 @@ Create a git tag for each package release. Use the format:
 
 ```bash
 git tag debug_kit-v0.9.0
-git tag debug_kit_dio-v0.4.0
-git tag debug_kit_go_router-v0.2.2
-git tag debug_kit_riverpod-v0.2.2
+git tag debug_kit_dio-v0.5.0
+git tag debug_kit_go_router-v0.3.0
+git tag debug_kit_riverpod-v0.2.3
 git push --tags
 ```
 

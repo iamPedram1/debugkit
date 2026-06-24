@@ -87,7 +87,7 @@ packages:
       path: "../../packages/debug_kit"
       relative: true
     source: path
-    version: "0.8.0"
+    version: "0.9.0"
   debug_kit_dio:
     dependency: "direct main"
     description:
@@ -108,7 +108,7 @@ packages:
       path: "../../packages/debug_kit_riverpod"
       relative: true
     source: path
-    version: "0.2.2"
+    version: "0.2.3"
   dio:
     dependency: "direct main"
     description:

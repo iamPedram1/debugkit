@@ -11,7 +11,8 @@ Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 ```yaml
 dependencies:
   debug_kit: ^0.9.0
-  debug_kit_riverpod: ^0.2.2
+  debug_kit_riverpod: ^0.2.3
+  flutter_riverpod: ^2.0.0
 ```
 
 ## Setup
@@ -36,6 +37,9 @@ void main() {
   );
 }
 ```
+
+This release line is for Riverpod 2 projects and supports `debug_kit ^0.9.0`.
+DebugKit handles in-app logs and sanitized console mirroring in core.
 
 ## Configuration
 
@@ -86,11 +90,18 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 - [DebugKit Core](https://pub.dev/packages/debug_kit)
 - [Example App](https://github.com/iamPedram1/debugkit/tree/main/examples/debug_kit_example)
 
+## Version compatibility
+
+| Riverpod version | `debug_kit_riverpod` version |
+| :--------------- | :--------------------------- |
+| Riverpod 2 | `^0.2.3` |
+| Riverpod 3 | `^0.3.0` *(separate release line)* |
+
 ## Compatibility
 
 | `debug_kit_riverpod` | `debug_kit` | `flutter_riverpod` |
 |---|---|---|
-| 0.2.x | ≥ 0.8.0 | 2.x – 3.x |
+| 0.2.3 | ≥ 0.9.0 | 2.x |
 
 ## License
 

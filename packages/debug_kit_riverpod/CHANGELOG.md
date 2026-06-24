@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.3
+
+### Changed
+
+- Updated the Riverpod 2 adapter line to support `debug_kit ^0.9.0`.
+- Kept compatibility with Riverpod 2 `ProviderObserver` APIs.
+- Kept Riverpod logs flowing through DebugKit core so in-app logs and sanitized console mirroring share the same pipeline.
+
+### Notes
+
+- Riverpod 2 users should use `debug_kit_riverpod ^0.2.3`.
+- Riverpod 3 support will be introduced separately in `debug_kit_riverpod 0.3.0`.
+
 ## 0.2.2
 
 - fix: widen `flutter_riverpod` constraint to `">=2.0.0 <4.0.0"` (was `^2.0.0`) to allow apps using Riverpod 3.x.
