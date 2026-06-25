@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1
+
+### Fixed
+
+- Fixed dependency resolution with projects using `debug_kit 0.9.0`.
+
+### Changed
+
+- Updated the adapter to support `debug_kit ^0.9.0`.
+- Kept Dio network events flowing through DebugKit core so in-app logs, Network Inspector, and sanitized console mirroring share the same pipeline.
+
 ## 0.4.0
 
 - feat: capture safe network transaction metadata needed by the new Network inspector, including sanitized URL parts, host, query, and error details.
