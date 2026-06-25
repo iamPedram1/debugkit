@@ -30,3 +30,6 @@ migrate_working_dir/
 build/
 /coverage/
 .grepai/
+
+# Local pub workspace overrides
+**/pubspec_overrides.yaml

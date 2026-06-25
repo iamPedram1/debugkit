@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.3
+
+### Changed
+
+- Updated the adapter to support `debug_kit ^0.9.0`.
+- Kept GoRouter route events flowing through DebugKit core so in-app logs and sanitized console mirroring share the same pipeline.
+
+### Fixed
+
+- Fixed dependency resolution with projects using `debug_kit 0.9.0`.
+
 ## 0.2.2
 
 - chore: update `repository` and `issue_tracker` URLs to reflect repository rename (`username/debug_kit` → `username/debugkit`).

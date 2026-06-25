@@ -15,7 +15,7 @@ Packages must be published in dependency order. Core first, then adapters.
 | :---: | :--- | :--- | :--- |
 | 1 | `debug_kit` | 0.9.0 | Core — publish first, no local deps |
 | 2 | `debug_kit_dio` | 0.4.0 | Depends on `debug_kit` |
-| 3 | `debug_kit_go_router` | 0.2.2 | Depends on `debug_kit` |
+| 3 | `debug_kit_go_router` | 0.2.3 | Depends on `debug_kit` |
 | 4 | `debug_kit_riverpod` | 0.2.3 | Riverpod 2 release line, already preserved |
 | 5 | `debug_kit_riverpod` | 0.3.0 | Riverpod 3 release line, depends on `debug_kit` |
 
@@ -151,7 +151,7 @@ Create a git tag for each package release. Use the format:
 ```bash
 git tag debug_kit-v0.9.0
 git tag debug_kit_dio-v0.4.0
-git tag debug_kit_go_router-v0.2.2
+git tag debug_kit_go_router-v0.2.3
 git tag debug_kit_riverpod-v0.2.3
 git push --tags
 ```

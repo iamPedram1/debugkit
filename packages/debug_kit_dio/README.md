@@ -124,7 +124,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 | `debug_kit_dio` | `debug_kit` |
 |---|---|
-| 0.4.x | ≥ 0.8.0 |
+| 0.4.0 | ^0.9.0 |
 
 ## License
 

@@ -1,6 +1,6 @@
 name: debug_kit_go_router
 description: "GoRouter navigation logging adapter for DebugKit. Automatically logs navigation events with sanitization."
-version: 0.2.2
+version: 0.2.3
 repository: https://github.com/iamPedram1/debugkit
 issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:
