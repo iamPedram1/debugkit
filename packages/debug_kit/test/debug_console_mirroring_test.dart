@@ -106,28 +106,6 @@ void main() {
         metadata: metadata,
         colorizeConsoleOutput: false,
       );
-  String traceColored({
-    required DebugConsolePrintFormat format,
-    required String event,
-    required String traceName,
-    String? traceId,
-    DateTime? startedAt,
-    DateTime? endedAt,
-    String? error,
-    Map<String, String>? metadata,
-  }) =>
-      formatter().formatTraceLifecycle(
-        format: format,
-        event: event,
-        traceName: traceName,
-        traceId: traceId,
-        startedAt: startedAt,
-        endedAt: endedAt,
-        error: error,
-        metadata: metadata,
-        colorizeConsoleOutput: true,
-      );
-
   group('DebugKitConfig', () {
     test('defaults enable console mirroring, color, and dev format', () {
       const config = DebugKitConfig(enabled: true);
@@ -186,7 +164,8 @@ void main() {
         DebugConsolePrintFormat.detailed,
       );
 
-      expect(output, contains('[DebugKit][2026-06-23T12:34:56.000][INFO][APP]'));
+      expect(
+          output, contains('[DebugKit][2026-06-23T12:34:56.000][INFO][APP]'));
       expect(output, contains('message: App started'));
       expect(output, contains('error: DioException receive timeout'));
       expect(output, contains('screen: home'));
@@ -250,7 +229,7 @@ void main() {
       );
 
       expect(redirect, '↪ GET · /posts · 302 · 184ms');
-      expect(slow, '✓ GET · /layer/list · 200 · 3568ms · slow');
+      expect(slow, '! GET · /layer/list · 200 · 3568ms · slow');
     });
 
     test('formats dev network failure logs', () {
@@ -290,7 +269,8 @@ void main() {
         DebugConsolePrintFormat.detailed,
       );
 
-      expect(output, contains('[DebugKit][2026-06-23T12:34:57.000][NETWORK][DIO]'));
+      expect(output,
+          contains('[DebugKit][2026-06-23T12:34:57.000][NETWORK][DIO]'));
       expect(output, contains('method: GET'));
       expect(output, contains('path: /posts'));
       expect(output, contains('status: 200'));
@@ -337,15 +317,15 @@ void main() {
 
       expect(
         logPlain(entry, DebugConsolePrintFormat.tiny),
-        'STATE · authProvider · updated',
+        'STATE · authProvider · authProvider updated',
       );
       expect(
         logPlain(entry, DebugConsolePrintFormat.short),
-        '12:34:56 · STATE · authProvider · updated',
+        '12:34:56 · STATE · authProvider · authProvider updated',
       );
       expect(
         logPlain(entry, DebugConsolePrintFormat.dev),
-        '◆ authProvider · updated',
+        '◆ authProvider · authProvider updated',
       );
     });
 
@@ -378,7 +358,7 @@ void main() {
           startedAt: DateTime(2026, 6, 23, 10, 14, 9),
           endedAt: DateTime(2026, 6, 23, 10, 14, 9, 674),
         ),
-        '⏱ startup · completed · 674ms',
+        '⏱ · startup · completed · 674ms',
       );
     });
 
@@ -468,7 +448,7 @@ void main() {
       );
       expect(
         _stripAnsi(slow),
-        '✓ GET · /layer/list · 200 · 3568ms · slow',
+        '! GET · /layer/list · 200 · 3568ms · slow',
       );
     });
   });
@@ -542,7 +522,8 @@ void main() {
       );
 
       expect(messages, hasLength(1));
-      expect(messages.single, '✕ app · Failed to load profile · DioException receive timeout');
+      expect(messages.single,
+          '✕ app · Failed to load profile · DioException receive timeout');
     });
 
     test('prints plain output when colorization is disabled', () {

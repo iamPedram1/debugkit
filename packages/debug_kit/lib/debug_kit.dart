@@ -23,7 +23,7 @@ import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
 import 'src/core/adapters/debug_kit_adapter.dart';
 import 'src/core/trace/debug_trace_controller.dart';
-import 'src/ui/screens/debug_kit_console_screen.dart';
+import 'src/ui/overlay/debug_kit_console_launcher.dart';
 
 export 'src/core/models/debug_log_level.dart';
 export 'src/core/models/debug_log_source.dart';
@@ -89,8 +89,11 @@ class DebugKit {
   ///   Defaults to `true`.
   /// - [captureAppStackTrace]: reserved for future use. Defaults to `false`.
   /// - [adapters]: list of [DebugKitAdapter] instances (Dio, GoRouter, …).
-  /// - [navigatorKey]: required for `MaterialApp.router` apps to open the
-  ///   console from the overlay button.
+  /// - [navigatorKey]: required for `MaterialApp.router` apps and for
+  ///   context-free `DebugKit.open()` / `DebugKit.close()` calls to target a
+  ///   navigator.
+  /// - [disableDefaultOverlayButton]: hides the built-in floating launcher
+  ///   button while keeping the DebugKit overlay mounted. Defaults to `false`.
   /// - [maxTraces]: trace buffer capacity. Defaults to `50`.
   /// - [maxTraceEventsPerTrace]: per-trace event limit. Defaults to `200`.
   /// - [slowTraceThreshold]: duration that triggers a "slow trace" health
@@ -112,6 +115,7 @@ class DebugKit {
     bool captureAppStackTrace = false,
     List<DebugKitAdapter> adapters = const [],
     GlobalKey<NavigatorState>? navigatorKey,
+    bool disableDefaultOverlayButton = false,
     int maxTraces = 50,
     int maxTraceEventsPerTrace = 200,
     Duration slowTraceThreshold = const Duration(seconds: 3),
@@ -127,6 +131,7 @@ class DebugKit {
     DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
     bool colorizeConsoleOutput = true,
   }) {
+    resetDebugKitConsoleLauncherState();
     _controller.init(
       enabled: enabled,
       maxLogs: maxLogs,
@@ -134,6 +139,7 @@ class DebugKit {
       captureAppStackTrace: captureAppStackTrace,
       adapters: adapters,
       navigatorKey: navigatorKey,
+      disableDefaultOverlayButton: disableDefaultOverlayButton,
       maxTraces: maxTraces,
       maxTraceEventsPerTrace: maxTraceEventsPerTrace,
       slowTraceThreshold: slowTraceThreshold,
@@ -172,6 +178,30 @@ class DebugKit {
   /// No-op when [isEnabled] is `false`.
   static void clearNetworkTransactions() =>
       _controller.clearNetworkTransactions();
+
+  /// Opens the DebugKit console without requiring a [BuildContext].
+  ///
+  /// This is useful when the host app already has its own debug menu or
+  /// sheet. If DebugKit is disabled or no navigator is available yet, this
+  /// safely does nothing.
+  static void open() => openDebugKitConsole();
+
+  /// Closes the DebugKit console if it is currently open.
+  ///
+  /// Safe to call before the overlay is mounted, when DebugKit is disabled,
+  /// or when no navigator is available.
+  static void close() => closeDebugKitConsole();
+
+  /// Toggles the DebugKit console open/closed state.
+  ///
+  /// Safe to call before the overlay is mounted or when DebugKit is disabled.
+  static void toggle() {
+    if (isDebugKitConsoleOpen) {
+      closeDebugKitConsole();
+    } else {
+      openDebugKitConsole();
+    }
+  }
 
   /// Builds and returns an error digest from the current log and trace stores.
   ///
@@ -236,25 +266,7 @@ class DebugKit {
   /// during [init] because the router manages navigation outside the widget
   /// tree context.
   static void openConsole(BuildContext context) {
-    NavigatorState? navigator = Navigator.maybeOf(context);
-
-    if (navigator == null && _controller.config.navigatorKey != null) {
-      navigator = _controller.config.navigatorKey!.currentState;
-    }
-
-    if (navigator != null) {
-      navigator.push(
-        MaterialPageRoute(
-          builder: (_) => const DebugKitConsoleScreen(),
-          settings: const RouteSettings(name: 'debug_kit_console'),
-        ),
-      );
-    } else {
-      // ignore: avoid_print
-      print(
-          'DebugKit: Could not find Navigator. Ensure you are calling this from a context '
-          'descended from Navigator or provide a navigatorKey during DebugKit.init().');
-    }
+    openDebugKitConsole(context: context);
   }
 }
 

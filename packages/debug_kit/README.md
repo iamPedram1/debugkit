@@ -33,7 +33,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.9.0
+  debug_kit: ^0.9.1
 ```
 
 ## 5-Minute Setup
@@ -111,6 +111,40 @@ For simple apps without a router:
 ```dart
 runApp(const DebugKitOverlay(child: MyApp()));
 ```
+
+If your app already has its own debug sheet or menu, you can keep the DebugKit overlay mounted but hide the built-in floating button:
+
+```dart
+void main() {
+  DebugKit.init(
+    enabled: true,
+    disableDefaultOverlayButton: true,
+  );
+
+  runApp(
+    DebugKitOverlay(
+      child: MyApp(),
+    ),
+  );
+}
+```
+
+Then open or close DebugKit from your own UI:
+
+```dart
+ListTile(
+  title: const Text('Open DebugKit'),
+  onTap: () {
+    DebugKit.open();
+  },
+);
+
+DebugKit.close();
+```
+
+`disableDefaultOverlayButton` only hides the built-in floating launcher button. `DebugKitOverlay` still needs to be mounted once at the app root so the DevTools panel can be shown when requested.
+
+If you plan to call `DebugKit.open()` / `DebugKit.close()` from a debug menu in a `MaterialApp.router` app, keep passing a `navigatorKey` to `DebugKit.init()` so DebugKit has a navigator to use.
 
 ### 3. Start Logging
 

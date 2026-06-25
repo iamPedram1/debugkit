@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.1
+
+### Added
+- Added `disableDefaultOverlayButton` to `DebugKit.init()`.
+- Added public `DebugKit.open()` and `DebugKit.close()` APIs for manually controlling DebugKit DevTools.
+
+### Notes
+- The default floating overlay button remains enabled by default.
+- Apps can now hide the built-in button and open DebugKit from their own debug menus.
+
 ## 0.9.0
 
 ### Added

@@ -62,10 +62,11 @@ class DebugConsolePrinter {
     final isNetwork = _isNetwork(entry);
     final isRouter = entry.source == DebugLogSource.router;
     final isRiverpod = entry.source == DebugLogSource.riverpod;
-    final isManual =
-        entry.source == DebugLogSource.app || entry.source == DebugLogSource.userAction;
+    final isManual = entry.source == DebugLogSource.app ||
+        entry.source == DebugLogSource.userAction;
 
-    final categoryEnabled = switch ((isNetwork, isRouter, isRiverpod, isManual)) {
+    final categoryEnabled =
+        switch ((isNetwork, isRouter, isRiverpod, isManual)) {
       (true, _, _, _) => config.printNetworkLogs,
       (_, true, _, _) => config.printRouterLogs,
       (_, _, true, _) => config.printRiverpodLogs,

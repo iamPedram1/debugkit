@@ -59,6 +59,15 @@ class DebugKitConfig {
   /// ```
   final GlobalKey<NavigatorState>? navigatorKey;
 
+  /// Whether the default floating overlay launcher button is hidden.
+  ///
+  /// When `true`, [DebugKitOverlay] still mounts the global DebugKit layer,
+  /// but it does not render the built-in floating bug button. This is useful
+  /// for apps that expose DebugKit through their own debug menus or sheets.
+  ///
+  /// Defaults to `false`.
+  final bool disableDefaultOverlayButton;
+
   /// Maximum number of [DebugTrace] instances kept in memory.
   ///
   /// When the store reaches [maxTraces], the oldest *completed* trace is
@@ -164,6 +173,7 @@ class DebugKitConfig {
     this.captureAppCallLocation = true,
     this.captureAppStackTrace = false,
     this.navigatorKey,
+    this.disableDefaultOverlayButton = false,
     this.maxTraces = 50,
     this.maxTraceEventsPerTrace = 200,
     this.slowTraceThreshold = const Duration(seconds: 3),

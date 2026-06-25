@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:debug_kit/debug_kit.dart';
+import 'package:debug_kit/src/core/models/debug_kit_config.dart';
 import 'package:debug_kit/src/core/store/debug_log_store.dart';
 import 'package:debug_kit/src/utils/export/debug_log_export_formatter.dart';
 import 'package:debug_kit/src/utils/export/debug_log_file_exporter.dart';
@@ -75,6 +77,11 @@ void main() {
   });
 
   group('DebugKit facade', () {
+    test('disableDefaultOverlayButton defaults to false', () {
+      const config = DebugKitConfig(enabled: true);
+      expect(config.disableDefaultOverlayButton, isFalse);
+    });
+
     test('isEnabled reflects init state', () {
       DebugKit.init(enabled: true);
       expect(DebugKit.isEnabled, isTrue);
@@ -90,6 +97,28 @@ void main() {
       expect(DebugKit.controller.store.logs.length, greaterThan(0));
       DebugKit.clearLogs();
       expect(DebugKit.controller.store.logs.isEmpty, isTrue);
+    });
+
+    test('open and close do not throw when disabled', () {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      DebugKit.init(
+        enabled: false,
+        navigatorKey: navigatorKey,
+      );
+
+      expect(() => DebugKit.open(), returnsNormally);
+      expect(() => DebugKit.close(), returnsNormally);
+    });
+
+    test('open and close do not throw before overlay mount', () {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      DebugKit.init(
+        enabled: true,
+        navigatorKey: navigatorKey,
+      );
+
+      expect(() => DebugKit.open(), returnsNormally);
+      expect(() => DebugKit.close(), returnsNormally);
     });
   });
 

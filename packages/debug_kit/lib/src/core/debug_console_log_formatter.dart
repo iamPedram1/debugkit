@@ -161,7 +161,8 @@ class DebugConsoleLogFormatter {
           _colorizeCompactLine(
             _segmentList([
               _coloredLevelToken(levelName, level, colorizeConsoleOutput),
-              _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText),
+              _coloredText(
+                  message, colorizeConsoleOutput, _AnsiColor.defaultText)
             ]),
             colorizeConsoleOutput,
           ),
@@ -176,7 +177,8 @@ class DebugConsoleLogFormatter {
               ),
               _coloredLevelToken(levelName, level, colorizeConsoleOutput),
               _coloredText(category, colorizeConsoleOutput, _AnsiColor.gray),
-              _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText),
+              _coloredText(
+                  message, colorizeConsoleOutput, _AnsiColor.defaultText),
             ]),
             colorizeConsoleOutput,
           ),
@@ -191,7 +193,8 @@ class DebugConsoleLogFormatter {
             _colorizeCompactLine(
               _segmentList([
                 _coloredText(category, colorizeConsoleOutput, _AnsiColor.gray),
-                _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(
+                    message, colorizeConsoleOutput, _AnsiColor.defaultText),
                 if (error != null)
                   _coloredText(error, colorizeConsoleOutput, _AnsiColor.red),
               ]),
@@ -259,7 +262,8 @@ class DebugConsoleLogFormatter {
           switch (tx.phase) {
             DebugNetworkTransactionPhase.pending => _compactNetworkLine([
                 _coloredNetworkMethod(tx.method, colorizeConsoleOutput),
-                _coloredText(path, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(
+                    path, colorizeConsoleOutput, _AnsiColor.defaultText),
                 _coloredNetworkStatus(
                   'started',
                   statusText,
@@ -270,7 +274,8 @@ class DebugConsoleLogFormatter {
               ], colorizeConsoleOutput),
             DebugNetworkTransactionPhase.completed => _compactNetworkLine([
                 _coloredNetworkMethod(tx.method, colorizeConsoleOutput),
-                _coloredText(path, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(
+                    path, colorizeConsoleOutput, _AnsiColor.defaultText),
                 _coloredNetworkStatus(
                   statusText,
                   statusText,
@@ -281,9 +286,11 @@ class DebugConsoleLogFormatter {
               ], colorizeConsoleOutput),
             DebugNetworkTransactionPhase.failed ||
             DebugNetworkTransactionPhase.cancelled ||
-            DebugNetworkTransactionPhase.unknown => _compactNetworkLine([
+            DebugNetworkTransactionPhase.unknown =>
+              _compactNetworkLine([
                 _coloredNetworkMethod(tx.method, colorizeConsoleOutput),
-                _coloredText(path, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(
+                    path, colorizeConsoleOutput, _AnsiColor.defaultText),
                 _coloredNetworkStatus(
                   _networkFailureText(tx),
                   statusText,
@@ -305,7 +312,8 @@ class DebugConsoleLogFormatter {
                 colorizeConsoleOutput,
                 _AnsiColor.gray,
               ),
-              _coloredToken('NET', colorizeConsoleOutput, _AnsiColor.cyan, bold: true),
+              _coloredToken('NET', colorizeConsoleOutput, _AnsiColor.cyan,
+                  bold: true),
               shortCore,
             ]),
             colorizeConsoleOutput,
@@ -344,8 +352,10 @@ class DebugConsoleLogFormatter {
     return switch (format) {
       DebugConsolePrintFormat.tiny => _truncateOneLine(
           _compactNetworkLine([
-            _coloredToken('ROUTE', colorizeConsoleOutput, _AnsiColor.cyan, bold: true),
-            _coloredText(routeMessage, colorizeConsoleOutput, _AnsiColor.defaultText),
+            _coloredToken('ROUTE', colorizeConsoleOutput, _AnsiColor.cyan,
+                bold: true),
+            _coloredText(
+                routeMessage, colorizeConsoleOutput, _AnsiColor.defaultText),
           ], colorizeConsoleOutput),
         ),
       DebugConsolePrintFormat.short => _truncateOneLine(
@@ -356,18 +366,22 @@ class DebugConsoleLogFormatter {
                 colorizeConsoleOutput,
                 _AnsiColor.gray,
               ),
-              _coloredToken('ROUTE', colorizeConsoleOutput, _AnsiColor.cyan, bold: true),
-              _coloredText(routeMessage, colorizeConsoleOutput, _AnsiColor.defaultText),
+              _coloredToken('ROUTE', colorizeConsoleOutput, _AnsiColor.cyan,
+                  bold: true),
+              _coloredText(
+                  routeMessage, colorizeConsoleOutput, _AnsiColor.defaultText),
             ]),
             colorizeConsoleOutput,
           ),
         ),
       DebugConsolePrintFormat.dev => _truncateOneLine(
           [
-            _coloredToken('↪', colorizeConsoleOutput, _AnsiColor.cyan, bold: true),
+            _coloredToken('↪', colorizeConsoleOutput, _AnsiColor.cyan,
+                bold: true),
             _colorizeCompactLine(
               _segmentList([
-                _coloredText(routeMessage, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(routeMessage, colorizeConsoleOutput,
+                    _AnsiColor.defaultText),
               ]),
               colorizeConsoleOutput,
             ),
@@ -412,20 +426,21 @@ class DebugConsoleLogFormatter {
     final provider = entry.metadata?['provider_name'] ?? 'provider';
     final eventType = entry.metadata?['event_type'] ?? 'updated';
     final previousPreview = entry.metadata?['previous_preview'];
-    final nextPreview = entry.metadata?['next_preview'] ??
-        entry.metadata?['value_preview'];
+    final nextPreview =
+        entry.metadata?['next_preview'] ?? entry.metadata?['value_preview'];
     final isFailure = entry.level == DebugLogLevel.error ||
         eventType.toLowerCase().contains('failure');
-    final message =
-        isFailure ? '$provider failed' : '$provider updated';
-    final error = entry.error == null ? null : _truncateOneLine(entry.error!);
+    final message = isFailure ? '$provider failed' : '$provider updated';
 
     return switch (format) {
       DebugConsolePrintFormat.tiny => _truncateOneLine(
           _compactNetworkLine([
-            _coloredToken('STATE', colorizeConsoleOutput, _AnsiColor.magenta, bold: true),
-            _coloredText(provider, colorizeConsoleOutput, _AnsiColor.defaultText),
-            _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText),
+            _coloredToken('STATE', colorizeConsoleOutput, _AnsiColor.magenta,
+                bold: true),
+            _coloredText(
+                provider, colorizeConsoleOutput, _AnsiColor.defaultText),
+            _coloredText(
+                message, colorizeConsoleOutput, _AnsiColor.defaultText),
           ], colorizeConsoleOutput),
         ),
       DebugConsolePrintFormat.short => _truncateOneLine(
@@ -436,20 +451,26 @@ class DebugConsoleLogFormatter {
                 colorizeConsoleOutput,
                 _AnsiColor.gray,
               ),
-              _coloredToken('STATE', colorizeConsoleOutput, _AnsiColor.magenta, bold: true),
-              _coloredText(provider, colorizeConsoleOutput, _AnsiColor.defaultText),
-              _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText),
+              _coloredToken('STATE', colorizeConsoleOutput, _AnsiColor.magenta,
+                  bold: true),
+              _coloredText(
+                  provider, colorizeConsoleOutput, _AnsiColor.defaultText),
+              _coloredText(
+                  message, colorizeConsoleOutput, _AnsiColor.defaultText),
             ]),
             colorizeConsoleOutput,
           ),
         ),
       DebugConsolePrintFormat.dev => _truncateOneLine(
           [
-            _coloredToken('◆', colorizeConsoleOutput, _AnsiColor.magenta, bold: true),
+            _coloredToken('◆', colorizeConsoleOutput, _AnsiColor.magenta,
+                bold: true),
             _colorizeCompactLine(
               _segmentList([
-                _coloredText(provider, colorizeConsoleOutput, _AnsiColor.defaultText),
-                _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(
+                    provider, colorizeConsoleOutput, _AnsiColor.defaultText),
+                _coloredText(
+                    message, colorizeConsoleOutput, _AnsiColor.defaultText),
               ]),
               colorizeConsoleOutput,
             ),
@@ -575,7 +596,8 @@ class DebugConsoleLogFormatter {
       );
     }
     if (details != null) {
-      buffer.writeln('${_detailedFieldName('details', colorizeConsoleOutput)}:');
+      buffer
+          .writeln('${_detailedFieldName('details', colorizeConsoleOutput)}:');
       buffer.writeln(_indent(_truncateMultiline(details), 2));
     }
     if (payloadPreview != null) {
@@ -595,7 +617,8 @@ class DebugConsoleLogFormatter {
       buffer.writeln(_indent(_truncateStackTrace(stackTrace), 2));
     }
     if (metadata != null && metadata.isNotEmpty) {
-      buffer.writeln('${_detailedFieldName('metadata', colorizeConsoleOutput)}:');
+      buffer
+          .writeln('${_detailedFieldName('metadata', colorizeConsoleOutput)}:');
       final keys = metadata.keys.toList()..sort();
       for (final key in keys) {
         final value = metadata[key] ?? '';
@@ -623,59 +646,80 @@ class DebugConsoleLogFormatter {
       '${_colorizeDetailedHeader('[DebugKit][${_isoFormat.format(timestamp)}]', colorizeConsoleOutput, _AnsiColor.bold)}'
       '${_colorizeDetailedHeader('[NETWORK][DIO]', colorizeConsoleOutput, _AnsiColor.cyan)}',
     );
-    buffer.writeln('${_detailedFieldName('method', colorizeConsoleOutput)}: ${tx.method}');
-    buffer.writeln('${_detailedFieldName('path', colorizeConsoleOutput)}: ${tx.displayPath}');
+    buffer.writeln(
+        '${_detailedFieldName('method', colorizeConsoleOutput)}: ${tx.method}');
+    buffer.writeln(
+        '${_detailedFieldName('path', colorizeConsoleOutput)}: ${tx.displayPath}');
     if (tx.url != null) {
-      buffer.writeln('${_detailedFieldName('url', colorizeConsoleOutput)}: ${tx.url}');
+      buffer.writeln(
+          '${_detailedFieldName('url', colorizeConsoleOutput)}: ${tx.url}');
     }
     if (tx.host != null) {
-      buffer.writeln('${_detailedFieldName('host', colorizeConsoleOutput)}: ${tx.host}');
+      buffer.writeln(
+          '${_detailedFieldName('host', colorizeConsoleOutput)}: ${tx.host}');
     }
-    buffer.writeln('${_detailedFieldName('status', colorizeConsoleOutput)}: $statusText');
-    buffer.writeln('${_detailedFieldName('duration', colorizeConsoleOutput)}: $durationLabel');
-    buffer.writeln('${_detailedFieldName('phase', colorizeConsoleOutput)}: ${tx.phase.label.toLowerCase()}');
+    buffer.writeln(
+        '${_detailedFieldName('status', colorizeConsoleOutput)}: $statusText');
+    buffer.writeln(
+        '${_detailedFieldName('duration', colorizeConsoleOutput)}: $durationLabel');
+    buffer.writeln(
+        '${_detailedFieldName('phase', colorizeConsoleOutput)}: ${tx.phase.label.toLowerCase()}');
     if (slow) {
-      buffer.writeln('${_detailedFieldName('slow', colorizeConsoleOutput)}: true');
+      buffer.writeln(
+          '${_detailedFieldName('slow', colorizeConsoleOutput)}: true');
     }
     if (entry.requestId != null) {
-      buffer.writeln('${_detailedFieldName('requestId', colorizeConsoleOutput)}: ${entry.requestId}');
+      buffer.writeln(
+          '${_detailedFieldName('requestId', colorizeConsoleOutput)}: ${entry.requestId}');
     }
     if (entry.traceId != null) {
-      buffer.writeln('${_detailedFieldName('traceId', colorizeConsoleOutput)}: ${entry.traceId}');
+      buffer.writeln(
+          '${_detailedFieldName('traceId', colorizeConsoleOutput)}: ${entry.traceId}');
     }
     if (entry.traceName != null) {
-      buffer.writeln('${_detailedFieldName('traceName', colorizeConsoleOutput)}: ${entry.traceName}');
+      buffer.writeln(
+          '${_detailedFieldName('traceName', colorizeConsoleOutput)}: ${entry.traceName}');
     }
     if (tx.backendRequestId != null) {
-      buffer.writeln('${_detailedFieldName('backendRequestId', colorizeConsoleOutput)}: ${tx.backendRequestId}');
+      buffer.writeln(
+          '${_detailedFieldName('backendRequestId', colorizeConsoleOutput)}: ${tx.backendRequestId}');
     }
     if (tx.backendCorrelationId != null) {
-      buffer.writeln('${_detailedFieldName('backendCorrelationId', colorizeConsoleOutput)}: ${tx.backendCorrelationId}');
+      buffer.writeln(
+          '${_detailedFieldName('backendCorrelationId', colorizeConsoleOutput)}: ${tx.backendCorrelationId}');
     }
     if (tx.backendTraceId != null) {
-      buffer.writeln('${_detailedFieldName('backendTraceId', colorizeConsoleOutput)}: ${tx.backendTraceId}');
+      buffer.writeln(
+          '${_detailedFieldName('backendTraceId', colorizeConsoleOutput)}: ${tx.backendTraceId}');
     }
     if (error != null) {
-      buffer.writeln('${_detailedFieldName('error', colorizeConsoleOutput)}: $error');
+      buffer.writeln(
+          '${_detailedFieldName('error', colorizeConsoleOutput)}: $error');
     }
     if (tx.requestHeadersPreview != null) {
-      buffer.writeln('${_detailedFieldName('requestHeadersPreview', colorizeConsoleOutput)}:');
+      buffer.writeln(
+          '${_detailedFieldName('requestHeadersPreview', colorizeConsoleOutput)}:');
       buffer.writeln(_indent(_truncateMultiline(tx.requestHeadersPreview!), 2));
     }
     if (tx.responseHeadersPreview != null) {
-      buffer.writeln('${_detailedFieldName('responseHeadersPreview', colorizeConsoleOutput)}:');
-      buffer.writeln(_indent(_truncateMultiline(tx.responseHeadersPreview!), 2));
+      buffer.writeln(
+          '${_detailedFieldName('responseHeadersPreview', colorizeConsoleOutput)}:');
+      buffer
+          .writeln(_indent(_truncateMultiline(tx.responseHeadersPreview!), 2));
     }
     if (tx.requestBodyPreview != null) {
-      buffer.writeln('${_detailedFieldName('requestBodyPreview', colorizeConsoleOutput)}:');
+      buffer.writeln(
+          '${_detailedFieldName('requestBodyPreview', colorizeConsoleOutput)}:');
       buffer.writeln(_indent(_truncateMultiline(tx.requestBodyPreview!), 2));
     }
     if (tx.responseBodyPreview != null) {
-      buffer.writeln('${_detailedFieldName('responseBodyPreview', colorizeConsoleOutput)}:');
+      buffer.writeln(
+          '${_detailedFieldName('responseBodyPreview', colorizeConsoleOutput)}:');
       buffer.writeln(_indent(_truncateMultiline(tx.responseBodyPreview!), 2));
     }
     if (tx.metadata.isNotEmpty) {
-      buffer.writeln('${_detailedFieldName('metadata', colorizeConsoleOutput)}:');
+      buffer
+          .writeln('${_detailedFieldName('metadata', colorizeConsoleOutput)}:');
       final keys = tx.metadata.keys.toList()..sort();
       for (final key in keys) {
         final value = tx.metadata[key] ?? '';
@@ -704,25 +748,33 @@ class DebugConsoleLogFormatter {
       '${_colorizeDetailedHeader('[DebugKit][$timestamp]', colorizeConsoleOutput, _AnsiColor.bold)}'
       '${_colorizeDetailedHeader('[TRACE]', colorizeConsoleOutput, _AnsiColor.cyan)}',
     );
-    buffer.writeln('${_detailedFieldName('name', colorizeConsoleOutput)}: $traceName');
-    buffer.writeln('${_detailedFieldName('event', colorizeConsoleOutput)}: $event');
+    buffer.writeln(
+        '${_detailedFieldName('name', colorizeConsoleOutput)}: $traceName');
+    buffer.writeln(
+        '${_detailedFieldName('event', colorizeConsoleOutput)}: $event');
     if (traceId != null) {
-      buffer.writeln('${_detailedFieldName('traceId', colorizeConsoleOutput)}: $traceId');
+      buffer.writeln(
+          '${_detailedFieldName('traceId', colorizeConsoleOutput)}: $traceId');
     }
     if (startedAt != null) {
-      buffer.writeln('${_detailedFieldName('startedAt', colorizeConsoleOutput)}: ${_isoFormat.format(startedAt)}');
+      buffer.writeln(
+          '${_detailedFieldName('startedAt', colorizeConsoleOutput)}: ${_isoFormat.format(startedAt)}');
     }
     if (endedAt != null) {
-      buffer.writeln('${_detailedFieldName('endedAt', colorizeConsoleOutput)}: ${_isoFormat.format(endedAt)}');
+      buffer.writeln(
+          '${_detailedFieldName('endedAt', colorizeConsoleOutput)}: ${_isoFormat.format(endedAt)}');
     }
     if (durationLabel != null) {
-      buffer.writeln('${_detailedFieldName('duration', colorizeConsoleOutput)}: $durationLabel');
+      buffer.writeln(
+          '${_detailedFieldName('duration', colorizeConsoleOutput)}: $durationLabel');
     }
     if (error != null) {
-      buffer.writeln('${_detailedFieldName('error', colorizeConsoleOutput)}: $error');
+      buffer.writeln(
+          '${_detailedFieldName('error', colorizeConsoleOutput)}: $error');
     }
     if (metadata != null && metadata.isNotEmpty) {
-      buffer.writeln('${_detailedFieldName('metadata', colorizeConsoleOutput)}:');
+      buffer
+          .writeln('${_detailedFieldName('metadata', colorizeConsoleOutput)}:');
       final keys = metadata.keys.toList()..sort();
       for (final key in keys) {
         buffer.writeln(
@@ -775,11 +827,13 @@ class DebugConsoleLogFormatter {
             colorizeConsoleOutput,
           ),
           _coloredDuration(durationLabel, slow, colorizeConsoleOutput),
-          if (slow) _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
+          if (slow)
+            _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
         ], colorizeConsoleOutput),
       DebugNetworkTransactionPhase.failed ||
       DebugNetworkTransactionPhase.cancelled ||
-      DebugNetworkTransactionPhase.unknown => _compactNetworkLine([
+      DebugNetworkTransactionPhase.unknown =>
+        _compactNetworkLine([
           _coloredNetworkMethod(tx.method, colorizeConsoleOutput),
           _coloredText(path, colorizeConsoleOutput, _AnsiColor.defaultText),
           _coloredNetworkStatus(
@@ -790,7 +844,8 @@ class DebugConsoleLogFormatter {
             failed: tx.statusCode == null,
           ),
           _coloredDuration(durationLabel, slow, colorizeConsoleOutput),
-          if (slow) _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
+          if (slow)
+            _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
         ], colorizeConsoleOutput),
     };
   }
@@ -820,7 +875,8 @@ class DebugConsoleLogFormatter {
           ),
         ],
       DebugNetworkTransactionPhase.completed => [
-          _coloredNetworkSymbol(symbol, colorizeConsoleOutput, _networkSymbolColor(tx, slow: slow)),
+          _coloredNetworkSymbol(symbol, colorizeConsoleOutput,
+              _networkSymbolColor(tx, slow: slow)),
           _coloredNetworkMethod(tx.method, colorizeConsoleOutput),
           _coloredText(path, colorizeConsoleOutput, _AnsiColor.defaultText),
           _coloredNetworkStatus(
@@ -830,11 +886,13 @@ class DebugConsoleLogFormatter {
             colorizeConsoleOutput,
           ),
           _coloredDuration(durationLabel, slow, colorizeConsoleOutput),
-          if (slow) _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
+          if (slow)
+            _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
         ],
       DebugNetworkTransactionPhase.failed ||
       DebugNetworkTransactionPhase.cancelled ||
-      DebugNetworkTransactionPhase.unknown => [
+      DebugNetworkTransactionPhase.unknown =>
+        [
           _coloredNetworkSymbol('✕', colorizeConsoleOutput, _AnsiColor.red),
           _coloredNetworkMethod(tx.method, colorizeConsoleOutput),
           _coloredText(path, colorizeConsoleOutput, _AnsiColor.defaultText),
@@ -848,7 +906,8 @@ class DebugConsoleLogFormatter {
           _coloredDuration(durationLabel, true, colorizeConsoleOutput),
           if (error != null)
             _coloredText(error, colorizeConsoleOutput, _AnsiColor.red),
-          if (slow) _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
+          if (slow)
+            _coloredText('slow', colorizeConsoleOutput, _AnsiColor.yellow),
         ],
     };
 
@@ -1014,7 +1073,8 @@ class DebugConsoleLogFormatter {
     return segments.where((segment) => segment.trim().isNotEmpty).join(' · ');
   }
 
-  String _compactNetworkLine(List<String> segments, bool colorizeConsoleOutput) {
+  String _compactNetworkLine(
+      List<String> segments, bool colorizeConsoleOutput) {
     if (!colorizeConsoleOutput) {
       return _compactLine(segments);
     }
@@ -1077,7 +1137,8 @@ class DebugConsoleLogFormatter {
   }
 
   String _coloredNetworkMethod(String method, bool colorizeConsoleOutput) {
-    return _applyAnsi(method, colorizeConsoleOutput, _AnsiColor.cyan, bold: true);
+    return _applyAnsi(method, colorizeConsoleOutput, _AnsiColor.cyan,
+        bold: true);
   }
 
   String _coloredNetworkSymbol(
@@ -1140,12 +1201,16 @@ class DebugConsoleLogFormatter {
 
   _AnsiColor _networkStatusColor(String referenceText) {
     final normalized = referenceText.trim().toLowerCase();
-    if (normalized == 'failed' || normalized == 'cancelled' || normalized == 'unknown') {
+    if (normalized == 'failed' ||
+        normalized == 'cancelled' ||
+        normalized == 'unknown') {
       return _AnsiColor.red;
     }
     final statusCode = int.tryParse(normalized);
     if (statusCode == null) {
-      if (normalized == 'started' || normalized == 'pending') return _AnsiColor.cyan;
+      if (normalized == 'started' || normalized == 'pending') {
+        return _AnsiColor.cyan;
+      }
       return _AnsiColor.cyan;
     }
     if (statusCode >= 200 && statusCode <= 299) return _AnsiColor.green;
@@ -1154,16 +1219,21 @@ class DebugConsoleLogFormatter {
     return _AnsiColor.red;
   }
 
-  _AnsiColor _networkSymbolColor(DebugNetworkTransaction tx, {required bool slow}) {
+  _AnsiColor _networkSymbolColor(DebugNetworkTransaction tx,
+      {required bool slow}) {
     final statusCode = tx.statusCode;
-    if (tx.phase == DebugNetworkTransactionPhase.pending) return _AnsiColor.cyan;
+    if (tx.phase == DebugNetworkTransactionPhase.pending) {
+      return _AnsiColor.cyan;
+    }
     if (tx.phase == DebugNetworkTransactionPhase.failed ||
         tx.phase == DebugNetworkTransactionPhase.cancelled ||
         tx.phase == DebugNetworkTransactionPhase.unknown) {
       return _AnsiColor.red;
     }
     if (statusCode == null) return _AnsiColor.cyan;
-    if (statusCode >= 200 && statusCode <= 299) return slow ? _AnsiColor.yellow : _AnsiColor.green;
+    if (statusCode >= 200 && statusCode <= 299) {
+      return slow ? _AnsiColor.yellow : _AnsiColor.green;
+    }
     if (statusCode >= 300 && statusCode <= 399) return _AnsiColor.cyan;
     if (statusCode >= 400 && statusCode <= 499) return _AnsiColor.yellow;
     return _AnsiColor.red;

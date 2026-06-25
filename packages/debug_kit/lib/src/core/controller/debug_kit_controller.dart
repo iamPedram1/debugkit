@@ -81,8 +81,10 @@ class DebugKitController extends ChangeNotifier {
   ///   logs. Defaults to `true`.
   /// - [captureAppStackTrace]: reserved for future use. Defaults to `false`.
   /// - [adapters]: list of [DebugKitAdapter] instances to attach.
-  /// - [navigatorKey]: required to open the console from non-widget contexts
-  ///   or `MaterialApp.router` apps.
+  /// - [navigatorKey]: required for `MaterialApp.router` apps and for
+  ///   context-free console open/close calls to target a navigator.
+  /// - [disableDefaultOverlayButton]: hides the built-in floating launcher
+  ///   button while keeping the overlay mounted.
   /// - [maxTraces]: maximum [DebugTrace] instances kept in memory. Defaults to `50`.
   /// - [maxTraceEventsPerTrace]: maximum events per trace. Defaults to `200`.
   /// - [slowTraceThreshold]: duration above which [DebugTraceAnalyzer] warns
@@ -104,6 +106,7 @@ class DebugKitController extends ChangeNotifier {
     bool captureAppStackTrace = false,
     List<DebugKitAdapter> adapters = const [],
     GlobalKey<NavigatorState>? navigatorKey,
+    bool disableDefaultOverlayButton = false,
     int maxTraces = 50,
     int maxTraceEventsPerTrace = 200,
     Duration slowTraceThreshold = const Duration(seconds: 3),
@@ -125,6 +128,7 @@ class DebugKitController extends ChangeNotifier {
       captureAppCallLocation: captureAppCallLocation,
       captureAppStackTrace: captureAppStackTrace,
       navigatorKey: navigatorKey,
+      disableDefaultOverlayButton: disableDefaultOverlayButton,
       maxTraces: maxTraces,
       maxTraceEventsPerTrace: maxTraceEventsPerTrace,
       slowTraceThreshold: slowTraceThreshold,

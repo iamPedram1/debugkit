@@ -10,7 +10,7 @@ Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.9.0
+  debug_kit: ^0.9.1
   debug_kit_riverpod: ^0.3.0
   flutter_riverpod: ^3.0.0
 ```
@@ -38,7 +38,7 @@ void main() {
 }
 ```
 
-This release line is for Riverpod 3 projects and supports `debug_kit ^0.9.0`.
+This release line is for Riverpod 3 projects and supports `debug_kit ^0.9.1`.
 DebugKit handles in-app logs and sanitized console mirroring in core.
 
 ## Configuration
@@ -101,8 +101,8 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 
 | `debug_kit_riverpod` | `debug_kit` | `flutter_riverpod` |
 |---|---|---|
-| 0.3.0 | ^0.9.0 | 3.x |
-| 0.2.3 | ^0.9.0 | 2.x |
+| 0.3.0 | ^0.9.1 | 3.x |
+| 0.2.3 | ^0.9.1 | 2.x |
 
 ## License
 
