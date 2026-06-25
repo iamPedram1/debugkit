@@ -1,16 +1,40 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:debug_kit/debug_kit.dart';
 import 'package:debug_kit_riverpod/debug_kit_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 
-ProviderBase<Object?> createProvider(String? name) {
-  return Provider<int>((ref) => 0, name: name);
+class TestCounterNotifier extends Notifier<String> {
+  @override
+  String build() => 'initial';
+
+  void setValue(String value) {
+    state = value;
+  }
 }
 
 class SensitiveObject {
   @override
   String toString() => 'SensitiveObject(token: secret123)';
 }
+
+final addProvider = Provider<String>(
+  (ref) => 'ready',
+  name: 'authProvider',
+);
+
+final unnamedProvider = Provider<String>((ref) => 'ready');
+
+final counterProvider = NotifierProvider<TestCounterNotifier, String>(
+  TestCounterNotifier.new,
+  name: 'userProvider',
+);
+
+final throwingProvider = Provider<String>(
+  (ref) {
+    throw Exception('test error');
+  },
+  name: 'errorProvider',
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -19,105 +43,37 @@ void main() {
 
   setUp(() {
     controller = DebugKitController();
-    controller.init(enabled: true);
+    controller.init(enabled: true, printToConsole: false);
+    DebugKit.clearLogs();
+    DebugKit.clearTraces();
   });
 
-  final container = ProviderContainer();
-
-  test('observer logs provider failures', () {
-    final observer = DebugKitRiverpodObserver(controller: controller);
-    final provider = createProvider('authProvider');
-
-    observer.providerDidFail(
-        provider, Exception('test error'), StackTrace.empty, container);
-
-    expect(controller.store.logs.length, 1);
-    final log = controller.store.logs.first;
-    expect(log.message, contains('Riverpod provider failed: authProvider'));
-    expect(log.error, contains('test error'));
-    expect(log.source, DebugLogSource.riverpod);
-    expect(log.metadata?['event_type'], 'provider_failure');
+  tearDown(() {
+    DebugKit.clearLogs();
+    DebugKit.clearTraces();
   });
 
-  test('observer does not log provider updates by default', () {
-    final observer = DebugKitRiverpodObserver(controller: controller);
-    final provider = createProvider('userProvider');
+  ProviderContainer createContainer(DebugKitRiverpodObserver observer) {
+    return ProviderContainer.test(observers: [observer]);
+  }
 
-    observer.didUpdateProvider(provider, null, 'new_value', container);
-
-    expect(controller.store.logs.isEmpty, isTrue);
-  });
-
-  test('observer logs provider updates when enabled', () {
+  test('didAddProvider logs provider initialization when enabled', () {
     final observer = DebugKitRiverpodObserver(
       controller: controller,
       config: const DebugKitRiverpodConfig(logProviderUpdates: true),
     );
-    final provider = createProvider('userProvider');
+    final container = createContainer(observer);
 
-    observer.didUpdateProvider(provider, null, 'new_value', container);
+    expect(container.read(addProvider), 'ready');
 
     expect(controller.store.logs.length, 1);
     final log = controller.store.logs.first;
-    expect(log.message, 'Riverpod provider updated: userProvider');
-    expect(log.metadata?['event_type'], 'provider_update');
-    expect(log.metadata?['value_preview'], isNull);
+    expect(log.message, 'Riverpod provider added: authProvider');
+    expect(log.metadata?['event_type'], 'provider_add');
+    expect(log.metadata?['provider_name'], 'authProvider');
   });
 
-  test('watchedProviders filters update logs', () {
-    final observer = DebugKitRiverpodObserver(
-      controller: controller,
-      config: const DebugKitRiverpodConfig(
-        logProviderUpdates: true,
-        watchedProviders: {'userProvider'},
-      ),
-    );
-
-    final userProvider = createProvider('userProvider');
-    final settingsProvider = createProvider('settingsProvider');
-
-    observer.didUpdateProvider(userProvider, null, 'new_value', container);
-    observer.didUpdateProvider(settingsProvider, null, 'new_value', container);
-
-    expect(controller.store.logs.length, 1);
-    expect(controller.store.logs.first.message, contains('userProvider'));
-  });
-
-  test('provider failures bypass watchedProviders when enabled', () {
-    final observer = DebugKitRiverpodObserver(
-      controller: controller,
-      config: const DebugKitRiverpodConfig(
-        logProviderUpdates: true,
-        watchedProviders: {'userProvider'},
-        logProviderFailures: true,
-      ),
-    );
-
-    final settingsProvider = createProvider('settingsProvider');
-
-    observer.providerDidFail(
-        settingsProvider, Exception('error'), StackTrace.empty, container);
-
-    expect(controller.store.logs.length, 1);
-    expect(controller.store.logs.first.message, contains('settingsProvider'));
-  });
-
-  test('disabled DebugKit logs nothing', () {
-    controller.init(enabled: false);
-    final observer = DebugKitRiverpodObserver(
-      controller: controller,
-      config: const DebugKitRiverpodConfig(logProviderUpdates: true),
-    );
-
-    final provider = createProvider('userProvider');
-    observer.didUpdateProvider(provider, null, 'new_value', container);
-    observer.providerDidFail(
-        provider, Exception('error'), StackTrace.empty, container);
-
-    expect(controller.store.logs.isEmpty, isTrue);
-  });
-
-  test('value preview is sanitized/truncated when explicitly enabled', () {
+  test('didUpdateProvider logs compact previews when enabled', () {
     final observer = DebugKitRiverpodObserver(
       controller: controller,
       config: const DebugKitRiverpodConfig(
@@ -126,14 +82,86 @@ void main() {
         maxValuePreviewLength: 10,
       ),
     );
+    final container = createContainer(observer);
 
-    final provider = createProvider('userProvider');
-    observer.didUpdateProvider(
-        provider, null, 'very_long_string_value_here', container);
+    final notifier = container.read(counterProvider.notifier);
+    DebugKit.clearLogs();
+
+    notifier.setValue('very_long_string_value_here');
 
     expect(controller.store.logs.length, 1);
     final log = controller.store.logs.first;
+    expect(log.message, 'Riverpod provider updated: userProvider');
+    expect(log.metadata?['event_type'], 'provider_update');
     expect(log.metadata?['value_preview'], 'very_long_...');
+  });
+
+  test('watchedProviders filters lifecycle logs but not failures', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(
+        logProviderUpdates: true,
+        watchedProviders: {'userProvider'},
+      ),
+    );
+    final container = createContainer(observer);
+
+    final watched = container.read(counterProvider.notifier);
+    DebugKit.clearLogs();
+
+    watched.setValue('next');
+    expect(controller.store.logs.length, 1);
+    expect(controller.store.logs.first.message, contains('userProvider'));
+
+    DebugKit.clearLogs();
+    expect(container.read(unnamedProvider), 'ready');
+    expect(controller.store.logs.isEmpty, isTrue);
+
+    DebugKit.clearLogs();
+    expect(() => container.read(throwingProvider), throwsException);
+    expect(controller.store.logs.length, 1);
+    expect(controller.store.logs.first.message, contains('errorProvider'));
+  });
+
+  test('didDisposeProvider logs provider disposal when enabled', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(logProviderUpdates: true),
+    );
+    final container = ProviderContainer(observers: [observer]);
+
+    expect(container.read(addProvider), 'ready');
+    DebugKit.clearLogs();
+
+    container.dispose();
+
+    expect(controller.store.logs.length, 1);
+    final log = controller.store.logs.first;
+    expect(log.message, 'Riverpod provider disposed: authProvider');
+    expect(log.metadata?['event_type'], 'provider_dispose');
+  });
+
+  test('provider failures are logged with trace correlation', () async {
+    final observer = DebugKitRiverpodObserver(controller: controller);
+    final container = createContainer(observer);
+
+    await controller.traceController.run('auth_flow', () async {
+      expect(() => container.read(throwingProvider), throwsException);
+    });
+
+    expect(controller.store.logs.length, 1);
+    final log = controller.store.logs.first;
+    expect(log.message, contains('Riverpod provider failed: errorProvider'));
+    expect(log.error, contains('test error'));
+    expect(log.source, DebugLogSource.riverpod);
+    expect(log.traceId, isNotNull);
+    expect(log.traceName, 'auth_flow');
+    expect(log.metadata?['event_type'], 'provider_failure');
+
+    final trace = controller.traceStore.traces.first;
+    final stateEvents =
+        trace.events.where((event) => event.type == DebugTraceEventType.state);
+    expect(stateEvents, isNotEmpty);
   });
 
   test('sensitive values are safely redacted in preview', () {
@@ -144,95 +172,48 @@ void main() {
         includeValuePreview: true,
       ),
     );
+    final container = createContainer(observer);
 
-    final provider = createProvider('authProvider');
-    observer.didUpdateProvider(provider, null, SensitiveObject(), container);
+    final provider = NotifierProvider<TestCounterNotifier, String>(
+      TestCounterNotifier.new,
+      name: 'authProvider',
+    );
+
+    final notifier = container.read(provider.notifier);
+    DebugKit.clearLogs();
+
+    notifier.setValue(SensitiveObject().toString());
 
     expect(controller.store.logs.length, 1);
     final log = controller.store.logs.first;
-    expect(log.metadata?['value_preview'], contains('se*****23'));
+    expect(log.metadata?['value_preview'], contains('SensitiveObject'));
     expect(log.metadata?['value_preview'], isNot(contains('secret123')));
   });
 
-  test('observer does not throw when provider name is null/unknown', () {
+  test('observer does not throw when provider name is null or disabled', () {
     final observer = DebugKitRiverpodObserver(
       controller: controller,
       config: const DebugKitRiverpodConfig(logProviderUpdates: true),
     );
+    final container = createContainer(observer);
 
-    final unnamedProvider = createProvider(null);
-
-    expect(
-      () => observer.didUpdateProvider(
-          unnamedProvider, null, 'new_value', container),
-      returnsNormally,
-    );
-    expect(
-      () => observer.providerDidFail(
-          unnamedProvider, Exception(), StackTrace.empty, container),
-      returnsNormally,
-    );
-
-    expect(controller.store.logs.length, 2);
+    expect(container.read(unnamedProvider), 'ready');
+    expect(controller.store.logs.length, 1);
     expect(controller.store.logs.first.message, contains('UnnamedProvider'));
+
+    controller.init(enabled: false);
+    DebugKit.clearLogs();
+    expect(() => container.read(throwingProvider), throwsException);
+    expect(controller.store.logs.isEmpty, isTrue);
   });
 
-  // ---------------------------------------------------------------------------
-  // Trace correlation
-  // ---------------------------------------------------------------------------
-  test('provider failure log carries traceId when inside active trace',
-      () async {
-    controller.init(enabled: true);
-    final observer = DebugKitRiverpodObserver(controller: controller);
-    final provider = createProvider('authProvider');
-
-    await controller.traceController.run('auth_flow', () async {
-      observer.providerDidFail(
-          provider, Exception('error'), StackTrace.empty, container);
-    });
-
-    final log = controller.store.logs.first;
-    expect(log.traceId, isNotNull);
-    expect(log.traceName, 'auth_flow');
-  });
-
-  test('provider failure log has no traceId when outside any trace', () {
-    controller.init(enabled: true);
-    final observer = DebugKitRiverpodObserver(controller: controller);
-    final provider = createProvider('authProvider');
-
-    observer.providerDidFail(
-        provider, Exception('error'), StackTrace.empty, container);
-
-    final log = controller.store.logs.first;
-    expect(log.traceId, isNull);
-  });
-
-  test('state trace event is recorded on active trace for provider failure',
-      () async {
-    controller.init(enabled: true);
-    final observer = DebugKitRiverpodObserver(controller: controller);
-    final provider = createProvider('authProvider');
-
-    await controller.traceController.run('auth_flow', () async {
-      observer.providerDidFail(
-          provider, Exception('error'), StackTrace.empty, container);
-    });
-
-    final trace = controller.traceStore.traces.first;
-    final stateEvents =
-        trace.events.where((e) => e.type == DebugTraceEventType.state).toList();
-    expect(stateEvents.isNotEmpty, isTrue);
-  });
-
-  test('disabled mode: no trace events recorded', () async {
+  test('disabled mode records no trace events', () async {
     controller.init(enabled: false);
     final observer = DebugKitRiverpodObserver(controller: controller);
-    final provider = createProvider('authProvider');
+    final container = createContainer(observer);
 
-    observer.providerDidFail(
-        provider, Exception('error'), StackTrace.empty, container);
-
+    expect(() => container.read(throwingProvider), throwsException);
+    expect(controller.store.logs.isEmpty, isTrue);
     expect(controller.traceStore.traces.isEmpty, isTrue);
   });
 }

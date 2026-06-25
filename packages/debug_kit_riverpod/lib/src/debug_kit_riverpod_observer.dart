@@ -1,10 +1,10 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:debug_kit/debug_kit.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'debug_kit_riverpod_config.dart';
 import 'riverpod_log_helpers.dart';
 
 /// A Riverpod [ProviderObserver] that logs provider failures and optionally
-/// state updates to DebugKit.
+/// provider lifecycle events to DebugKit.
 ///
 /// Add an instance to your [ProviderScope] observers:
 ///
@@ -33,7 +33,7 @@ import 'riverpod_log_helpers.dart';
 /// - Provider failures (exceptions thrown inside providers).
 ///
 /// **What is NOT logged by default:**
-/// - State updates — opt-in via [DebugKitRiverpodConfig.logProviderUpdates].
+/// - Provider lifecycle events — opt-in via [DebugKitRiverpodConfig.logProviderUpdates].
 /// - Provider state objects — never stringified unless
 ///   [DebugKitRiverpodConfig.includeValuePreview] is `true`.
 ///
@@ -44,7 +44,7 @@ import 'riverpod_log_helpers.dart';
 ///
 /// The observer never throws — all logging is wrapped in `try/catch` so it
 /// can never interrupt state management.
-class DebugKitRiverpodObserver extends ProviderObserver {
+base class DebugKitRiverpodObserver extends ProviderObserver {
   /// Creates a [DebugKitRiverpodObserver].
   ///
   /// - [controller]: optional override for testing. Leave `null` to use the
@@ -63,6 +63,137 @@ class DebugKitRiverpodObserver extends ProviderObserver {
   DebugKitController get _controller =>
       _customController ?? DebugKit.controller;
 
+  bool _shouldLogProvider(String providerName) {
+    if (config.watchedProviders.isEmpty) return true;
+    return config.watchedProviders.contains(providerName);
+  }
+
+  void _logProviderLifecycleEvent({
+    required String providerName,
+    required String eventType,
+    required String message,
+    Object? value,
+  }) {
+    final metadata = <String, String>{
+      'provider_name': providerName,
+      'event_type': eventType,
+    };
+
+    if (config.includeValuePreview && value != null) {
+      metadata['value_preview'] = RiverpodLogHelpers.safeValuePreview(
+        value,
+        config.maxValuePreviewLength,
+      );
+    }
+
+    final traceId = _controller.traceController.activeTraceId;
+    final traceName = _controller.traceController.activeTraceName;
+
+    _controller.log(
+      message: message,
+      level: DebugLogLevel.debug,
+      source: DebugLogSource.riverpod,
+      metadata: metadata,
+      traceId: traceId,
+      traceName: traceName,
+    );
+  }
+
+  String _providerNameFor(Object provider) =>
+      RiverpodLogHelpers.sanitizeProviderName(
+        (provider as dynamic).name as String?,
+      );
+
+  void _recordFailureStateEvent({
+    required String providerName,
+    required Object error,
+  }) {
+    final traceId = _controller.traceController.activeTraceId;
+    if (traceId == null) return;
+
+    _controller.traceController.recordStateEvent(
+      message: 'provider failed: $providerName',
+      metadata: {
+        'provider_name': providerName,
+        'event_type': 'provider_failure',
+      },
+      error: error.toString(),
+    );
+  }
+
+  void _logFailure({
+    required String providerName,
+    required Object error,
+    required StackTrace stackTrace,
+  }) {
+    final traceId = _controller.traceController.activeTraceId;
+    final traceName = _controller.traceController.activeTraceName;
+
+    _controller.log(
+      message: 'Riverpod provider failed: $providerName',
+      level: DebugLogLevel.error,
+      source: DebugLogSource.riverpod,
+      error: error.toString(),
+      stackTrace: stackTrace,
+      metadata: {
+        'provider_name': providerName,
+        'event_type': 'provider_failure',
+      },
+      traceId: traceId,
+      traceName: traceName,
+    );
+    _recordFailureStateEvent(providerName: providerName, error: error);
+  }
+
+  /// Called by Riverpod whenever a provider is initialized.
+  ///
+  /// When [DebugKitRiverpodConfig.logProviderUpdates] is `true`, logs a
+  /// compact debug entry for the provider's initial state.
+  @override
+  void didAddProvider(ProviderObserverContext context, Object? value) {
+    if (!config.logProviderUpdates) return;
+
+    try {
+      if (!_controller.config.enabled) return;
+
+      final providerName = _providerNameFor(context.provider);
+      if (!_shouldLogProvider(providerName)) return;
+
+      _logProviderLifecycleEvent(
+        providerName: providerName,
+        eventType: 'provider_add',
+        message: 'Riverpod provider added: $providerName',
+        value: value,
+      );
+    } catch (_) {
+      // Fail silently
+    }
+  }
+
+  /// Called by Riverpod whenever a provider is disposed.
+  ///
+  /// Uses the same update logging gate as state changes so the adapter keeps
+  /// a compact default footprint.
+  @override
+  void didDisposeProvider(ProviderObserverContext context) {
+    if (!config.logProviderUpdates) return;
+
+    try {
+      if (!_controller.config.enabled) return;
+
+      final providerName = _providerNameFor(context.provider);
+      if (!_shouldLogProvider(providerName)) return;
+
+      _logProviderLifecycleEvent(
+        providerName: providerName,
+        eventType: 'provider_dispose',
+        message: 'Riverpod provider disposed: $providerName',
+      );
+    } catch (_) {
+      // Fail silently
+    }
+  }
+
   /// Called by Riverpod whenever a provider throws an unhandled exception.
   ///
   /// Logs a [DebugLogLevel.error] entry with:
@@ -75,48 +206,22 @@ class DebugKitRiverpodObserver extends ProviderObserver {
   /// when [DebugKitRiverpodConfig.logProviderFailures] is `true` (default).
   @override
   void providerDidFail(
-    ProviderBase<Object?> provider,
+    ProviderObserverContext context,
     Object error,
     StackTrace stackTrace,
-    ProviderContainer container,
   ) {
     if (!config.logProviderFailures) return;
 
     try {
       if (!_controller.config.enabled) return;
 
-      final providerName =
-          RiverpodLogHelpers.sanitizeProviderName(provider.name);
+      final providerName = _providerNameFor(context.provider);
 
-      // Read active trace from current Zone
-      final traceId = _controller.traceController.activeTraceId;
-      final traceName = _controller.traceController.activeTraceName;
-
-      _controller.log(
-        message: 'Riverpod provider failed: $providerName',
-        level: DebugLogLevel.error,
-        source: DebugLogSource.riverpod,
-        error: error.toString(),
+      _logFailure(
+        providerName: providerName,
+        error: error,
         stackTrace: stackTrace,
-        metadata: {
-          'provider_name': providerName,
-          'event_type': 'provider_failure',
-        },
-        traceId: traceId,
-        traceName: traceName,
       );
-
-      // Record state event on active trace
-      if (traceId != null) {
-        _controller.traceController.recordStateEvent(
-          message: 'provider failed: $providerName',
-          metadata: {
-            'provider_name': providerName,
-            'event_type': 'provider_failure',
-          },
-          error: error.toString(),
-        );
-      }
     } catch (_) {
       // Fail silently
     }
@@ -135,47 +240,23 @@ class DebugKitRiverpodObserver extends ProviderObserver {
   ///   [DebugKitRiverpodConfig.includeValuePreview] is `true`.
   @override
   void didUpdateProvider(
-    ProviderBase<Object?> provider,
+    ProviderObserverContext context,
     Object? previousValue,
     Object? newValue,
-    ProviderContainer container,
   ) {
     if (!config.logProviderUpdates) return;
 
     try {
       if (!_controller.config.enabled) return;
 
-      final providerName =
-          RiverpodLogHelpers.sanitizeProviderName(provider.name);
+      final providerName = _providerNameFor(context.provider);
+      if (!_shouldLogProvider(providerName)) return;
 
-      if (config.watchedProviders.isNotEmpty &&
-          !config.watchedProviders.contains(providerName)) {
-        return;
-      }
-
-      final metadata = <String, String>{
-        'provider_name': providerName,
-        'event_type': 'provider_update',
-      };
-
-      if (config.includeValuePreview) {
-        metadata['value_preview'] = RiverpodLogHelpers.safeValuePreview(
-          newValue,
-          config.maxValuePreviewLength,
-        );
-      }
-
-      // Read active trace from current Zone
-      final traceId = _controller.traceController.activeTraceId;
-      final traceName = _controller.traceController.activeTraceName;
-
-      _controller.log(
+      _logProviderLifecycleEvent(
+        providerName: providerName,
+        eventType: 'provider_update',
         message: 'Riverpod provider updated: $providerName',
-        level: DebugLogLevel.debug,
-        source: DebugLogSource.riverpod,
-        metadata: metadata,
-        traceId: traceId,
-        traceName: traceName,
+        value: newValue,
       );
     } catch (_) {
       // Fail silently

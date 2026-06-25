@@ -11,8 +11,8 @@ Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 ```yaml
 dependencies:
   debug_kit: ^0.9.0
-  debug_kit_riverpod: ^0.2.3
-  flutter_riverpod: ^2.0.0
+  debug_kit_riverpod: ^0.3.0
+  flutter_riverpod: ^3.0.0
 ```
 
 ## Setup
@@ -38,12 +38,12 @@ void main() {
 }
 ```
 
-This release line is for Riverpod 2 projects and supports `debug_kit ^0.9.0`.
+This release line is for Riverpod 3 projects and supports `debug_kit ^0.9.0`.
 DebugKit handles in-app logs and sanitized console mirroring in core.
 
 ## Configuration
 
-By default, only provider failures are logged. Use `DebugKitRiverpodConfig` to enable update logging or value previews:
+By default, provider failures are logged. Use `DebugKitRiverpodConfig` to enable compact provider lifecycle logging or value previews:
 
 ```dart
 DebugKitRiverpodObserver(
@@ -58,15 +58,14 @@ DebugKitRiverpodObserver(
 
 ## What is Logged
 
-- Provider name and event type (`provider_failure`, `provider_update`)
+- Provider name and event type (`provider_failure`, `provider_add`, `provider_update`, `provider_dispose`)
 - Error message and stack trace on failures
-- Sanitized value preview — only when `includeValuePreview: true`
+- Sanitized value preview - only when `includeValuePreview: true`
 
 ## What is NOT Logged
 
-- State updates — ignored by default unless `logProviderUpdates: true`
-- Full state objects — raw models are never stringified unless `includeValuePreview: true`
-- Unfiltered updates — when `watchedProviders` is set, only listed providers emit update logs (failures are always logged regardless)
+- Full state objects - raw models are never stringified unless `includeValuePreview: true`
+- Unfiltered lifecycle logs - when `watchedProviders` is set, only listed providers emit add/update/dispose logs (failures are always logged regardless)
 
 ## Security & Sanitization
 
@@ -84,6 +83,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 
 - Value preview sanitization relies on keyword matching. Custom models with non-standard secret field names are not automatically masked.
 - `includeValuePreview` should remain `false` in production builds.
+- This package line targets Riverpod 3 only. Riverpod 2 projects should stay on `debug_kit_riverpod ^0.2.3`.
 
 ## Links
 
@@ -92,16 +92,17 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 
 ## Version compatibility
 
-| Riverpod version | `debug_kit_riverpod` version |
-| :--------------- | :--------------------------- |
+| Riverpod version | debug_kit_riverpod version |
+| :--------------- | :------------------------- |
 | Riverpod 2 | `^0.2.3` |
-| Riverpod 3 | `^0.3.0` *(separate release line)* |
+| Riverpod 3 | `^0.3.0` |
 
 ## Compatibility
 
 | `debug_kit_riverpod` | `debug_kit` | `flutter_riverpod` |
 |---|---|---|
-| 0.2.3 | ≥ 0.9.0 | 2.x |
+| 0.3.0 | ^0.9.0 | 3.x |
+| 0.2.3 | ^0.9.0 | 2.x |
 
 ## License
 

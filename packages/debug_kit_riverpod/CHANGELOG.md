@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+- Added support for Riverpod 3 projects.
+
+### Changed
+
+- Updated the adapter to support `debug_kit ^0.9.0`.
+- Migrated observer integration to the Riverpod 3 `ProviderObserver` API.
+- Kept Riverpod logs flowing through DebugKit core so in-app logs and sanitized console mirroring share the same pipeline.
+
+### Notes
+
+- Riverpod 3 users should use `debug_kit_riverpod ^0.3.0`.
+- Riverpod 2 users should stay on `debug_kit_riverpod ^0.2.3`.
+- This release does not support Riverpod 2.
+
 ## 0.2.3
 
 ### Changed

@@ -13,9 +13,9 @@ This repository is managed as a monorepo using [Melos](https://melos.invertase.d
 | Package | Version | Description |
 | :--- | :--- | :--- |
 | [**debug_kit**](packages/debug_kit) | 0.9.0 | Core logging engine, UI console, Error Digest, sanitized console mirroring, and compact Network Inspector / Timeline. |
-| [**debug_kit_dio**](packages/debug_kit_dio) | 0.5.0 | Dio interceptor for network observability, safe previews, and backend correlation capture. |
-| [**debug_kit_go_router**](packages/debug_kit_go_router) | 0.3.0 | GoRouter observer for navigation logs. |
-| [**debug_kit_riverpod**](packages/debug_kit_riverpod) | 0.2.3 | Riverpod 2 observer for state changes. |
+| [**debug_kit_dio**](packages/debug_kit_dio) | 0.4.0 | Dio interceptor for network observability, safe previews, and backend correlation capture. |
+| [**debug_kit_go_router**](packages/debug_kit_go_router) | 0.2.2 | GoRouter observer for navigation logs. |
+| [**debug_kit_riverpod**](packages/debug_kit_riverpod) | 0.3.0 | Riverpod 3 observer for state changes. |
 
 ### Example App
 

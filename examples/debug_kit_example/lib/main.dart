@@ -10,7 +10,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // --- Riverpod Providers ---
-final exampleCounterProvider = StateProvider<int>((ref) => 0);
+final exampleCounterProvider = NotifierProvider<ExampleCounterNotifier, int>(
+  ExampleCounterNotifier.new,
+);
+
+class ExampleCounterNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void increment() {
+    state++;
+  }
+}
+
 final throwingProvider = Provider<String>((ref) {
   throw Exception('Simulated Riverpod Provider Failure!');
 });
@@ -233,7 +245,7 @@ class MyHomePage extends ConsumerWidget {
             Wrap(spacing: 8, runSpacing: 8, children: [
               ElevatedButton(
                 onPressed: () =>
-                    ref.read(exampleCounterProvider.notifier).state++,
+                    ref.read(exampleCounterProvider.notifier).increment(),
                 child: const Text('Update Provider'),
               ),
               ElevatedButton(
