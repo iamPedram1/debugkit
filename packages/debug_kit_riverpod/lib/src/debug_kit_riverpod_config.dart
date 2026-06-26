@@ -1,82 +1,82 @@
 /// Immutable configuration for [DebugKitRiverpodObserver].
 ///
-/// All fields have safe, low-verbosity defaults so the observer can be dropped
-/// in without extra configuration and will only log provider failures.
-///
-/// ```dart
-/// // Default: only log failures
-/// DebugKitRiverpodObserver()
-///
-/// // Verbose: log updates for specific providers with state preview
-/// DebugKitRiverpodObserver(
-///   config: DebugKitRiverpodConfig(
-///     logProviderUpdates: true,
-///     watchedProviders: {'authProvider', 'cartProvider'},
-///     includeValuePreview: true,
-///     maxValuePreviewLength: 200,
-///   ),
-/// )
-/// ```
+/// The observer records generic state events into DebugKit's dedicated State
+/// tab by default. Mirroring those changes into the Logs tab is opt-in so
+/// Riverpod updates no longer flood the main console.
 class DebugKitRiverpodConfig {
   /// Creates a [DebugKitRiverpodConfig].
   const DebugKitRiverpodConfig({
-    this.logProviderUpdates = false,
-    this.logProviderFailures = true,
+    @Deprecated('Use recordProviderUpdates instead.') bool? logProviderUpdates,
+    @Deprecated('Use recordProviderErrors instead.') bool? logProviderFailures,
+    this.recordProviderAdds = true,
+    bool? recordProviderUpdates,
+    this.recordProviderDisposals = true,
+    bool? recordProviderErrors,
+    this.mirrorStateChangesToLogs = false,
+    this.mirrorErrorsToLogs = true,
     this.watchedProviders = const {},
     this.includeValuePreview = false,
-    this.maxValuePreviewLength = 300,
-  });
+    this.maxValuePreviewLength = 500,
+    this.maxDiffDepth = 5,
+    this.maxDiffEntries = 50,
+  })  : logProviderUpdates =
+            logProviderUpdates ?? (recordProviderUpdates ?? true),
+        logProviderFailures =
+            logProviderFailures ?? (recordProviderErrors ?? true),
+        recordProviderUpdates =
+            recordProviderUpdates ?? logProviderUpdates ?? true,
+        recordProviderErrors =
+            recordProviderErrors ?? logProviderFailures ?? true;
 
-  /// Whether to log a [DebugLogLevel.debug] entry each time any provider
-  /// updates its state.
+  /// Backward-compatible alias for [recordProviderUpdates].
   ///
-  /// Defaults to `false` to avoid flooding the console with high-frequency
-  /// state changes. When enabled, consider using [watchedProviders] to limit
-  /// which providers emit update logs.
-  ///
-  /// > **Warning:** enabling this in production builds may reveal state
-  /// > transition patterns. Keep `false` unless needed for debugging.
+  /// This now controls State tab recording, not log mirroring.
+  @Deprecated('Use recordProviderUpdates instead.')
   final bool logProviderUpdates;
 
-  /// Whether to log a [DebugLogLevel.error] entry when a provider throws an
-  /// unhandled exception.
+  /// Backward-compatible alias for [recordProviderErrors].
   ///
-  /// Defaults to `true`. This is the primary use-case for the observer —
-  /// disable only if you handle all provider errors elsewhere.
+  /// This now controls State tab recording, not log mirroring.
+  @Deprecated('Use recordProviderErrors instead.')
   final bool logProviderFailures;
 
-  /// When non-empty, update logs are emitted only for providers whose name is
-  /// in this set.
+  /// Whether provider additions are recorded into the State tab.
+  final bool recordProviderAdds;
+
+  /// Whether provider updates are recorded into the State tab.
+  final bool recordProviderUpdates;
+
+  /// Whether provider disposals are recorded into the State tab.
+  final bool recordProviderDisposals;
+
+  /// Whether provider failures are recorded into the State tab.
+  final bool recordProviderErrors;
+
+  /// Whether state changes should also be mirrored to the Logs tab.
   ///
-  /// Provider names must match the `name` parameter passed to the Riverpod
-  /// provider constructor:
-  /// ```dart
-  /// final authProvider = StateProvider<User?>((ref) => null, name: 'authProvider');
-  /// ```
+  /// Defaults to `false` so provider updates stay out of the main console.
+  final bool mirrorStateChangesToLogs;
+
+  /// Whether provider failures should also be mirrored to the Logs tab.
   ///
-  /// **Failures are not affected** — [logProviderFailures] applies to all
-  /// providers regardless of this set.
-  ///
-  /// Defaults to an empty set (log all providers when updates are enabled).
+  /// Defaults to `true` so errors remain easy to notice.
+  final bool mirrorErrorsToLogs;
+
+  /// When non-empty, events are recorded only for providers whose name is in
+  /// this set.
   final Set<String> watchedProviders;
 
-  /// Whether to call `.toString()` on the new provider value and include a
-  /// truncated preview in the log metadata under the `'value_preview'` key.
+  /// Whether to stringify provider values for previews.
   ///
-  /// Defaults to `false`. When `true`:
-  /// - The string is passed through [DebugLogSanitizer.sanitizeMessage].
-  /// - It is truncated to [maxValuePreviewLength] characters.
-  /// - If `.toString()` throws, `'[Un-stringifyable Object]'` is used instead.
-  ///
-  /// > **Warning:** if a model's `toString()` returns raw PII that does not
-  /// > contain obvious secret keywords, it may appear in the preview. Keep
-  /// > `false` in production builds.
+  /// When `true`, previews are sanitized and truncated before storage.
   final bool includeValuePreview;
 
-  /// Maximum length (in characters) of the value preview string before it is
-  /// truncated with `'...'`.
-  ///
-  /// Applies only when [includeValuePreview] is `true`.
-  /// Defaults to `300`.
+  /// Maximum preview length in characters.
   final int maxValuePreviewLength;
+
+  /// Maximum recursion depth for structured state diffs.
+  final int maxDiffDepth;
+
+  /// Maximum number of structured diff entries recorded per event.
+  final int maxDiffEntries;
 }

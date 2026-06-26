@@ -6,10 +6,13 @@ import '../models/debug_error_digest.dart';
 import '../models/debug_log_entry.dart';
 import '../models/debug_log_level.dart';
 import '../models/debug_log_source.dart';
+import '../models/debug_state_diff_entry.dart';
+import '../models/debug_state_event.dart';
 import '../models/debug_network_summary.dart';
 import '../models/debug_network_transaction.dart';
 import '../adapters/debug_kit_adapter.dart';
 import '../store/debug_log_store.dart';
+import '../store/debug_state_store.dart';
 import '../store/debug_trace_store.dart';
 import '../trace/debug_trace_controller.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
@@ -32,12 +35,21 @@ class DebugKitController extends ChangeNotifier {
 
   /// Returns the singleton [DebugKitController] instance.
   factory DebugKitController() => _instance;
-  DebugKitController._internal();
+  DebugKitController._internal() {
+    _consolePrinter = DebugConsolePrinter(config: _config);
+    _traceController = DebugTraceController(
+      store: _traceStore,
+      isEnabled: () => _config.enabled,
+      consolePrinter: _consolePrinter,
+    );
+  }
 
-  late DebugLogStore _store;
-  late DebugTraceStore _traceStore;
+  DebugLogStore _store = DebugLogStore();
+  DebugTraceStore _traceStore = DebugTraceStore();
+  DebugStateStore _stateStore = DebugStateStore();
   late DebugTraceController _traceController;
   late DebugConsolePrinter _consolePrinter;
+  bool _stateRecordingPaused = false;
 
   /// Active configuration snapshot. Starts with `enabled: false` until
   /// [init] is called.
@@ -53,6 +65,9 @@ class DebugKitController extends ChangeNotifier {
   /// The bounded in-memory trace store.
   DebugTraceStore get traceStore => _traceStore;
 
+  /// The bounded in-memory state-event store.
+  DebugStateStore get stateStore => _stateStore;
+
   /// The trace controller powering [DebugKit.trace].
   ///
   /// Adapter packages use [traceController.activeTraceId] and
@@ -62,6 +77,9 @@ class DebugKitController extends ChangeNotifier {
 
   /// The current configuration. Read-only after [init].
   DebugKitConfig get config => _config;
+
+  /// Whether state-event recording is currently paused.
+  bool get isStateRecordingPaused => _stateRecordingPaused;
 
   // ---------------------------------------------------------------------------
   // Initialization
@@ -87,6 +105,7 @@ class DebugKitController extends ChangeNotifier {
   ///   button while keeping the overlay mounted.
   /// - [maxTraces]: maximum [DebugTrace] instances kept in memory. Defaults to `50`.
   /// - [maxTraceEventsPerTrace]: maximum events per trace. Defaults to `200`.
+  /// - [maxStateEvents]: maximum state events kept in memory. Defaults to `500`.
   /// - [slowTraceThreshold]: duration above which [DebugTraceAnalyzer] warns
   ///   about a slow trace. Defaults to 3 seconds.
   /// - [slowRequestThresholdMs]: duration above which the Network Summary
@@ -121,6 +140,7 @@ class DebugKitController extends ChangeNotifier {
     bool printErrorLogs = true,
     DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
     bool colorizeConsoleOutput = true,
+    int maxStateEvents = 500,
   }) {
     _config = DebugKitConfig(
       enabled: enabled,
@@ -143,18 +163,21 @@ class DebugKitController extends ChangeNotifier {
       printErrorLogs: printErrorLogs,
       consolePrintFormat: consolePrintFormat,
       colorizeConsoleOutput: colorizeConsoleOutput,
+      maxStateEvents: maxStateEvents,
     );
     _store = DebugLogStore(maxLogs: maxLogs, groupRepeated: groupRepeatedLogs);
     _traceStore = DebugTraceStore(
       maxTraces: maxTraces,
       maxEventsPerTrace: maxTraceEventsPerTrace,
     );
+    _stateStore = DebugStateStore(maxEvents: maxStateEvents);
     _consolePrinter = DebugConsolePrinter(config: _config);
     _traceController = DebugTraceController(
       store: _traceStore,
       isEnabled: () => _config.enabled,
       consolePrinter: _consolePrinter,
     );
+    _stateRecordingPaused = false;
 
     // Dispose old adapters before replacing them
     for (final adapter in _adapters) {
@@ -260,6 +283,61 @@ class DebugKitController extends ChangeNotifier {
         metadata: entry.metadata,
       );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // State events
+  // ---------------------------------------------------------------------------
+
+  /// Records a sanitized state-management event for the dedicated State tab.
+  ///
+  /// No-op when DebugKit is disabled or state recording is paused.
+  void recordStateEvent(DebugStateEvent event) {
+    if (!_config.enabled || _stateRecordingPaused) return;
+
+    final sanitized = DebugStateEvent(
+      id: event.id.isEmpty ? 'state_${_stateStore.getNextId()}' : event.id,
+      timestamp: event.timestamp,
+      source: DebugLogSanitizer.sanitizeMessage(event.source),
+      name: DebugLogSanitizer.sanitizeMessage(event.name),
+      type: event.type != null
+          ? DebugLogSanitizer.sanitizeMessage(event.type!)
+          : null,
+      eventType: event.eventType,
+      previousValuePreview: _sanitizeStatePreview(event.previousValuePreview),
+      nextValuePreview: _sanitizeStatePreview(event.nextValuePreview),
+      diffPreview: _sanitizeStatePreview(event.diffPreview),
+      changes: _sanitizeStateChanges(event.changes),
+      error: event.error != null
+          ? DebugLogSanitizer.sanitizeMessage(event.error!)
+          : null,
+      stackTrace: DebugLogSanitizer.trimStackTrace(event.stackTrace),
+      metadata: DebugLogSanitizer.sanitizeMetadata(event.metadata),
+    );
+
+    _stateStore.addEvent(sanitized);
+  }
+
+  /// Removes all state events from the store.
+  void clearStateEvents() {
+    if (!_config.enabled) return;
+    _stateStore.clear();
+  }
+
+  /// Pauses state-event recording until [resumeStateRecording] is called.
+  void pauseStateRecording() {
+    if (!_config.enabled) return;
+    if (_stateRecordingPaused) return;
+    _stateRecordingPaused = true;
+    notifyListeners();
+  }
+
+  /// Resumes state-event recording.
+  void resumeStateRecording() {
+    if (!_config.enabled) return;
+    if (!_stateRecordingPaused) return;
+    _stateRecordingPaused = false;
+    notifyListeners();
   }
 
   // ---------------------------------------------------------------------------
@@ -460,6 +538,31 @@ class DebugKitController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  String? _sanitizeStatePreview(String? value) {
+    if (value == null) return null;
+    final sanitized = DebugLogSanitizer.sanitizeMessage(value);
+    const maxLength = 500;
+    if (sanitized.length <= maxLength) return sanitized;
+    return '${sanitized.substring(0, maxLength)}...';
+  }
+
+  List<DebugStateDiffEntry> _sanitizeStateChanges(
+    List<DebugStateDiffEntry> changes,
+  ) {
+    if (changes.isEmpty) return const [];
+    return changes
+        .map(
+          (entry) => DebugStateDiffEntry(
+            path: DebugLogSanitizer.sanitizeMessage(entry.path),
+            type: entry.type,
+            previousValuePreview:
+                _sanitizeStatePreview(entry.previousValuePreview),
+            nextValuePreview: _sanitizeStatePreview(entry.nextValuePreview),
+          ),
+        )
+        .toList(growable: false);
+  }
 
   /// Walks [stackTrace] to find the first non-DebugKit frame and returns
   /// its `filename.dart:line:col` string for use as [DebugLogEntry.location].

@@ -21,6 +21,7 @@ import 'src/core/models/debug_error_digest.dart';
 import 'src/core/models/debug_console_print_format.dart';
 import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
+import 'src/core/models/debug_state_event.dart';
 import 'src/core/adapters/debug_kit_adapter.dart';
 import 'src/core/trace/debug_trace_controller.dart';
 import 'src/ui/overlay/debug_kit_console_launcher.dart';
@@ -29,6 +30,10 @@ export 'src/core/models/debug_log_level.dart';
 export 'src/core/models/debug_log_source.dart';
 export 'src/core/models/debug_console_print_format.dart';
 export 'src/core/models/debug_log_entry.dart';
+export 'src/core/models/debug_state_diff_entry.dart';
+export 'src/core/models/debug_state_diff_type.dart';
+export 'src/core/models/debug_state_event.dart';
+export 'src/core/models/debug_state_event_type.dart';
 export 'src/core/models/debug_trace.dart';
 export 'src/core/models/debug_trace_event.dart';
 export 'src/core/models/debug_trace_event_type.dart';
@@ -51,6 +56,7 @@ export 'src/core/trace/debug_trace_controller.dart'
         debugKitActiveTraceIdKey,
         debugKitActiveTraceNameKey;
 export 'src/utils/sanitizer/debug_log_sanitizer.dart';
+export 'src/utils/state/debug_state_diff_builder.dart';
 export 'src/ui/overlay/debug_kit_overlay.dart';
 // Note: DebugKitConsoleScreen is used internally by DebugKitOverlay and is
 // not part of the public API.
@@ -96,6 +102,7 @@ class DebugKit {
   ///   button while keeping the DebugKit overlay mounted. Defaults to `false`.
   /// - [maxTraces]: trace buffer capacity. Defaults to `50`.
   /// - [maxTraceEventsPerTrace]: per-trace event limit. Defaults to `200`.
+  /// - [maxStateEvents]: state-event buffer capacity. Defaults to `500`.
   /// - [slowTraceThreshold]: duration that triggers a "slow trace" health
   ///   warning. Defaults to 3 seconds.
   /// - [slowRequestThresholdMs]: duration above which a network request is
@@ -130,6 +137,7 @@ class DebugKit {
     bool printErrorLogs = true,
     DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
     bool colorizeConsoleOutput = true,
+    int maxStateEvents = 500,
   }) {
     resetDebugKitConsoleLauncherState();
     _controller.init(
@@ -154,6 +162,7 @@ class DebugKit {
       printErrorLogs: printErrorLogs,
       consolePrintFormat: consolePrintFormat,
       colorizeConsoleOutput: colorizeConsoleOutput,
+      maxStateEvents: maxStateEvents,
     );
   }
 
@@ -172,6 +181,11 @@ class DebugKit {
   ///
   /// No-op when [isEnabled] is `false`.
   static void clearTraces() => _controller.traceStore.clear();
+
+  /// Removes all state events from the in-memory store.
+  ///
+  /// No-op when [isEnabled] is `false`.
+  static void clearStateEvents() => _controller.clearStateEvents();
 
   /// Removes all network transaction logs from the in-memory store.
   ///
@@ -229,6 +243,9 @@ class DebugKit {
   /// ```
   static final DebugKitLog log = DebugKitLog(_controller);
 
+  /// The generic state-management API.
+  static final DebugKitState state = DebugKitState(_controller);
+
   /// The trace API.
   ///
   /// Use [DebugKitTrace.run] for scoped async tracing (recommended):
@@ -268,6 +285,33 @@ class DebugKit {
   static void openConsole(BuildContext context) {
     openDebugKitConsole(context: context);
   }
+}
+
+// ---------------------------------------------------------------------------
+// DebugKitState — generic state event API
+// ---------------------------------------------------------------------------
+
+/// The generic state-management API accessed via [DebugKit.state].
+class DebugKitState {
+  final DebugKitController _controller;
+
+  /// @nodoc — constructed by [DebugKit].
+  DebugKitState(this._controller);
+
+  /// Records a sanitized state event for the State tab.
+  void record(DebugStateEvent event) => _controller.recordStateEvent(event);
+
+  /// Clears all recorded state events.
+  void clear() => _controller.clearStateEvents();
+
+  /// Pauses state-event recording.
+  void pause() => _controller.pauseStateRecording();
+
+  /// Resumes state-event recording.
+  void resume() => _controller.resumeStateRecording();
+
+  /// Whether recording is currently paused.
+  bool get isPaused => _controller.isStateRecordingPaused;
 }
 
 // ---------------------------------------------------------------------------

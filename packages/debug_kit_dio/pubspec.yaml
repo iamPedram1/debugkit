@@ -1,6 +1,6 @@
 name: debug_kit_dio
 description: "Dio network logging adapter for DebugKit. Automatically logs requests, responses, and errors with sanitization."
-version: 0.4.1
+version: 0.5.0
 repository: https://github.com/iamPedram1/debugkit
 issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:
@@ -17,7 +17,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  debug_kit: ^0.9.0
+  debug_kit: ^0.10.0
   dio: ^5.0.0
 
 dev_dependencies:

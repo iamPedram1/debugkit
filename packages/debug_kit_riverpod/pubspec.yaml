@@ -1,6 +1,6 @@
 name: debug_kit_riverpod
-description: "Riverpod provider observer adapter for DebugKit. Automatically logs provider failures and optionally state updates with sanitization."
-version: 0.3.0
+description: "Riverpod provider observer adapter for DebugKit. Records provider state events into the State tab with sanitization and optional log mirroring."
+version: 0.4.0
 repository: https://github.com/iamPedram1/debugkit
 issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:
@@ -17,7 +17,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  debug_kit: ^0.9.0
+  debug_kit: ^0.10.0
   flutter_riverpod: ">=3.0.0 <4.0.0"
 
 dev_dependencies:

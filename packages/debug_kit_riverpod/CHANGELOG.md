@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- Added State tab integration for Riverpod provider lifecycle events.
+
+### Changed
+
+- Routed Riverpod provider lifecycle events into DebugKit's dedicated State tab by default.
+- Stopped flooding the main Logs tab with provider updates unless `mirrorStateChangesToLogs` is enabled.
+- Improved provider name resolution so explicit names are preferred, readable provider-derived fallbacks are used when possible, and `UnnamedProvider` is reserved for true last-resort cases.
+- Structured provider updates now include changed paths for JSON-like `Map` / `List` state where possible.
+- Added `recordProviderAdds`, `recordProviderUpdates`, `recordProviderDisposals`, `recordProviderErrors`, `mirrorStateChangesToLogs`, and `mirrorErrorsToLogs` configuration options.
+- Updated the package to support `debug_kit ^0.10.0`.
+
+### Notes
+
+- `logProviderUpdates` remains as a deprecated compatibility alias for `recordProviderUpdates`.
+- Provider failures still mirror into Logs by default so errors remain visible.
+- Provider values are sanitized and truncated before they reach the State tab.
+- Arbitrary Dart objects fall back to sanitized previews when a structured diff is not available.
+- The State tab keeps source metadata in event details, but it does not expose a single-source filter in the toolbar.
+
 ## 0.3.0
 
 ### Added

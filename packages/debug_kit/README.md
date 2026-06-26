@@ -15,6 +15,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Console Mirroring**: Sanitized logs print to the Flutter / IDE console by default using configurable `tiny`, `short`, `dev`, or `detailed` formats.
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
 - **Network Inspector**: A Chrome-inspired mobile-first network tab with compact, scroll-aware controls, a shared top timeline overview, color-coded method badges, tabbed detail (Overview / Headers / Request / Response / Error / Timeline), filtering, sorting, a lightweight request timeline / mini waterfall, request selection highlighting, and a slim summary strip — when `debug_kit_dio` is installed.
+- **State Tab**: A dedicated, state-management-agnostic timeline for provider and state changes so Riverpod, Bloc, Provider, and future adapters stay out of the main Logs tab. Structured Map/List updates can show inline changed-field previews in the list, with full details available on tap.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
@@ -33,7 +34,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.9.1
+  debug_kit: ^0.10.0
 ```
 
 ## 5-Minute Setup
@@ -156,17 +157,41 @@ DebugKit.log.error('Auth failed', error: e, stackTrace: s);
 DebugKit.log.userAction('Tapped checkout button');
 ```
 
-### 4. Clear Logs
+### 4. Record State Events
+
+Adapters can send framework-agnostic state events into the dedicated State tab. For JSON-like `Map` / `List` state, DebugKit can show structured changed paths and inline diff snippets instead of just whole-object previews. For arbitrary Dart objects, it falls back to sanitized truncated previews unless the adapter provides structured data. You can also record one manually from app code when you want to annotate a state change:
+
+```dart
+DebugKit.state.record(
+  DebugStateEvent(
+    id: 'manual-1',
+    timestamp: DateTime.now(),
+    source: 'app',
+    name: 'checkoutFlow',
+    eventType: DebugStateEventType.updated,
+    nextValuePreview: 'step=payment',
+  ),
+);
+```
+
+The State toolbar stays focused on search, event type filtering, pause/resume, and clear actions. Source is still stored on each event and shown in the detail view for debugging, but it is not exposed as a primary filter control.
+Search matches provider names, event types, changed paths, and preview values, so you can narrow down nested updates without opening every detail panel.
+
+### 5. Clear Logs
 
 ```dart
 DebugKit.clearLogs(); // Clears all in-memory logs
 ```
 
 ```dart
+DebugKit.clearStateEvents(); // Clears only State tab events
+```
+
+```dart
 DebugKit.clearNetworkTransactions(); // Clears only network request entries
 ```
 
-### 5. Disabled Mode
+### 6. Disabled Mode
 
 Pass `enabled: false` to completely disable DebugKit. No logs are stored, no overlay is shown, and there is zero runtime overhead:
 
@@ -180,13 +205,13 @@ Check the current state at any time:
 if (DebugKit.isEnabled) { ... }
 ```
 
-### 6. Integration Packages
+### 7. Integration Packages
 
 DebugKit relies on separate optional adapter packages to log automated events without bloating the core:
 
 - [`debug_kit_dio`](https://pub.dev/packages/debug_kit_dio) — Dio HTTP interceptor that feeds the Network Inspector
 - [`debug_kit_go_router`](https://pub.dev/packages/debug_kit_go_router) — GoRouter navigation observer
-- [`debug_kit_riverpod`](https://pub.dev/packages/debug_kit_riverpod) — Riverpod state observer
+- [`debug_kit_riverpod`](https://pub.dev/packages/debug_kit_riverpod) — Riverpod state observer that records provider changes in the State tab
 
 Check out the full [Example App](https://github.com/iamPedram1/debugkit/tree/main/examples/debug_kit_example) to see them all working together.
 

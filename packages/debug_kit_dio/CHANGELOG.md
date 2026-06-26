@@ -1,15 +1,10 @@
 # Changelog
 
-## 0.4.1
-
-### Fixed
-
-- Fixed dependency resolution with projects using `debug_kit 0.9.0`.
+## 0.5.0
 
 ### Changed
 
-- Updated the adapter to support `debug_kit ^0.9.0`.
-- Kept Dio network events flowing through DebugKit core so in-app logs, Network Inspector, and sanitized console mirroring share the same pipeline.
+- Updated the adapter to support `debug_kit ^0.10.0`.
 
 ## 0.4.0
 

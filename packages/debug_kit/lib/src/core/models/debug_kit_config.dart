@@ -82,6 +82,13 @@ class DebugKitConfig {
   /// Defaults to `200`.
   final int maxTraceEventsPerTrace;
 
+  /// Maximum number of state events kept in memory.
+  ///
+  /// State events back the dedicated State tab. When the store reaches this
+  /// limit, the oldest event is evicted first.
+  /// Defaults to `500`.
+  final int maxStateEvents;
+
   /// Duration above which a completed trace is flagged as slow by
   /// [DebugTraceAnalyzer].
   ///
@@ -176,6 +183,7 @@ class DebugKitConfig {
     this.disableDefaultOverlayButton = false,
     this.maxTraces = 50,
     this.maxTraceEventsPerTrace = 200,
+    this.maxStateEvents = 500,
     this.slowTraceThreshold = const Duration(seconds: 3),
     this.slowRequestThresholdMs = 500,
     this.groupRepeatedLogs = true,

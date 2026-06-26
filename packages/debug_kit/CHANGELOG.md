@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.10.0
+
+### Added
+- Added a dedicated, state-management-agnostic `State` tab to the DebugKit console.
+- Added `DebugStateEvent`, `DebugStateEventType`, `DebugKit.state`, and state-event storage in core.
+- Added structured state diff models so Map/List updates can highlight changed paths.
+
+### Changed
+- Riverpod provider updates now stay out of the main Logs tab by default when routed through adapter packages.
+- Updated the console layout to include Logs, State, Network, Traces, and Errors tabs.
+- Simplified the State toolbar by removing the single-source filter and keeping source as detail metadata instead.
+- Upgraded the State inspector to emphasize changed fields first, with raw previews shown as secondary context.
+- Expanded the State toolbar so search and filters use the available width more effectively on wide and narrow layouts.
+- Improved State list rows so they show inline changed-field previews instead of only a vague path summary.
+- Added state-event capacity configuration to `DebugKit.init()`.
+
+### Security
+- State previews are sanitized and truncated before storage.
+- Raw provider values are never stored or exported.
+
 ## 0.9.1
 
 ### Added

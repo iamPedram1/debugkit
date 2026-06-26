@@ -12,7 +12,27 @@ import 'package:go_router/go_router.dart';
 // --- Riverpod Providers ---
 final exampleCounterProvider = NotifierProvider<ExampleCounterNotifier, int>(
   ExampleCounterNotifier.new,
+  name: 'counterProvider',
 );
+
+final exampleAsyncRefreshProvider =
+    NotifierProvider<ExampleRefreshNotifier, int>(
+  ExampleRefreshNotifier.new,
+  name: 'asyncCounterProvider',
+);
+
+class ExampleRefreshNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void increment() => state++;
+}
+
+final exampleAsyncStateProvider = FutureProvider<String>((ref) async {
+  final refresh = ref.watch(exampleAsyncRefreshProvider);
+  await Future.delayed(const Duration(milliseconds: 650));
+  return 'Loaded async state #$refresh';
+}, name: 'asyncStateProvider');
 
 class ExampleCounterNotifier extends Notifier<int> {
   @override
@@ -23,9 +43,69 @@ class ExampleCounterNotifier extends Notifier<int> {
   }
 }
 
-final throwingProvider = Provider<String>((ref) {
-  throw Exception('Simulated Riverpod Provider Failure!');
-});
+final exampleStateErrorProvider = Provider<void>((ref) {
+  throw Exception('Simulated state error from provider');
+}, name: 'stateErrorProvider');
+
+final exampleNestedProfileProvider =
+    NotifierProvider<ExampleNestedProfileNotifier, Map<String, Object?>>(
+  ExampleNestedProfileNotifier.new,
+  name: 'nestedProfileProvider',
+);
+
+class ExampleNestedProfileNotifier extends Notifier<Map<String, Object?>> {
+  @override
+  Map<String, Object?> build() {
+    return const <String, Object?>{
+      'profile': <String, Object?>{
+        'name': 'Pedram',
+        'metadata': <String, Object?>{
+          'status': 'idle',
+          'theme': 'dark',
+          'language': 'en',
+          'layout': 'grid',
+          'notifications': true,
+          'density': 'comfortable',
+        },
+      },
+      'flags': <String, Object?>{
+        'online': true,
+        'betaUser': false,
+      },
+    };
+  }
+
+  void updateNestedKey() {
+    final profile = Map<String, Object?>.from(
+      state['profile'] as Map<String, Object?>,
+    );
+    final metadata = Map<String, Object?>.from(
+      profile['metadata'] as Map<String, Object?>,
+    );
+    metadata['status'] = metadata['status'] == 'idle' ? 'active' : 'idle';
+    profile['metadata'] = metadata;
+    state = <String, Object?>{
+      ...state,
+      'profile': profile,
+    };
+  }
+
+  void updateTwoNestedKeys() {
+    final profile = Map<String, Object?>.from(
+      state['profile'] as Map<String, Object?>,
+    );
+    final metadata = Map<String, Object?>.from(
+      profile['metadata'] as Map<String, Object?>,
+    );
+    metadata['status'] = metadata['status'] == 'idle' ? 'active' : 'idle';
+    metadata['theme'] = metadata['theme'] == 'dark' ? 'light' : 'dark';
+    profile['metadata'] = metadata;
+    state = <String, Object?>{
+      ...state,
+      'profile': profile,
+    };
+  }
+}
 
 // Global navigator key for DebugKit integration
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -41,6 +121,7 @@ void main() {
     navigatorKey: rootNavigatorKey,
     maxTraces: 50,
     maxTraceEventsPerTrace: 200,
+    maxStateEvents: 500,
     slowTraceThreshold: const Duration(seconds: 3),
     printToConsole: true,
     consolePrintFormat: DebugConsolePrintFormat.tiny,
@@ -69,8 +150,14 @@ void main() {
       observers: [
         DebugKitRiverpodObserver(
           config: const DebugKitRiverpodConfig(
-            logProviderUpdates: true,
+            recordProviderAdds: true,
+            recordProviderUpdates: true,
+            recordProviderDisposals: true,
+            recordProviderErrors: true,
+            mirrorStateChangesToLogs: false,
+            mirrorErrorsToLogs: true,
             includeValuePreview: true,
+            maxValuePreviewLength: 120,
           ),
         ),
       ],
@@ -122,6 +209,15 @@ class MyHomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final counter = ref.watch(exampleCounterProvider);
+    final asyncState = ref.watch(exampleAsyncStateProvider);
+    final nestedProfile = ref.watch(exampleNestedProfileProvider);
+    final profile = nestedProfile['profile'] as Map<String, Object?>;
+    final metadata = profile['metadata'] as Map<String, Object?>;
+    final asyncSummary = asyncState.when(
+      data: (value) => value,
+      loading: () => 'Loading async state...',
+      error: (error, _) => 'Async error: $error',
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('DebugKit Showcase')),
@@ -242,19 +338,70 @@ class MyHomePage extends ConsumerWidget {
             _SectionTitle('State (Riverpod)'),
             Text('Counter: $counter', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
+            Text(
+              'Async: $asyncSummary',
+              style: const TextStyle(fontSize: 16),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nested: ${metadata['status']} • ${nestedProfile['flags']}',
+              style: const TextStyle(fontSize: 16),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
             Wrap(spacing: 8, runSpacing: 8, children: [
               ElevatedButton(
                 onPressed: () =>
                     ref.read(exampleCounterProvider.notifier).increment(),
-                child: const Text('Update Provider'),
+                child: const Text('Increment State'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    ref.read(exampleAsyncRefreshProvider.notifier).increment(),
+                child: const Text('Trigger Async State'),
               ),
               ElevatedButton(
                 onPressed: () {
                   try {
-                    ref.read(throwingProvider);
+                    ref.read(exampleStateErrorProvider);
                   } catch (_) {}
                 },
-                child: const Text('Trigger Failure'),
+                child: const Text('Trigger State Error'),
+              ),
+              ActionChip(
+                label: const Text('Update Nested Key'),
+                onPressed: () => ref
+                    .read(exampleNestedProfileProvider.notifier)
+                    .updateNestedKey(),
+              ),
+              ActionChip(
+                label: const Text('Update 2 Nested Keys'),
+                onPressed: () => ref
+                    .read(exampleNestedProfileProvider.notifier)
+                    .updateTwoNestedKeys(),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  DebugKit.state.record(
+                    DebugStateEvent(
+                      id: 'manual-state-${DateTime.now().millisecondsSinceEpoch}',
+                      timestamp: DateTime.now(),
+                      source: 'app',
+                      name: 'manualAnnotation',
+                      eventType: DebugStateEventType.updated,
+                      nextValuePreview: 'user_tapped_button',
+                      metadata: {'screen': 'example_home'},
+                    ),
+                  );
+                },
+                child: const Text('Record Custom State'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.open(),
+                child: const Text('Open DebugKit'),
               ),
             ]),
             const Divider(height: 32),
@@ -265,6 +412,10 @@ class MyHomePage extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () => DebugKit.clearLogs(),
                 child: const Text('Clear Logs'),
+              ),
+              ElevatedButton(
+                onPressed: () => DebugKit.clearStateEvents(),
+                child: const Text('Clear State'),
               ),
               ElevatedButton(
                 onPressed: () => DebugKit.clearTraces(),

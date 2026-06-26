@@ -14,6 +14,7 @@ import '../widgets/debug_trace_status_badge.dart';
 import 'debug_trace_detail_screen.dart';
 import 'debug_error_digest_screen.dart';
 import 'debug_network_inspector_screen.dart';
+import 'debug_state_inspector_screen.dart';
 
 class DebugKitConsoleScreen extends StatefulWidget {
   const DebugKitConsoleScreen({super.key});
@@ -30,7 +31,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -45,6 +46,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
       listenable: Listenable.merge([
         DebugKitController().store,
         DebugKitController().traceStore,
+        DebugKitController().stateStore,
       ]),
       builder: (context, _) {
         final allLogs = DebugKitController().store.logs;
@@ -72,6 +74,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
                 ),
                 Text(
                   '$totalCount ${totalCount == 1 ? 'entry' : 'entries'}'
+                  '  ·  ${DebugKitController().stateStore.events.length} state'
                   '  ·  ${allTraces.length} ${allTraces.length == 1 ? 'trace' : 'traces'}'
                   '  ·  ${networkSummary.totalRequests} network',
                   style: TextStyle(
@@ -123,6 +126,7 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
               ),
               tabs: const [
                 Tab(text: 'Logs'),
+                Tab(text: 'State'),
                 Tab(text: 'Network'),
                 Tab(text: 'Traces'),
                 Tab(text: 'Errors'),
@@ -152,6 +156,9 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
                   ),
                 ],
               ),
+
+              // --- State tab ---
+              const DebugStateInspectorScreen(),
 
               // --- Network tab ---
               const DebugNetworkSummaryScreen(),

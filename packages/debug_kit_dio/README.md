@@ -10,8 +10,8 @@ Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.9.1
-  debug_kit_dio: ^0.4.1
+  debug_kit: ^0.10.0
+  debug_kit_dio: ^0.5.0
 ```
 
 ## Setup
@@ -124,7 +124,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 | `debug_kit_dio` | `debug_kit` |
 |---|---|
-| 0.4.1 | ^0.9.1 |
+| 0.5.0 | ^0.10.0 |
 
 ## License
 
