@@ -155,7 +155,7 @@ void main() {
 
   test('state previews are sanitized and truncated', () {
     const privateKey =
-        '0x1234567890123456789012345678901234567890123456789012345678901234';
+        '-----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----';
     DebugKit.state.record(
       DebugStateEvent(
         id: 'state_1',
@@ -171,6 +171,31 @@ void main() {
     expect(event.nextValuePreview, isNot(contains('abc123secret')));
     expect(event.nextValuePreview, contains('[REDACTED PRIVATE KEY]'));
     expect(event.nextValuePreview!.length, lessThanOrEqualTo(503));
+  });
+
+  test('state recording honors sanitizer config', () {
+    DebugKit.init(
+      enabled: true,
+      printToConsole: false,
+      sanitizer: const DebugKitSanitizerConfig(
+        dangerouslyDisableSanitizer: true,
+      ),
+    );
+
+    const raw =
+        'token=secret123 password=my_password -----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----';
+    DebugKit.state.record(
+      DebugStateEvent(
+        id: 'state_raw',
+        timestamp: DateTime.now(),
+        source: 'app',
+        name: 'rawState',
+        eventType: DebugStateEventType.updated,
+        nextValuePreview: raw,
+      ),
+    );
+
+    expect(DebugKit.controller.stateStore.events.single.nextValuePreview, raw);
   });
 
   test('state diff builder detects nested map changes', () {
@@ -258,9 +283,9 @@ void main() {
 
   test('state diff builder redacts secrets in previews', () {
     const privateKey =
-        '0x1234567890123456789012345678901234567890123456789012345678901234';
+        '-----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----';
     const rotatedKey =
-        '0x2234567890123456789012345678901234567890123456789012345678901234';
+        '-----BEGIN RSA PRIVATE KEY-----\nxyz789\n-----END RSA PRIVATE KEY-----';
     final diffs = DebugStateDiffBuilder.build(
       {'key': privateKey},
       {'key': rotatedKey},

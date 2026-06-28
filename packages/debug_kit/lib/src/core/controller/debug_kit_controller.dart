@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/debug_console_print_format.dart';
 import '../models/debug_kit_config.dart';
+import '../models/debug_kit_sanitizer_config.dart';
 import '../debug_console_printer.dart';
 import '../models/debug_error_digest.dart';
 import '../models/debug_log_entry.dart';
@@ -40,6 +41,7 @@ class DebugKitController extends ChangeNotifier {
     _traceController = DebugTraceController(
       store: _traceStore,
       isEnabled: () => _config.enabled,
+      sanitizerConfig: _config.sanitizer,
       consolePrinter: _consolePrinter,
     );
   }
@@ -138,6 +140,7 @@ class DebugKitController extends ChangeNotifier {
     bool printRiverpodLogs = true,
     bool printTraceLogs = true,
     bool printErrorLogs = true,
+    DebugKitSanitizerConfig sanitizer = const DebugKitSanitizerConfig(),
     DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
     bool colorizeConsoleOutput = true,
     int maxStateEvents = 500,
@@ -161,6 +164,7 @@ class DebugKitController extends ChangeNotifier {
       printRiverpodLogs: printRiverpodLogs,
       printTraceLogs: printTraceLogs,
       printErrorLogs: printErrorLogs,
+      sanitizer: sanitizer,
       consolePrintFormat: consolePrintFormat,
       colorizeConsoleOutput: colorizeConsoleOutput,
       maxStateEvents: maxStateEvents,
@@ -175,6 +179,7 @@ class DebugKitController extends ChangeNotifier {
     _traceController = DebugTraceController(
       store: _traceStore,
       isEnabled: () => _config.enabled,
+      sanitizerConfig: _config.sanitizer,
       consolePrinter: _consolePrinter,
     );
     _stateRecordingPaused = false;
@@ -241,11 +246,14 @@ class DebugKitController extends ChangeNotifier {
   }) {
     if (!_config.enabled) return;
 
-    final sanitizedMessage = DebugLogSanitizer.sanitizeMessage(message);
-    final sanitizedError =
-        error != null ? DebugLogSanitizer.sanitizeMessage(error) : null;
+    final sanitizer = _config.sanitizer;
+    final sanitizedMessage =
+        DebugLogSanitizer.sanitizeMessage(message, config: sanitizer);
+    final sanitizedError = error != null
+        ? DebugLogSanitizer.sanitizeMessage(error, config: sanitizer)
+        : null;
     final sanitizedTraceName = traceName != null
-        ? DebugLogSanitizer.sanitizeMessage(traceName)
+        ? DebugLogSanitizer.sanitizeMessage(traceName, config: sanitizer)
         : _traceController.activeTraceName;
 
     // Resolve trace context from Zone if not explicitly provided
@@ -264,9 +272,12 @@ class DebugKitController extends ChangeNotifier {
       message: sanitizedMessage,
       timestamp: DateTime.now(),
       error: sanitizedError,
-      stackTrace: DebugLogSanitizer.trimStackTrace(stackTrace?.toString()),
+      stackTrace: DebugLogSanitizer.trimStackTrace(
+        stackTrace?.toString(),
+        config: sanitizer,
+      ),
       location: location,
-      metadata: DebugLogSanitizer.sanitizeMetadata(metadata),
+      metadata: DebugLogSanitizer.sanitizeMetadata(metadata, config: sanitizer),
       requestId: requestId,
       traceId: resolvedTraceId,
       traceName: resolvedTraceName,
@@ -298,10 +309,19 @@ class DebugKitController extends ChangeNotifier {
     final sanitized = DebugStateEvent(
       id: event.id.isEmpty ? 'state_${_stateStore.getNextId()}' : event.id,
       timestamp: event.timestamp,
-      source: DebugLogSanitizer.sanitizeMessage(event.source),
-      name: DebugLogSanitizer.sanitizeMessage(event.name),
+      source: DebugLogSanitizer.sanitizeMessage(
+        event.source,
+        config: _config.sanitizer,
+      ),
+      name: DebugLogSanitizer.sanitizeMessage(
+        event.name,
+        config: _config.sanitizer,
+      ),
       type: event.type != null
-          ? DebugLogSanitizer.sanitizeMessage(event.type!)
+          ? DebugLogSanitizer.sanitizeMessage(
+              event.type!,
+              config: _config.sanitizer,
+            )
           : null,
       eventType: event.eventType,
       previousValuePreview: _sanitizeStatePreview(event.previousValuePreview),
@@ -309,10 +329,19 @@ class DebugKitController extends ChangeNotifier {
       diffPreview: _sanitizeStatePreview(event.diffPreview),
       changes: _sanitizeStateChanges(event.changes),
       error: event.error != null
-          ? DebugLogSanitizer.sanitizeMessage(event.error!)
+          ? DebugLogSanitizer.sanitizeMessage(
+              event.error!,
+              config: _config.sanitizer,
+            )
           : null,
-      stackTrace: DebugLogSanitizer.trimStackTrace(event.stackTrace),
-      metadata: DebugLogSanitizer.sanitizeMetadata(event.metadata),
+      stackTrace: DebugLogSanitizer.trimStackTrace(
+        event.stackTrace,
+        config: _config.sanitizer,
+      ),
+      metadata: DebugLogSanitizer.sanitizeMetadata(
+        event.metadata,
+        config: _config.sanitizer,
+      ),
     );
 
     _stateStore.addEvent(sanitized);
@@ -541,7 +570,10 @@ class DebugKitController extends ChangeNotifier {
 
   String? _sanitizeStatePreview(String? value) {
     if (value == null) return null;
-    final sanitized = DebugLogSanitizer.sanitizeMessage(value);
+    final sanitizer = _config.sanitizer;
+    final sanitized =
+        DebugLogSanitizer.sanitizeMessage(value, config: sanitizer);
+    if (sanitizer.dangerouslyDisableSanitizer) return sanitized;
     const maxLength = 500;
     if (sanitized.length <= maxLength) return sanitized;
     return '${sanitized.substring(0, maxLength)}...';
@@ -551,10 +583,25 @@ class DebugKitController extends ChangeNotifier {
     List<DebugStateDiffEntry> changes,
   ) {
     if (changes.isEmpty) return const [];
+    if (_config.sanitizer.dangerouslyDisableSanitizer) {
+      return changes
+          .map(
+            (entry) => DebugStateDiffEntry(
+              path: entry.path,
+              type: entry.type,
+              previousValuePreview: entry.previousValuePreview,
+              nextValuePreview: entry.nextValuePreview,
+            ),
+          )
+          .toList(growable: false);
+    }
     return changes
         .map(
           (entry) => DebugStateDiffEntry(
-            path: DebugLogSanitizer.sanitizeMessage(entry.path),
+            path: DebugLogSanitizer.sanitizeMessage(
+              entry.path,
+              config: _config.sanitizer,
+            ),
             type: entry.type,
             previousValuePreview:
                 _sanitizeStatePreview(entry.previousValuePreview),

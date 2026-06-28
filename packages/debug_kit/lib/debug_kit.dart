@@ -19,6 +19,7 @@ import 'src/core/controller/debug_kit_controller.dart';
 export 'src/core/controller/debug_kit_controller.dart';
 import 'src/core/models/debug_error_digest.dart';
 import 'src/core/models/debug_console_print_format.dart';
+import 'src/core/models/debug_kit_sanitizer_config.dart';
 import 'src/core/models/debug_log_level.dart';
 import 'src/core/models/debug_log_source.dart';
 import 'src/core/models/debug_state_event.dart';
@@ -29,6 +30,7 @@ import 'src/ui/overlay/debug_kit_console_launcher.dart';
 export 'src/core/models/debug_log_level.dart';
 export 'src/core/models/debug_log_source.dart';
 export 'src/core/models/debug_console_print_format.dart';
+export 'src/core/models/debug_kit_sanitizer_config.dart';
 export 'src/core/models/debug_log_entry.dart';
 export 'src/core/models/debug_state_diff_entry.dart';
 export 'src/core/models/debug_state_diff_type.dart';
@@ -111,6 +113,8 @@ class DebugKit {
   ///   single row with a `×N` repeat badge. Defaults to `true`.
   /// - [printToConsole]: mirror sanitized logs to the Flutter / IDE console.
   ///   Defaults to `true`.
+  /// - [sanitizer]: controls redaction behavior. Defaults to a secure
+  ///   configuration with all sanitizer categories enabled.
   /// - [consolePrintFormat]: output style used for console mirroring.
   ///   Defaults to [DebugConsolePrintFormat.dev].
   /// - [colorizeConsoleOutput]: whether terminal output uses ANSI colors.
@@ -135,6 +139,7 @@ class DebugKit {
     bool printRiverpodLogs = true,
     bool printTraceLogs = true,
     bool printErrorLogs = true,
+    DebugKitSanitizerConfig sanitizer = const DebugKitSanitizerConfig(),
     DebugConsolePrintFormat consolePrintFormat = DebugConsolePrintFormat.dev,
     bool colorizeConsoleOutput = true,
     int maxStateEvents = 500,
@@ -160,6 +165,7 @@ class DebugKit {
       printRiverpodLogs: printRiverpodLogs,
       printTraceLogs: printTraceLogs,
       printErrorLogs: printErrorLogs,
+      sanitizer: sanitizer,
       consolePrintFormat: consolePrintFormat,
       colorizeConsoleOutput: colorizeConsoleOutput,
       maxStateEvents: maxStateEvents,

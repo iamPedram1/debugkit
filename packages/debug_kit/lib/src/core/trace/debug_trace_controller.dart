@@ -6,6 +6,7 @@ import '../models/debug_trace_status.dart';
 import '../store/debug_trace_store.dart';
 import '../debug_console_printer.dart';
 import '../../utils/sanitizer/debug_log_sanitizer.dart';
+import '../models/debug_kit_sanitizer_config.dart';
 
 /// Zone key used to propagate the active trace ID through async call stacks.
 ///
@@ -39,6 +40,7 @@ const Symbol debugKitActiveTraceNameKey = #debugKitActiveTraceName;
 class DebugTraceController {
   final DebugTraceStore _store;
   final DebugConsolePrinter? _consolePrinter;
+  final DebugKitSanitizerConfig _sanitizerConfig;
 
   /// Callback that returns the current enabled state of DebugKit.
   ///
@@ -56,9 +58,11 @@ class DebugTraceController {
   DebugTraceController({
     required DebugTraceStore store,
     required bool Function() isEnabled,
+    DebugKitSanitizerConfig sanitizerConfig = const DebugKitSanitizerConfig(),
     DebugConsolePrinter? consolePrinter,
   })  : _store = store,
         _isEnabled = isEnabled,
+        _sanitizerConfig = sanitizerConfig,
         _consolePrinter = consolePrinter;
 
   /// The [DebugTraceStore] owned by this controller.
@@ -109,7 +113,8 @@ class DebugTraceController {
 
     final id = _nextTraceId();
     final parentId = activeTraceId;
-    final sanitizedName = DebugLogSanitizer.sanitizeMessage(name);
+    final sanitizedName =
+        DebugLogSanitizer.sanitizeMessage(name, config: _sanitizerConfig);
     final sanitizedMetadata = _sanitizeMetadata(metadata);
     final startedAt = DateTime.now();
 
@@ -148,7 +153,8 @@ class DebugTraceController {
     if (!_isEnabled()) return;
     final id = traceId ?? activeTraceId;
     if (id == null || id.isEmpty) return;
-    final sanitizedName = DebugLogSanitizer.sanitizeMessage(name);
+    final sanitizedName =
+        DebugLogSanitizer.sanitizeMessage(name, config: _sanitizerConfig);
     final sanitizedMetadata = _sanitizeMetadata(metadata);
     final traceName = _store.getTraceById(id)?.name ?? activeTraceName ?? id;
 
@@ -209,7 +215,10 @@ class DebugTraceController {
     final endedAt = DateTime.now();
 
     final sanitizedError = error != null
-        ? DebugLogSanitizer.sanitizeMessage(error.toString())
+        ? DebugLogSanitizer.sanitizeMessage(
+            error.toString(),
+            config: _sanitizerConfig,
+          )
         : null;
 
     _addEvent(
@@ -254,7 +263,10 @@ class DebugTraceController {
     if (reason != null) {
       _addEvent(
         traceId: id,
-        message: DebugLogSanitizer.sanitizeMessage(reason),
+        message: DebugLogSanitizer.sanitizeMessage(
+          reason,
+          config: _sanitizerConfig,
+        ),
         type: DebugTraceEventType.custom,
         metadata: {'reason': 'cancelled'},
       );
@@ -268,8 +280,12 @@ class DebugTraceController {
         traceId: id,
         startedAt: trace.startedAt,
         endedAt: endedAt,
-        error:
-            reason == null ? null : DebugLogSanitizer.sanitizeMessage(reason),
+        error: reason == null
+            ? null
+            : DebugLogSanitizer.sanitizeMessage(
+                reason,
+                config: _sanitizerConfig,
+              ),
         metadata: trace.metadata,
       );
     }
@@ -309,7 +325,8 @@ class DebugTraceController {
   }) async {
     if (!_isEnabled()) return callback();
 
-    final sanitizedName = DebugLogSanitizer.sanitizeMessage(name);
+    final sanitizedName =
+        DebugLogSanitizer.sanitizeMessage(name, config: _sanitizerConfig);
     final traceId = start(sanitizedName, metadata: metadata);
     if (traceId.isEmpty) return callback();
 
@@ -450,12 +467,17 @@ class DebugTraceController {
     final event = DebugTraceEvent(
       id: _nextEventId(),
       traceId: traceId,
-      message: DebugLogSanitizer.sanitizeMessage(message),
+      message: DebugLogSanitizer.sanitizeMessage(
+        message,
+        config: _sanitizerConfig,
+      ),
       type: type,
       timestamp: DateTime.now(),
       durationMs: durationMs,
       metadata: _sanitizeMetadata(metadata),
-      error: error != null ? DebugLogSanitizer.sanitizeMessage(error) : null,
+      error: error != null
+          ? DebugLogSanitizer.sanitizeMessage(error, config: _sanitizerConfig)
+          : null,
       requestId: requestId,
     );
     _store.addEvent(traceId, event);
@@ -468,6 +490,9 @@ class DebugTraceController {
   String _nextEventId() => 'evt_${++_eventIdCounter}';
 
   Map<String, String>? _sanitizeMetadata(Map<String, String>? metadata) {
-    return DebugLogSanitizer.sanitizeMetadata(metadata);
+    return DebugLogSanitizer.sanitizeMetadata(
+      metadata,
+      config: _sanitizerConfig,
+    );
   }
 }

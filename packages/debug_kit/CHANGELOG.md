@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.1
+
+### Changed
+- Added `DebugKitSanitizerConfig` so sanitizer behavior can be tuned per category from `DebugKit.init()`.
+- Narrowed private-key redaction to explicit PEM/private-key blocks so hash-like values stay readable.
+- Added a dangerous global sanitizer disable escape hatch for trusted local development only.
+
+### Security
+- Hashes, checksums, canonical hash values, and UUID-like identifiers are no longer treated as private keys by default.
+- PEM private keys and mnemonic phrases remain redacted by default.
+- Disabling sanitizer rules can expose secrets in the console, exports, and shared logs.
+
 ## 0.10.0
 
 ### Added

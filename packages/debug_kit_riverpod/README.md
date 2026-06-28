@@ -11,7 +11,7 @@ Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.0
+  debug_kit: ^0.10.1
   debug_kit_riverpod: ^0.4.0
   flutter_riverpod: ^3.0.0
 ```
@@ -39,7 +39,7 @@ void main() {
 }
 ```
 
-This release line is for Riverpod 3 projects and supports `debug_kit ^0.10.0`.
+This release line is for Riverpod 3 projects and supports `debug_kit ^0.10.1`.
 DebugKit handles in-app logs, traces, and the new generic State tab in core.
 
 ## Configuration
@@ -84,6 +84,7 @@ The adapter also records structured diffs for provider updates when possible. Fo
 - Value previews are passed through the DebugKit core sanitizer before storage. Obvious secrets (tokens, passwords, API keys) in `toString()` output are masked.
 - Previews are truncated at `maxValuePreviewLength` (default 500 chars).
 - If `toString()` throws, the preview is replaced with `[Un-stringifyable Object]`.
+- Preview sanitization honors the core `DebugKitSanitizerConfig` passed to `DebugKit.init()`.
 
 > **Warning:** If a model's `toString()` returns raw PII that does not contain obvious secret keywords, it may appear in the preview. Keep `includeValuePreview: false` in production builds.
 
@@ -116,7 +117,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 
 | `debug_kit_riverpod` | `debug_kit` | `flutter_riverpod` |
 |---|---|---|
-| 0.4.0 | ^0.10.0 | 3.x |
+| 0.4.0 | ^0.10.1 | 3.x |
 | 0.2.3 | ^0.9.1 | 2.x |
 
 ## License

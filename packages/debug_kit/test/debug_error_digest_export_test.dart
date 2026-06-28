@@ -92,7 +92,7 @@ void main() {
       controller.init(enabled: true);
 
       // Use a pattern the sanitizer explicitly masks: "token is: value"
-      // and a private key (64-char hex) which gets fully redacted
+      // and a PEM private key block which gets fully redacted
       controller.error(
         'token is: abc123secret',
         error: Exception('Auth failed'),

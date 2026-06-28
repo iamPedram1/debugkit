@@ -57,19 +57,24 @@ class DebugKitDioInterceptor extends Interceptor {
     }
 
     final method = options.method.toUpperCase();
-    final sanitizedUrl =
-        DioLogSanitizerHelpers.sanitizeUrl(options.uri.toString());
+    final sanitizerConfig = _controller.config.sanitizer;
+    final sanitizedUrl = DioLogSanitizerHelpers.sanitizeUrlWithConfig(
+      options.uri.toString(),
+      config: sanitizerConfig,
+    );
     final requestHeadersPreview =
         DioLogSanitizerHelpers.buildRequestHeadersPreview(
       options.headers,
       captureHeaders: config.captureRequestHeaders,
       maxPreviewChars: config.maxBodyPreviewChars,
+      config: sanitizerConfig,
     );
     final requestBodyPreview = DioLogSanitizerHelpers.buildBodyPreview(
       options.data,
       captureBody: config.captureRequestBody,
       maxCaptureBytes: config.maxCaptureBytes,
       maxPreviewChars: config.maxBodyPreviewChars,
+      config: sanitizerConfig,
     );
     final path = options.uri.path.isEmpty ? '/' : options.uri.path;
     final parsedSanitizedUri = Uri.tryParse(sanitizedUrl);
@@ -122,6 +127,8 @@ class DebugKitDioInterceptor extends Interceptor {
       return super.onResponse(response, handler);
     }
 
+    final sanitizerConfig = _controller.config.sanitizer;
+
     final requestId =
         response.requestOptions.extra['debugKitRequestId'] as String?;
     if (requestId != null) {
@@ -132,8 +139,10 @@ class DebugKitDioInterceptor extends Interceptor {
       final durationStr = durationMs != null ? '${durationMs}ms' : '';
 
       final method = response.requestOptions.method.toUpperCase();
-      final url = DioLogSanitizerHelpers.sanitizeUrl(
-          response.requestOptions.uri.toString());
+      final url = DioLogSanitizerHelpers.sanitizeUrlWithConfig(
+        response.requestOptions.uri.toString(),
+        config: sanitizerConfig,
+      );
       final path = response.requestOptions.uri.path.isEmpty
           ? '/'
           : response.requestOptions.uri.path;
@@ -148,18 +157,21 @@ class DebugKitDioInterceptor extends Interceptor {
       final backendMetadata =
           DioLogSanitizerHelpers.extractBackendCorrelationHeaders(
         response.headers.map,
+        config: sanitizerConfig,
       );
       final responseHeadersPreview =
           DioLogSanitizerHelpers.buildResponseHeadersPreview(
         response.headers.map,
         captureHeaders: config.captureResponseHeaders,
         maxPreviewChars: config.maxBodyPreviewChars,
+        config: sanitizerConfig,
       );
       final responseBodyPreview = DioLogSanitizerHelpers.buildBodyPreview(
         response.data,
         captureBody: config.captureResponseBody,
         maxCaptureBytes: config.maxCaptureBytes,
         maxPreviewChars: config.maxBodyPreviewChars,
+        config: sanitizerConfig,
       );
 
       final traceId =
@@ -230,6 +242,8 @@ class DebugKitDioInterceptor extends Interceptor {
       return super.onError(err, handler);
     }
 
+    final sanitizerConfig = _controller.config.sanitizer;
+
     final requestId = err.requestOptions.extra['debugKitRequestId'] as String?;
     if (requestId != null) {
       final startedAt = err.requestOptions.extra['debugKitStartedAt'] as int?;
@@ -238,8 +252,10 @@ class DebugKitDioInterceptor extends Interceptor {
       final durationStr = durationMs != null ? '${durationMs}ms' : '';
 
       final method = err.requestOptions.method.toUpperCase();
-      final url =
-          DioLogSanitizerHelpers.sanitizeUrl(err.requestOptions.uri.toString());
+      final url = DioLogSanitizerHelpers.sanitizeUrlWithConfig(
+        err.requestOptions.uri.toString(),
+        config: sanitizerConfig,
+      );
       final path = err.requestOptions.uri.path.isEmpty
           ? '/'
           : err.requestOptions.uri.path;
@@ -257,6 +273,7 @@ class DebugKitDioInterceptor extends Interceptor {
       final backendMetadata = err.response != null
           ? DioLogSanitizerHelpers.extractBackendCorrelationHeaders(
               err.response!.headers.map,
+              config: sanitizerConfig,
             )
           : <String, String>{};
       final responseHeadersPreview = err.response != null
@@ -264,6 +281,7 @@ class DebugKitDioInterceptor extends Interceptor {
               err.response!.headers.map,
               captureHeaders: config.captureResponseHeaders,
               maxPreviewChars: config.maxBodyPreviewChars,
+              config: sanitizerConfig,
             )
           : null;
       final responseBodyPreview = err.response != null
@@ -272,13 +290,19 @@ class DebugKitDioInterceptor extends Interceptor {
               captureBody: config.captureResponseBody,
               maxCaptureBytes: config.maxCaptureBytes,
               maxPreviewChars: config.maxBodyPreviewChars,
+              config: sanitizerConfig,
             )
           : null;
       final errorMessage = DebugLogSanitizer.sanitizeMessage(
         err.message ?? err.error?.toString() ?? err.toString(),
+        config: sanitizerConfig,
       );
       final sanitizedStackTrace = DebugLogSanitizer.trimStackTrace(
-        DebugLogSanitizer.sanitizeMessage(err.stackTrace.toString()),
+        DebugLogSanitizer.sanitizeMessage(
+          err.stackTrace.toString(),
+          config: sanitizerConfig,
+        ),
+        config: sanitizerConfig,
       );
 
       final traceId = err.requestOptions.extra['debugKitTraceId'] as String?;

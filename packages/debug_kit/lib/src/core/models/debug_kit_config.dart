@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'debug_console_print_format.dart';
+import 'debug_kit_sanitizer_config.dart';
 
 /// Immutable configuration snapshot used by [DebugKitController].
 ///
@@ -128,6 +129,11 @@ class DebugKitConfig {
   /// Defaults to `true`.
   final bool printToConsole;
 
+  /// Sanitizer controls used by the logging, state, trace, and adapter paths.
+  ///
+  /// Defaults to a secure configuration that keeps redaction enabled.
+  final DebugKitSanitizerConfig sanitizer;
+
   /// Whether manually emitted app logs should be mirrored to the console.
   ///
   /// Applies to [DebugLogSource.app] and [DebugLogSource.userAction].
@@ -196,5 +202,6 @@ class DebugKitConfig {
     this.printErrorLogs = true,
     this.consolePrintFormat = DebugConsolePrintFormat.dev,
     this.colorizeConsoleOutput = true,
+    this.sanitizer = const DebugKitSanitizerConfig(),
   });
 }

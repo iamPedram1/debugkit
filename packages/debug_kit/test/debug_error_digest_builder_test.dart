@@ -441,7 +441,7 @@ void main() {
       controller.init(enabled: true);
 
       const privateKey =
-          '0x1234567890123456789012345678901234567890123456789012345678901234';
+          '-----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----';
       controller.error('key=$privateKey', error: Exception('Auth failed'));
 
       final digest = controller.buildErrorDigest();

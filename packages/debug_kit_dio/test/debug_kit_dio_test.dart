@@ -236,6 +236,42 @@ void main() {
     expect(log.responsePreview, isNull);
   });
 
+  test('respects disabled sanitizer config', () async {
+    controller.init(
+      enabled: true,
+      printToConsole: false,
+      sanitizer: const DebugKitSanitizerConfig(
+        dangerouslyDisableSanitizer: true,
+      ),
+    );
+
+    dio.httpClientAdapter = MockAdapter(
+      ResponseBody.fromString('{"status":"ok"}', 200),
+    );
+    dio.interceptors.add(
+      DebugKitDioInterceptor(
+        controller,
+        config: const DebugKitDioConfig(
+          captureRequestHeaders: true,
+          captureRequestBody: true,
+        ),
+      ),
+    );
+
+    await dio.post(
+      'https://api.example.com/users?token=secret123',
+      data: {'password': 'super-secret'},
+      options: Options(
+        headers: {'Authorization': 'Bearer raw-token'},
+      ),
+    );
+
+    final log = controller.store.logs.first;
+    expect(log.message, contains('token=secret123'));
+    expect(log.metadata?['requestHeadersPreview'], contains('raw-token'));
+    expect(log.metadata?['requestBodyPreview'], contains('super-secret'));
+  });
+
   test('captures safe previews only when explicitly enabled', () async {
     dio.httpClientAdapter = MockAdapter(
       ResponseBody.fromString('{"ok":true}', 200, headers: {

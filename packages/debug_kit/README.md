@@ -16,7 +16,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **Error Digest**: Groups repeated and related errors into a digest so you can immediately see what failed, how often, and where — without scrolling through raw logs.
 - **Network Inspector**: A Chrome-inspired mobile-first network tab with compact, scroll-aware controls, a shared top timeline overview, color-coded method badges, tabbed detail (Overview / Headers / Request / Response / Error / Timeline), filtering, sorting, a lightweight request timeline / mini waterfall, request selection highlighting, and a slim summary strip — when `debug_kit_dio` is installed.
 - **State Tab**: A dedicated, state-management-agnostic timeline for provider and state changes so Riverpod, Bloc, Provider, and future adapters stay out of the main Logs tab. Structured Map/List updates can show inline changed-field previews in the list, with full details available on tap.
-- **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, Private Keys, Mnemonics).
+- **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, PEM Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
 - **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
 - **Trace System**: Named async traces with timeline, health analysis, and correlation to logs, network, navigation, and state events.
@@ -34,7 +34,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.0
+  debug_kit: ^0.10.1
 ```
 
 ## 5-Minute Setup
@@ -45,12 +45,13 @@ Call `DebugKit.init()` in your `main()` function before `runApp`:
 
 ```dart
 void main() {
-  DebugKit.init(
-    enabled: true, // Use kDebugMode in production apps
-    maxLogs: 300,
-    printToConsole: true,
-    consolePrintFormat: DebugConsolePrintFormat.dev,
-  );
+DebugKit.init(
+  enabled: true, // Use kDebugMode in production apps
+  maxLogs: 300,
+  printToConsole: true,
+  consolePrintFormat: DebugConsolePrintFormat.dev,
+  sanitizer: const DebugKitSanitizerConfig(),
+);
   runApp(const MyApp());
 }
 ```
@@ -77,6 +78,30 @@ Supported console formats:
 - `detailed` - multi-line structured output for diagnostics and copy/paste reports
 
 Colorization is terminal-only and enabled by default. Disable it with `colorizeConsoleOutput: false` if you prefer plain text.
+
+DebugKit keeps sanitization enabled by default. You can disable one category at a time when you need more signal during trusted debugging sessions:
+
+```dart
+DebugKit.init(
+  enabled: true,
+  sanitizer: const DebugKitSanitizerConfig(
+    redactPrivateKeys: false,
+  ),
+);
+```
+
+You can also disable every sanitizer rule, but this is only safe in trusted local development:
+
+```dart
+DebugKit.init(
+  enabled: true,
+  sanitizer: const DebugKitSanitizerConfig(
+    dangerouslyDisableSanitizer: true,
+  ),
+);
+```
+
+Only use `dangerouslyDisableSanitizer` in trusted local development sessions. Never enable it in production, QA builds shared with external testers, or logs that may be exported.
 
 Format guide:
 
@@ -304,12 +329,15 @@ DebugKit uses conservative best-effort sanitization to protect sensitive informa
   - Very short values (≤ 3 chars) are fully masked as `***`.
   - Longer values preserve a few start and end characters for context (e.g., `abc123secret` → `ab********et`).
 - **Natural Language Protection**: Detects and masks secrets in plain text like `User password is: my_secret` or `token=my_token`.
-- **Full Redaction**: High-risk secrets like private keys (64-char hex) and explicitly labeled mnemonic phrases are fully replaced with `[REDACTED PRIVATE KEY]` / `[REDACTED MNEMONIC]`.
+- **Full Redaction**: PEM private key blocks and explicitly labeled mnemonic phrases are fully replaced with `[REDACTED PRIVATE KEY]` / `[REDACTED MNEMONIC]`.
 - **Metadata Sanitization**: Metadata keys like `api_key` or `secret` are automatically sanitized.
 - **Offline & Local**: DebugKit is strictly local. Logs are only stored in memory and never sent to any server.
 
+Hashes, checksums, canonical hash values, and UUID-like identifiers are not treated as private keys by default.
+
 > [!IMPORTANT]
 > While DebugKit provides robust automatic sanitization, developers should still avoid intentionally logging raw production secrets.
+> Disabling sanitizer rules can expose secrets in the in-app console, Flutter / IDE console mirroring, exported logs, and shared bug reports.
 
 ## Error Digest
 

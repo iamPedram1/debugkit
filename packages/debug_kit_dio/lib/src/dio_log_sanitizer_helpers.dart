@@ -35,9 +35,16 @@ class DioLogSanitizerHelpers {
   /// Example: `https://api.example.com/users?token=secret` →
   /// `https://api.example.com/users?token=se*****et`
   static String sanitizeUrl(String url) {
+    return sanitizeUrlWithConfig(url);
+  }
+
+  static String sanitizeUrlWithConfig(
+    String url, {
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
+  }) {
     try {
       final uri = Uri.parse(url);
-      return DebugLogSanitizer.sanitizeUri(uri);
+      return DebugLogSanitizer.sanitizeUri(uri, config: config);
     } catch (_) {
       return url;
     }
@@ -52,7 +59,14 @@ class DioLogSanitizerHelpers {
   /// - `Authorization`, `Cookie`, `Set-Cookie`
   /// - `X-Auth-Token`, `X-Api-Key`
   static Map<String, String> sanitizeHeaders(Map<String, dynamic> headers) {
-    return DebugLogSanitizer.sanitizeHeaders(headers);
+    return sanitizeHeadersWithConfig(headers);
+  }
+
+  static Map<String, String> sanitizeHeadersWithConfig(
+    Map<String, dynamic> headers, {
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
+  }) {
+    return DebugLogSanitizer.sanitizeHeaders(headers, config: config);
   }
 
   /// Extracts allowlisted backend correlation IDs from response headers.
@@ -60,8 +74,9 @@ class DioLogSanitizerHelpers {
   /// Only captures the first non-empty value for each supported key and
   /// truncates the sanitized value to 64 characters.
   static Map<String, String> extractBackendCorrelationHeaders(
-    Map<String, List<String>> headers,
-  ) {
+    Map<String, List<String>> headers, {
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
+  }) {
     final result = <String, String>{};
 
     void capture(
@@ -78,7 +93,8 @@ class DioLogSanitizerHelpers {
                 );
         if (value == null || value.trim().isEmpty) continue;
 
-        final sanitized = DebugLogSanitizer.sanitizeMessage(value.trim());
+        final sanitized =
+            DebugLogSanitizer.sanitizeMessage(value.trim(), config: config);
         result[metadataKey] =
             sanitized.length > 64 ? sanitized.substring(0, 64) : sanitized;
         return;
@@ -99,9 +115,11 @@ class DioLogSanitizerHelpers {
     Map<String, dynamic> headers, {
     required bool captureHeaders,
     int maxPreviewChars = 1000,
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
   }) {
     if (!captureHeaders || headers.isEmpty) return null;
-    final sanitized = DebugLogSanitizer.sanitizeHeaders(headers);
+    final sanitized =
+        DebugLogSanitizer.sanitizeHeaders(headers, config: config);
     return _buildPreview(sanitized, maxPreviewChars: maxPreviewChars);
   }
 
@@ -110,6 +128,7 @@ class DioLogSanitizerHelpers {
     Map<String, List<String>> headers, {
     required bool captureHeaders,
     int maxPreviewChars = 1000,
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
   }) {
     if (!captureHeaders || headers.isEmpty) return null;
 
@@ -123,7 +142,8 @@ class DioLogSanitizerHelpers {
             orElse: () => null,
           );
       if (value == null) return;
-      selected[key] = DebugLogSanitizer.sanitizeMessage(value.trim());
+      selected[key] =
+          DebugLogSanitizer.sanitizeMessage(value.trim(), config: config);
     });
 
     if (selected.isEmpty) return null;
@@ -136,6 +156,7 @@ class DioLogSanitizerHelpers {
     required bool captureBody,
     required int maxCaptureBytes,
     required int maxPreviewChars,
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
   }) {
     if (!captureBody || body == null) return null;
 
@@ -151,7 +172,9 @@ class DioLogSanitizerHelpers {
       preview = body;
     } else if (body is Map || body is List || body is num || body is bool) {
       try {
-        preview = jsonEncode(DebugLogSanitizer.sanitizePayload(body));
+        preview = jsonEncode(
+          DebugLogSanitizer.sanitizePayload(body, config: config),
+        );
       } catch (_) {
         preview = body.toString();
       }
@@ -163,7 +186,8 @@ class DioLogSanitizerHelpers {
     final previewText = preview;
     if (previewText.length > maxCaptureBytes) return null;
 
-    final sanitized = DebugLogSanitizer.sanitizeMessage(previewText);
+    final sanitized =
+        DebugLogSanitizer.sanitizeMessage(previewText, config: config);
     if (sanitized.length > maxPreviewChars) {
       return '${sanitized.substring(0, maxPreviewChars)}…';
     }

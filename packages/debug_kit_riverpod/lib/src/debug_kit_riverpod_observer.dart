@@ -58,8 +58,11 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
     );
   }
 
-  String _safePreview(dynamic value) =>
-      RiverpodLogHelpers.safeValuePreview(value, config.maxValuePreviewLength);
+  String _safePreview(dynamic value) => RiverpodLogHelpers.safeValuePreview(
+        value,
+        config.maxValuePreviewLength,
+        sanitizerConfig: _controller.config.sanitizer,
+      );
 
   void _recordStateEvent({
     required String providerName,
@@ -200,6 +203,7 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
               maxDepth: config.maxDiffDepth,
               maxEntries: config.maxDiffEntries,
               maxValuePreviewLength: config.maxValuePreviewLength,
+              sanitizerConfig: _controller.config.sanitizer,
             );
       final diffPreview = RiverpodLogHelpers.summarizeChanges(changes);
 
@@ -275,6 +279,7 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
         maxDepth: config.maxDiffDepth,
         maxEntries: config.maxDiffEntries,
         maxValuePreviewLength: config.maxValuePreviewLength,
+        sanitizerConfig: _controller.config.sanitizer,
       );
       final diffPreview = RiverpodLogHelpers.summarizeChanges(changes);
 

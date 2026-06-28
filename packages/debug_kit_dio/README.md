@@ -10,7 +10,7 @@ Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.0
+  debug_kit: ^0.10.1
   debug_kit_dio: ^0.5.0
 ```
 
@@ -70,6 +70,7 @@ summary strip, detail tabs, and waterfall timing.
 - Response headers: Only the allowlisted backend correlation headers below are captured, and values are sanitized and truncated to 64 characters.
 - Headers: request header previews are opt-in and sanitized; response header previews use a safe allowlist only.
 - Bodies: request and response body previews are opt-in and disabled by default.
+- All previews honor the core `DebugKitSanitizerConfig` passed to `DebugKit.init()`.
 
 ## Preview Config
 
@@ -124,7 +125,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 | `debug_kit_dio` | `debug_kit` |
 |---|---|
-| 0.5.0 | ^0.10.0 |
+| 0.5.0 | ^0.10.1 |
 
 ## License
 

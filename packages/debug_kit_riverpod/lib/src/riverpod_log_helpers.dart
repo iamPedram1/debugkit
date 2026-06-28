@@ -37,6 +37,7 @@ class RiverpodLogHelpers {
     required int maxDepth,
     required int maxEntries,
     required int maxValuePreviewLength,
+    required DebugKitSanitizerConfig sanitizerConfig,
   }) {
     try {
       return DebugStateDiffBuilder.build(
@@ -45,6 +46,7 @@ class RiverpodLogHelpers {
         maxDepth: maxDepth,
         maxEntries: maxEntries,
         maxValuePreviewLength: maxValuePreviewLength,
+        sanitizerConfig: sanitizerConfig,
       );
     } catch (_) {
       return const [];
@@ -108,13 +110,24 @@ class RiverpodLogHelpers {
   ///
   /// Used to produce the `'value_preview'` metadata field when
   /// [DebugKitRiverpodConfig.includeValuePreview] is `true`.
-  static String safeValuePreview(dynamic value, int maxLength) {
+  static String safeValuePreview(
+    dynamic value,
+    int maxLength, {
+    DebugKitSanitizerConfig sanitizerConfig = const DebugKitSanitizerConfig(),
+  }) {
     try {
       if (value == null) return 'null';
       final stringified = value.toString();
 
+      if (sanitizerConfig.dangerouslyDisableSanitizer) {
+        return stringified;
+      }
+
       // Pass through core sanitizer to mask any obvious secrets.
-      final sanitized = DebugLogSanitizer.sanitizeMessage(stringified);
+      final sanitized = DebugLogSanitizer.sanitizeMessage(
+        stringified,
+        config: sanitizerConfig,
+      );
 
       return truncateValue(sanitized, maxLength);
     } catch (_) {

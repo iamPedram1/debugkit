@@ -139,6 +139,37 @@ void main() {
     expect(controller.store.logs, isEmpty);
   });
 
+  test('respects disabled sanitizer config for previews', () {
+    controller.init(
+      enabled: true,
+      printToConsole: false,
+      maxStateEvents: 8,
+      sanitizer: const DebugKitSanitizerConfig(
+        dangerouslyDisableSanitizer: true,
+      ),
+    );
+
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(
+        includeValuePreview: true,
+        maxValuePreviewLength: 120,
+      ),
+    );
+    final container = createContainer(observer);
+    final notifier = container.read(counterProvider.notifier);
+    DebugKit.clearStateEvents();
+
+    notifier.setValue('SensitiveObject(token: secret123)');
+
+    expect(controller.stateStore.events.length, 1);
+    final event = controller.stateStore.events.first;
+    expect(
+        event.nextValuePreview, contains('SensitiveObject(token: secret123)'));
+    expect(event.changes.single.nextValuePreview,
+        contains('SensitiveObject(token: secret123)'));
+  });
+
   test('nested map updates record structured changed paths', () {
     final observer = DebugKitRiverpodObserver(
       controller: controller,
