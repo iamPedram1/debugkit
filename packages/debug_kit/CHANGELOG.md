@@ -1,14 +1,16 @@
 # Changelog
 
+## 0.10.2
+
+### Fixed
+- Compact console formats no longer truncate developer-authored app logs. `DebugKit.log.*()` and forwarded app logger messages keep their full sanitized message, while adapter-generated summaries remain compact when requested.
+
 ## 0.10.1
 
 ### Changed
 - Added `DebugKitSanitizerConfig` so sanitizer behavior can be tuned per category from `DebugKit.init()`.
 - Narrowed private-key redaction to explicit PEM/private-key blocks so hash-like values stay readable.
 - Added a dangerous global sanitizer disable escape hatch for trusted local development only.
-
-### Fixed
-- Compact console formats no longer truncate developer-authored app logs. `DebugKit.log.*()` and forwarded app logger messages keep their full sanitized message, while adapter-generated summaries remain compact when requested.
 
 ### Security
 - Hashes, checksums, canonical hash values, and UUID-like identifiers are no longer treated as private keys by default.

@@ -36,7 +36,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.1
+  debug_kit: ^0.10.2
 ```
 
 ## 5-Minute Setup
