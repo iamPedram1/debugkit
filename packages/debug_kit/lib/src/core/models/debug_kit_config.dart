@@ -166,9 +166,10 @@ class DebugKitConfig {
   /// Defaults to `true`.
   final bool printErrorLogs;
 
-  /// Console format used when mirroring logs to the terminal.
+  /// Console format used when mirroring adapter-generated technical summaries.
   ///
-  /// Defaults to [DebugConsolePrintFormat.dev].
+  /// Manual app logs keep their full sanitized message and are not shortened
+  /// by this setting. Defaults to [DebugConsolePrintFormat.dev].
   final DebugConsolePrintFormat consolePrintFormat;
 
   /// Whether console-mirrored logs should use ANSI color codes.

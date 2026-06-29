@@ -152,56 +152,49 @@ class DebugConsoleLogFormatter {
     final level = entry.level;
     final category = isUserAction ? 'user' : 'app';
     final detailedCategory = isUserAction ? 'USER' : 'APP';
-    final message = _truncateOneLine(entry.message);
-    final error = entry.error == null ? null : _truncateOneLine(entry.error!);
+    final message = entry.message;
+    final error = entry.error;
     final levelName = _levelName(level);
 
     return switch (format) {
-      DebugConsolePrintFormat.tiny => _truncateOneLine(
-          _colorizeCompactLine(
-            _segmentList([
-              _coloredLevelToken(levelName, level, colorizeConsoleOutput),
-              _coloredText(
-                  message, colorizeConsoleOutput, _AnsiColor.defaultText)
-            ]),
+      DebugConsolePrintFormat.tiny => _colorizeCompactLine(
+          _segmentList([
+            _coloredLevelToken(levelName, level, colorizeConsoleOutput),
+            _coloredText(message, colorizeConsoleOutput, _AnsiColor.defaultText)
+          ]),
+          colorizeConsoleOutput,
+        ),
+      DebugConsolePrintFormat.short => _colorizeCompactLine(
+          _segmentList([
+            _coloredText(
+              _timeFormat.format(entry.timestamp),
+              colorizeConsoleOutput,
+              _AnsiColor.gray,
+            ),
+            _coloredLevelToken(levelName, level, colorizeConsoleOutput),
+            _coloredText(category, colorizeConsoleOutput, _AnsiColor.gray),
+            _coloredText(
+                message, colorizeConsoleOutput, _AnsiColor.defaultText),
+          ]),
+          colorizeConsoleOutput,
+        ),
+      DebugConsolePrintFormat.dev => [
+          _coloredManualSymbol(
+            _manualLevelSymbol(level),
+            level,
             colorizeConsoleOutput,
           ),
-        ),
-      DebugConsolePrintFormat.short => _truncateOneLine(
           _colorizeCompactLine(
             _segmentList([
-              _coloredText(
-                _timeFormat.format(entry.timestamp),
-                colorizeConsoleOutput,
-                _AnsiColor.gray,
-              ),
-              _coloredLevelToken(levelName, level, colorizeConsoleOutput),
               _coloredText(category, colorizeConsoleOutput, _AnsiColor.gray),
               _coloredText(
                   message, colorizeConsoleOutput, _AnsiColor.defaultText),
+              if (error != null)
+                _coloredText(error, colorizeConsoleOutput, _AnsiColor.red),
             ]),
             colorizeConsoleOutput,
           ),
-        ),
-      DebugConsolePrintFormat.dev => _truncateOneLine(
-          [
-            _coloredManualSymbol(
-              _manualLevelSymbol(level),
-              level,
-              colorizeConsoleOutput,
-            ),
-            _colorizeCompactLine(
-              _segmentList([
-                _coloredText(category, colorizeConsoleOutput, _AnsiColor.gray),
-                _coloredText(
-                    message, colorizeConsoleOutput, _AnsiColor.defaultText),
-                if (error != null)
-                  _coloredText(error, colorizeConsoleOutput, _AnsiColor.red),
-              ]),
-              colorizeConsoleOutput,
-            ),
-          ].join(' '),
-        ),
+        ].join(' '),
       DebugConsolePrintFormat.detailed => _formatDetailedEntry(
           timestamp: entry.timestamp,
           category: detailedCategory,
@@ -221,6 +214,7 @@ class DebugConsoleLogFormatter {
           traceStep: entry.traceStep,
           repeatCount: entry.repeatCount,
           lastSeenAt: entry.lastSeenAt,
+          truncateContent: false,
           colorizeConsoleOutput: colorizeConsoleOutput,
         ),
     };
@@ -525,6 +519,7 @@ class DebugConsoleLogFormatter {
     int? traceStep,
     int repeatCount = 1,
     DateTime? lastSeenAt,
+    bool truncateContent = true,
     required bool colorizeConsoleOutput,
   }) {
     final buffer = StringBuffer();
@@ -553,7 +548,7 @@ class DebugConsoleLogFormatter {
     }
     buffer.writeln();
     buffer.writeln(
-      '${_detailedFieldName('message', colorizeConsoleOutput)}: ${_truncateOneLine(message, maxLength: 220)}',
+      '${_detailedFieldName('message', colorizeConsoleOutput)}: ${truncateContent ? _truncateOneLine(message, maxLength: 220) : message}',
     );
     if (repeatCount > 1) {
       buffer.writeln(
@@ -592,29 +587,41 @@ class DebugConsoleLogFormatter {
     }
     if (error != null) {
       buffer.writeln(
-        '${_detailedFieldName('error', colorizeConsoleOutput)}: ${_truncateOneLine(error, maxLength: 220)}',
+        '${_detailedFieldName('error', colorizeConsoleOutput)}: ${truncateContent ? _truncateOneLine(error, maxLength: 220) : error}',
       );
     }
     if (details != null) {
       buffer
           .writeln('${_detailedFieldName('details', colorizeConsoleOutput)}:');
-      buffer.writeln(_indent(_truncateMultiline(details), 2));
+      buffer.writeln(_indent(
+        truncateContent ? _truncateMultiline(details) : details,
+        2,
+      ));
     }
     if (payloadPreview != null) {
       buffer.writeln(
         '${_detailedFieldName('payloadPreview', colorizeConsoleOutput)}:',
       );
-      buffer.writeln(_indent(_truncateMultiline(payloadPreview), 2));
+      buffer.writeln(_indent(
+        truncateContent ? _truncateMultiline(payloadPreview) : payloadPreview,
+        2,
+      ));
     }
     if (responsePreview != null) {
       buffer.writeln(
         '${_detailedFieldName('responsePreview', colorizeConsoleOutput)}:',
       );
-      buffer.writeln(_indent(_truncateMultiline(responsePreview), 2));
+      buffer.writeln(_indent(
+        truncateContent ? _truncateMultiline(responsePreview) : responsePreview,
+        2,
+      ));
     }
     if (stackTrace != null) {
       buffer.writeln('${_detailedFieldName('stack', colorizeConsoleOutput)}:');
-      buffer.writeln(_indent(_truncateStackTrace(stackTrace), 2));
+      buffer.writeln(_indent(
+        truncateContent ? _truncateStackTrace(stackTrace) : stackTrace,
+        2,
+      ));
     }
     if (metadata != null && metadata.isNotEmpty) {
       buffer
@@ -622,7 +629,8 @@ class DebugConsoleLogFormatter {
       final keys = metadata.keys.toList()..sort();
       for (final key in keys) {
         final value = metadata[key] ?? '';
-        final rendered = _truncateOneLine(value, maxLength: 220);
+        final rendered =
+            truncateContent ? _truncateOneLine(value, maxLength: 220) : value;
         buffer.writeln(
           '  ${_detailedFieldName(key, colorizeConsoleOutput)}: $rendered',
         );

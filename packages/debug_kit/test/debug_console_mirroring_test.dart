@@ -123,6 +123,9 @@ void main() {
   });
 
   group('DebugConsoleLogFormatter', () {
+    const longManualMessage =
+        '[CanonicalDiff] client.canonicalStrokeJson={"strokes":[{"artboardId":"art_123","id":"stroke_456","layerId":"layer_789","points":[{"x":1,"y":2},{"x":3,"y":4},{"x":5,"y":6}]}]}';
+
     test('formats tiny manual logs', () {
       final output = logPlain(
         _manualEntry(),
@@ -304,6 +307,24 @@ void main() {
       );
     });
 
+    test('keeps adapter route summaries compact when paths are long', () {
+      final longPath =
+          '/${List.generate(30, (_) => 'very-long-route-segment').join('/')}';
+      final entry = _manualEntry(
+        source: DebugLogSource.router,
+        message: 'push: $longPath',
+        metadata: {
+          'action': 'push',
+          'route_path': '$longPath/details',
+          'previous_route_path': '$longPath/start',
+        },
+      );
+
+      final compact = logPlain(entry, DebugConsolePrintFormat.dev);
+      expect(compact, isNot(contains(longPath)));
+      expect(compact, contains('…'));
+    });
+
     test('formats riverpod logs', () {
       final entry = _manualEntry(
         source: DebugLogSource.riverpod,
@@ -391,15 +412,33 @@ void main() {
       expect(output, contains(sanitized));
     });
 
-    test('truncates very long messages', () {
-      final longMessage = List.generate(200, (_) => 'x').join();
+    test('keeps long manual messages intact across all console formats', () {
+      for (final format in DebugConsolePrintFormat.values) {
+        final output = logPlain(
+          _manualEntry(message: longManualMessage),
+          format,
+        );
+
+        expect(output, contains(longManualMessage));
+        expect(output, isNot(contains('…')));
+      }
+    });
+
+    test('keeps long manual error messages intact in detailed format', () {
+      final longError = List.generate(80, (_) => 'error_token').join(' ');
       final output = logPlain(
-        _manualEntry(message: longMessage),
-        DebugConsolePrintFormat.dev,
+        _manualEntry(
+          level: DebugLogLevel.error,
+          message: longManualMessage,
+          error: longError,
+          metadata: {'context': longError},
+        ),
+        DebugConsolePrintFormat.detailed,
       );
 
-      expect(output, contains('…'));
-      expect(output.length, lessThan(longMessage.length));
+      expect(output, contains(longManualMessage));
+      expect(output, contains(longError));
+      expect(output, isNot(contains('…')));
     });
 
     test('colorized output can be stripped back to plain text', () {

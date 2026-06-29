@@ -74,6 +74,27 @@ void main() {
       expect(entry.level, DebugLogLevel.info);
       expect(entry.source, DebugLogSource.app);
     });
+
+    test(
+        'stores the full sanitized manual message regardless of console format',
+        () {
+      const longManualMessage =
+          '[CanonicalDiff] client.canonicalStrokeJson={"strokes":[{"artboardId":"art_123","id":"stroke_456","layerId":"layer_789","points":[{"x":1,"y":2},{"x":3,"y":4},{"x":5,"y":6}]}]}';
+
+      for (final format in DebugConsolePrintFormat.values) {
+        final controller = DebugKitController();
+        controller.init(
+          enabled: true,
+          printToConsole: false,
+          groupRepeatedLogs: false,
+          consolePrintFormat: format,
+        );
+
+        controller.info(longManualMessage);
+
+        expect(controller.store.logs.single.message, longManualMessage);
+      }
+    });
   });
 
   group('DebugKit facade', () {
@@ -565,6 +586,23 @@ void main() {
           isNot(contains(
               '-----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----')));
       expect(formatted, contains('[REDACTED PRIVATE KEY]'));
+    });
+
+    test('keeps long manual messages intact in exported output', () {
+      const longManualMessage =
+          '[CanonicalDiff] client.canonicalStrokeJson={"strokes":[{"artboardId":"art_123","id":"stroke_456","layerId":"layer_789","points":[{"x":1,"y":2},{"x":3,"y":4},{"x":5,"y":6}]}]}';
+      final entry = DebugLogEntry(
+        id: 1,
+        level: DebugLogLevel.info,
+        source: DebugLogSource.app,
+        message: longManualMessage,
+        timestamp: DateTime.now(),
+      );
+
+      final formatted = DebugLogExportFormatter.formatEntry(entry);
+
+      expect(formatted, contains(longManualMessage));
+      expect(formatted, isNot(contains('…')));
     });
   });
 

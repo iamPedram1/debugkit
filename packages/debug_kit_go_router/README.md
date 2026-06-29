@@ -54,6 +54,8 @@ void main() {
 
 Route paths are sanitized using the same smart masking engine as the DebugKit core. Sensitive query parameter values are masked based on their length before being stored or displayed.
 
+Console format still controls how these router summaries are rendered in the terminal, but it does not shorten developer-authored app logs.
+
 ## Performance
 
 Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps all logging in a try/catch and will never throw or interrupt navigation.

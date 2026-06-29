@@ -56,6 +56,8 @@ dio.interceptors.add(DebugKitDioInterceptor(DebugKit.controller));
 The adapter also feeds the DebugKit Network Inspector with the request list,
 summary strip, detail tabs, and waterfall timing.
 
+DebugKit's console format setting still controls how these Dio-generated summaries are rendered, but it does not shorten developer-authored app logs.
+
 ## What is NOT Logged
 
 - Request bodies — never logged by default

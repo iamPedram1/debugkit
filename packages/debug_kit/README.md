@@ -26,7 +26,9 @@ The Network Inspector uses a shared, app-level timeline based on request start t
 
 The Network tab keeps the request list as the primary focus. Search and filter controls auto-hide as you scroll the list down, active filters stay visible in compact mode, and the shared timeline overview can be shown or hidden without losing range or selection state.
 
-DebugKit also mirrors sanitized logs to the terminal by default, so the same events stay visible in both the in-app console and the Flutter / IDE output. Terminal output is colorized by default, uses compact `·` separators for scannable rows, and keeps ANSI codes out of the in-app UI and exports.
+DebugKit also mirrors sanitized logs to the terminal by default, so the same events stay visible in both the in-app console and the Flutter / IDE output. Terminal output is colorized by default, uses compact `·` separators for scannable rows, and keeps ANSI codes out of the in-app UI and exports. Compact console formats only shorten DebugKit-generated technical summaries such as Dio and GoRouter logs; manual app logs always keep their full sanitized message.
+
+The Logs tab may visually wrap or collapse long entries for readability, but the detail view, copy action, and export pipeline all use the full sanitized message.
 
 ## Installation
 
@@ -76,6 +78,8 @@ Supported console formats:
 - `short` - timestamped one-line output for chronological scanning
 - `dev` - default compact developer-friendly output with status symbols
 - `detailed` - multi-line structured output for diagnostics and copy/paste reports
+
+These formats control the presentation of DebugKit-generated summaries. They do not truncate developer-authored logs from `DebugKit.log.*()` or forwarded app logger messages.
 
 Colorization is terminal-only and enabled by default. Disable it with `colorizeConsoleOutput: false` if you prefer plain text.
 

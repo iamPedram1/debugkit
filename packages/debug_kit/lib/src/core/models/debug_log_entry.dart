@@ -141,6 +141,16 @@ class DebugLogEntry {
     this.lastSeenAt,
   }) : assert(repeatCount >= 1, 'repeatCount must be at least 1');
 
+  /// Whether this entry was created by app/user code rather than an adapter.
+  bool get isUserLog =>
+      source == DebugLogSource.app || source == DebugLogSource.userAction;
+
+  /// Whether this entry was produced by an optional adapter package.
+  bool get isAdapterLog =>
+      source == DebugLogSource.dio ||
+      source == DebugLogSource.riverpod ||
+      source == DebugLogSource.router;
+
   // ---------------------------------------------------------------------------
   // Fingerprint
   // ---------------------------------------------------------------------------

@@ -116,8 +116,9 @@ class DebugKitController extends ChangeNotifier {
   ///   entry with a repeat counter. Defaults to `true`.
   /// - [printToConsole]: mirror sanitized logs to the Flutter / IDE console.
   ///   Defaults to `true`.
-  /// - [consolePrintFormat]: console mirroring style. Defaults to
-  ///   [DebugConsolePrintFormat.dev].
+  /// - [consolePrintFormat]: console mirroring style for adapter-generated
+  ///   summaries. Manual app logs keep their full sanitized message.
+  ///   Defaults to [DebugConsolePrintFormat.dev].
   /// - [colorizeConsoleOutput]: whether mirrored logs use ANSI colors.
   ///   Defaults to `true`.
   void init({
