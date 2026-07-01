@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io' show gzip;
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
@@ -319,6 +321,74 @@ void main() {
     expect(log.metadata?['sanitizedUrl'], contains('token='));
   });
 
+  test('pretty prints JSON previews when enabled', () async {
+    dio.httpClientAdapter = MockAdapter(
+      ResponseBody.fromString('{"status":"ok","nested":{"count":1}}', 200),
+    );
+    dio.interceptors.add(
+      DebugKitDioInterceptor(
+        controller,
+        config: const DebugKitDioConfig(
+          captureRequestBody: true,
+          captureResponseBody: true,
+          prettyPrintJson: true,
+        ),
+      ),
+    );
+
+    await dio.post(
+      'https://api.example.com/users',
+      data: {
+        'status': 'ok',
+        'nested': {'count': 1}
+      },
+    );
+
+    final log = controller.store.logs.first;
+    expect(log.metadata?['requestBodyPreview'], contains('\n  "nested": {'));
+    expect(log.metadata?['responseBodyPreview'], contains('\n  "nested": {'));
+  });
+
+  test('decodes gzip-compressed JSON previews when enabled', () async {
+    final gzippedRequest = gzip.encode(utf8.encode('{"request":true}'));
+    final gzippedResponse = gzip.encode(utf8.encode('{"response":true}'));
+
+    dio.httpClientAdapter = MockAdapter(
+      ResponseBody.fromBytes(
+        gzippedResponse,
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+          Headers.contentEncodingHeader: ['gzip'],
+        },
+      ),
+    );
+    dio.interceptors.add(
+      DebugKitDioInterceptor(
+        controller,
+        config: const DebugKitDioConfig(
+          captureRequestBody: true,
+          captureResponseBody: true,
+          prettyPrintJson: true,
+          decodeGzipBodies: true,
+        ),
+      ),
+    );
+
+    await dio.post(
+      'https://api.example.com/gzip',
+      data: gzippedRequest,
+      options: Options(headers: {
+        Headers.contentTypeHeader: Headers.jsonContentType,
+        Headers.contentEncodingHeader: 'gzip',
+      }, responseType: ResponseType.bytes),
+    );
+
+    final log = controller.store.logs.first;
+    expect(log.metadata?['requestBodyPreview'], contains('"request": true'));
+    expect(log.metadata?['responseBodyPreview'], contains('"response": true'));
+  });
+
   test('skips large previews even when capture is enabled', () async {
     final largeBody = 'x' * 70000;
     dio.httpClientAdapter =
@@ -329,7 +399,7 @@ void main() {
         config: const DebugKitDioConfig(
           captureRequestBody: true,
           captureResponseBody: true,
-          maxCaptureBytes: 1024,
+          maxBodyBytes: 1024,
         ),
       ),
     );
@@ -342,6 +412,8 @@ void main() {
     final log = controller.store.logs.first;
     expect(log.metadata?['requestBodyPreview'], isNull);
     expect(log.metadata?['responseBodyPreview'], isNull);
+    expect(log.metadata?['requestBodySkipReason'], isNotNull);
+    expect(log.metadata?['responseBodySkipReason'], isNotNull);
   });
 
   test('Disabled DebugKit does not log', () async {

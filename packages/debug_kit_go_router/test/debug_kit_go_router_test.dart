@@ -95,8 +95,9 @@ void main() {
 
     expect(() => observer.didPush(unnamedRoute, null), returnsNormally);
 
-    // Nothing should be logged if both routes are unnamed/null
-    expect(controller.store.logs.length, 0);
+    expect(controller.store.logs.length, 1);
+    expect(controller.store.logs.first.message, isNot(contains('unknown')));
+    expect(controller.store.logs.first.message, contains('MaterialPageRoute'));
   });
 
   test('disabled DebugKit does not store navigation logs', () {

@@ -12,10 +12,20 @@ class DebugKitDioConfig {
   /// Captures a sanitized response body preview when `true`.
   final bool captureResponseBody;
 
+  /// Formats JSON payloads with indentation when `true`.
+  final bool prettyPrintJson;
+
+  /// Attempts to decode gzip-compressed bodies when `true`.
+  final bool decodeGzipBodies;
+
   /// Maximum length of a body preview in characters.
   final int maxBodyPreviewChars;
 
   /// Maximum size to inspect before skipping capture entirely.
+  final int maxBodyBytes;
+
+  /// Backward-compatible alias for [maxBodyBytes].
+  @Deprecated('Use maxBodyBytes instead.')
   final int maxCaptureBytes;
 
   const DebugKitDioConfig({
@@ -23,7 +33,11 @@ class DebugKitDioConfig {
     this.captureResponseHeaders = false,
     this.captureRequestBody = false,
     this.captureResponseBody = false,
+    this.prettyPrintJson = false,
+    this.decodeGzipBodies = false,
     this.maxBodyPreviewChars = 1000,
-    this.maxCaptureBytes = 65536,
-  });
+    int? maxBodyBytes,
+    @Deprecated('Use maxBodyBytes instead.') int? maxCaptureBytes,
+  })  : maxBodyBytes = maxBodyBytes ?? maxCaptureBytes ?? 65536,
+        maxCaptureBytes = maxBodyBytes ?? maxCaptureBytes ?? 65536;
 }

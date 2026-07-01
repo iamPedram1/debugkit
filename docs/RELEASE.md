@@ -13,10 +13,10 @@ Packages must be published in dependency order. Core first, then adapters.
 
 | Order | Package | Version | Notes |
 | :---: | :--- | :--- | :--- |
-| 1 | `debug_kit` | 0.10.0 | Core State tab release |
-| 2 | `debug_kit_dio` | 0.5.0 | Compatibility release for `debug_kit ^0.10.0` |
-| 3 | `debug_kit_go_router` | 0.3.0 | Compatibility release for `debug_kit ^0.10.0` |
-| 4 | `debug_kit_riverpod` | 0.4.0 | State tab integration for Riverpod 3 |
+| 1 | `debug_kit` | 0.11.0 | Structured inspection release |
+| 2 | `debug_kit_dio` | 0.6.0 | Compatibility release for `debug_kit ^0.11.0` |
+| 3 | `debug_kit_go_router` | 0.4.0 | Compatibility release for `debug_kit ^0.11.0` |
+| 4 | `debug_kit_riverpod` | 0.5.0 | Structured state integration for Riverpod 3 |
 
 **Why this order matters:** Adapter packages declare `debug_kit: ^<version>` in their `pubspec.yaml`. If the core has not yet been published, pub.dev cannot resolve the constraint during adapter publication.
 
@@ -51,7 +51,7 @@ However, pub.dev will flag the overrides as a hint:
 ```
 
 This hint is **expected and safe** as long as:
-- The published `pubspec.yaml` uses a proper hosted version constraint (`^0.10.0` for `debug_kit`, `^0.5.0` for `debug_kit_dio`), not a `path:` dependency.
+- The published `pubspec.yaml` uses a proper hosted version constraint (`^0.11.0` for `debug_kit`, `^0.6.0` for `debug_kit_dio`), not a `path:` dependency.
 - The only issue in the dry-run output is this override hint.
 
 Do **not** delete `pubspec_overrides.yaml` before publishing. The pub tool resolves the hosted constraint from pub.dev when publishing, not from the override file.
@@ -148,16 +148,16 @@ Create a git tag for each package release. Use the format:
 ### Examples
 
 ```bash
-git tag debug_kit-v0.10.0
-git tag debug_kit_dio-v0.5.0
-git tag debug_kit_go_router-v0.3.0
-git tag debug_kit_riverpod-v0.4.0
+git tag debug_kit-v0.11.0
+git tag debug_kit_dio-v0.6.0
+git tag debug_kit_go_router-v0.4.0
+git tag debug_kit_riverpod-v0.5.0
 git push --tags
 ```
 
 GitHub release title for this core release:
 
-`DebugKit 0.10.0 — State Inspection Tab`
+`DebugKit 0.11.0 — Developer inspection upgrade`
 
 Tag **after** publishing successfully. Never tag a version that has not been published.
 

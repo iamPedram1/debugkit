@@ -10,8 +10,8 @@ Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.2
-  debug_kit_dio: ^0.5.0
+  debug_kit: ^0.11.0
+  debug_kit_dio: ^0.6.0
 ```
 
 ## Setup
@@ -52,6 +52,8 @@ dio.interceptors.add(DebugKitDioInterceptor(DebugKit.controller));
 - Cancelled request status
 - Optional sanitized request/response header previews when enabled
 - Optional request/response body previews when explicitly enabled
+- Pretty-printed JSON previews when `prettyPrintJson: true`
+- Gzip-decoded previews when `decodeGzipBodies: true`
 
 The adapter also feeds the DebugKit Network Inspector with the request list,
 summary strip, detail tabs, and waterfall timing.
@@ -88,6 +90,8 @@ DebugKit.init(
         captureResponseHeaders: true,
         captureRequestBody: false,
         captureResponseBody: false,
+        prettyPrintJson: true,
+        decodeGzipBodies: true,
       ),
     ),
   ],
@@ -100,8 +104,10 @@ Defaults stay safe:
 - `captureResponseHeaders: false`
 - `captureRequestBody: false`
 - `captureResponseBody: false`
+- `prettyPrintJson: false`
+- `decodeGzipBodies: false`
 - `maxBodyPreviewChars: 1000`
-- `maxCaptureBytes: 65536`
+- `maxBodyBytes: 65536`
 
 ### Allowlisted backend correlation headers
 
@@ -115,7 +121,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 ## Limitations
 
-- Request and response bodies are not logged. Opt-in body logging is not yet supported.
+- Request and response bodies are preview-only and opt-in. The adapter never stores raw payloads.
 - Binary and multipart payloads are always ignored.
 
 ## Links
@@ -127,7 +133,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 | `debug_kit_dio` | `debug_kit` |
 |---|---|
-| 0.5.0 | ^0.10.2 |
+| 0.6.0 | ^0.11.0 |
 
 ## License
 

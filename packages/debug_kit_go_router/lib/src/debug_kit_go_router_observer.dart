@@ -91,32 +91,46 @@ class DebugKitGoRouterObserver extends NavigatorObserver {
 
       final routeName = route?.settings.name;
       final prevRouteName = previousRoute?.settings.name;
+      final routeType = route?.runtimeType.toString();
+      final prevRouteType = previousRoute?.runtimeType.toString();
 
-      if (routeName == null && prevRouteName == null) return;
+      final routeLabel = GoRouterLogHelpers.routeLabel(
+        routeName: routeName,
+        routeType: routeType ?? '',
+      );
+      final prevRouteLabel = GoRouterLogHelpers.routeLabel(
+        routeName: prevRouteName,
+        routeType: prevRouteType ?? '',
+      );
+      final safeRouteName = routeName?.trim() ?? '';
+      final safePrevRouteName = prevRouteName?.trim() ?? '';
+      final hasRouteName = routeName != null && routeName.trim().isNotEmpty;
+      final hasPrevRouteName =
+          prevRouteName != null && prevRouteName.trim().isNotEmpty;
 
-      final sanitizedRoute = routeName != null
-          ? GoRouterLogHelpers.sanitizeRoutePath(routeName)
-          : null;
-      final sanitizedPrevRoute = prevRouteName != null
-          ? GoRouterLogHelpers.sanitizeRoutePath(prevRouteName)
-          : null;
-
-      // Build the human-readable message
-      String message;
-      if (action == 'replace') {
-        message =
-            'replace: ${sanitizedPrevRoute ?? 'unknown'} → ${sanitizedRoute ?? 'unknown'}';
-      } else if (action == 'pop') {
-        message = 'pop: ${sanitizedRoute ?? 'unknown'}';
-      } else {
-        message = '$action: ${sanitizedRoute ?? 'unknown'}';
+      if (routeLabel == 'UnnamedRoute' && prevRouteLabel == 'UnnamedRoute') {
+        return;
       }
+
+      final message = switch (action) {
+        'replace' => 'replace: $prevRouteLabel → $routeLabel',
+        'pop' => 'pop: $routeLabel',
+        _ => '$action: $routeLabel',
+      };
 
       final metadata = <String, String>{
         'action': action,
-        if (sanitizedRoute != null) 'route_path': sanitizedRoute,
-        if (sanitizedPrevRoute != null)
-          'previous_route_path': sanitizedPrevRoute,
+        'route_label': routeLabel,
+        'route_type': routeType ?? '',
+        if (hasRouteName) 'route_name': safeRouteName,
+        if (hasRouteName)
+          'route_path': GoRouterLogHelpers.sanitizeRoutePath(safeRouteName),
+        if (hasPrevRouteName) 'previous_route_name': safePrevRouteName,
+        'previous_route_label': prevRouteLabel,
+        'previous_route_type': prevRouteType ?? '',
+        if (hasPrevRouteName)
+          'previous_route_path':
+              GoRouterLogHelpers.sanitizeRoutePath(safePrevRouteName),
       };
 
       // Read active trace from current Zone

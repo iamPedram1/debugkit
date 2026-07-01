@@ -11,8 +11,8 @@ Add both `debug_kit` and `debug_kit_riverpod` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.1
-  debug_kit_riverpod: ^0.4.0
+  debug_kit: ^0.11.0
+  debug_kit_riverpod: ^0.5.0
   flutter_riverpod: ^3.0.0
 ```
 
@@ -39,8 +39,8 @@ void main() {
 }
 ```
 
-This release line is for Riverpod 3 projects and supports `debug_kit ^0.10.1`.
-DebugKit handles in-app logs, traces, and the new generic State tab in core.
+This release line is for Riverpod 3 projects and supports `debug_kit ^0.11.0`.
+DebugKit handles in-app logs, traces, and the structured generic State tab in core.
 
 ## Configuration
 
@@ -57,19 +57,24 @@ DebugKitRiverpodObserver(
     mirrorErrorsToLogs: true,        // Default: keep failures visible in Logs
     watchedProviders: {'authProvider', 'userProvider'},
     includeValuePreview: true,
+    valueSerializer: (value) {
+      if (value is MyModel) return value.toJson();
+      return value;
+    },
     maxValuePreviewLength: 500,
   ),
 )
 ```
 
 Provider names are taken from the explicit Riverpod name when available. If a provider is unnamed, the adapter falls back to a cleaned provider string or runtime type so the State tab still shows something useful instead of `UnnamedProvider` for normal cases.
-The adapter also records structured diffs for provider updates when possible. For arbitrary Dart objects, it keeps sanitized previews and falls back gracefully when a structured path diff is not available.
+The adapter now serializes `AsyncValue` wrappers, `toJson()` / `toMap()` models, iterables, and custom serializer output into structured diffs when possible. For arbitrary Dart objects, it keeps sanitized previews and falls back gracefully when a structured path diff is not available.
 
 ## What is Logged
 
 - Provider additions, updates, disposals, and failures in the State tab
 - Provider name, source, type, and event type metadata
 - Structured diff paths for Map/List provider updates when available
+- Structured values for `AsyncValue` wrappers, `toJson()` / `toMap()` models, iterables, and custom serializer output when available
 - Sanitized value previews only when `includeValuePreview: true`
 - Provider failures in Logs when `mirrorErrorsToLogs: true`
 
@@ -95,8 +100,9 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 ## Limitations
 
 - Structured diffs are best for JSON-like `Map` / `List` data. Arbitrary Dart objects fall back to sanitized previews.
-- Value preview sanitization relies on keyword matching. Custom models with non-standard secret field names are not automatically masked.
+- Value preview sanitization relies on keyword matching. Custom models with non-standard secret field names are not automatically masked unless a custom serializer handles them.
 - `includeValuePreview` should remain `false` in production builds.
+- `valueSerializer` can be used to adapt app-specific models without leaking raw object strings.
 - The State tab intentionally does not expose a source filter; source remains available in event details for future adapter support.
 - This package line targets Riverpod 3 only. Riverpod 2 projects should stay on `debug_kit_riverpod ^0.2.3`.
 - `logProviderUpdates` is still accepted as a deprecated alias for `recordProviderUpdates` so older code keeps compiling.
@@ -111,13 +117,13 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The observer wraps a
 | Riverpod version | debug_kit_riverpod version |
 | :--------------- | :------------------------- |
 | Riverpod 2 | `^0.2.3` |
-| Riverpod 3 | `^0.4.0` |
+| Riverpod 3 | `^0.5.0` |
 
 ## Compatibility
 
 | `debug_kit_riverpod` | `debug_kit` | `flutter_riverpod` |
 |---|---|---|
-| 0.4.0 | ^0.10.1 | 3.x |
+| 0.5.0 | ^0.11.0 | 3.x |
 | 0.2.3 | ^0.9.1 | 2.x |
 
 ## License

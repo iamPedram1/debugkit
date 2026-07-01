@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io' show gzip;
 import 'dart:typed_data';
 
 import 'package:debug_kit/debug_kit.dart';
@@ -28,10 +30,26 @@ class ExampleRefreshNotifier extends Notifier<int> {
   void increment() => state++;
 }
 
-final exampleAsyncStateProvider = FutureProvider<String>((ref) async {
+class ExampleBalanceModel {
+  final int balance;
+  final String currency;
+
+  const ExampleBalanceModel({
+    required this.balance,
+    required this.currency,
+  });
+
+  Map<String, Object?> toJson() => {
+        'balance': balance,
+        'currency': currency,
+      };
+}
+
+final exampleAsyncStateProvider =
+    FutureProvider<ExampleBalanceModel>((ref) async {
   final refresh = ref.watch(exampleAsyncRefreshProvider);
   await Future.delayed(const Duration(milliseconds: 650));
-  return 'Loaded async state #$refresh';
+  return ExampleBalanceModel(balance: 120 + refresh, currency: 'USD');
 }, name: 'asyncStateProvider');
 
 class ExampleCounterNotifier extends Notifier<int> {
@@ -140,6 +158,9 @@ void main() {
           captureResponseHeaders: true,
           captureRequestBody: true,
           captureResponseBody: true,
+          prettyPrintJson: true,
+          decodeGzipBodies: true,
+          maxBodyBytes: 65536,
         ),
       ),
     ],
@@ -149,7 +170,7 @@ void main() {
     ProviderScope(
       observers: [
         DebugKitRiverpodObserver(
-          config: const DebugKitRiverpodConfig(
+          config: DebugKitRiverpodConfig(
             recordProviderAdds: true,
             recordProviderUpdates: true,
             recordProviderDisposals: true,
@@ -158,6 +179,16 @@ void main() {
             mirrorErrorsToLogs: true,
             includeValuePreview: true,
             maxValuePreviewLength: 120,
+            valueSerializer: (value) {
+              if (value is ExampleBalanceModel) {
+                return {
+                  'balance': value.balance,
+                  'currency': value.currency,
+                  'source': 'custom serializer',
+                };
+              }
+              return value;
+            },
           ),
         ),
       ],
@@ -214,7 +245,7 @@ class MyHomePage extends ConsumerWidget {
     final profile = nestedProfile['profile'] as Map<String, Object?>;
     final metadata = profile['metadata'] as Map<String, Object?>;
     final asyncSummary = asyncState.when(
-      data: (value) => value,
+      data: (value) => '${value.balance} ${value.currency}',
       loading: () => 'Loading async state...',
       error: (error, _) => 'Async error: $error',
     );
@@ -317,6 +348,10 @@ class MyHomePage extends ConsumerWidget {
                 onPressed: () => _runSlowNetworkRequest(dio),
                 child: const Text('Slow Request'),
               ),
+              ElevatedButton(
+                onPressed: () => _runGzipNetworkRequest(dio),
+                child: const Text('Gzip JSON'),
+              ),
             ]),
             const Divider(height: 32),
 
@@ -339,7 +374,7 @@ class MyHomePage extends ConsumerWidget {
             Text('Counter: $counter', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
             Text(
-              'Async: $asyncSummary',
+              'Async balance: $asyncSummary',
               style: const TextStyle(fontSize: 16),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -361,7 +396,7 @@ class MyHomePage extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () =>
                     ref.read(exampleAsyncRefreshProvider.notifier).increment(),
-                child: const Text('Trigger Async State'),
+                child: const Text('Refresh Async Balance'),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -580,6 +615,33 @@ class MyHomePage extends ConsumerWidget {
       dio.httpClientAdapter = previousAdapter;
     }
   }
+
+  Future<void> _runGzipNetworkRequest(Dio dio) async {
+    final previousAdapter = dio.httpClientAdapter;
+    dio.httpClientAdapter = _GzipMockAdapter(
+      delay: const Duration(milliseconds: 250),
+      body: '{"status":"ok","demo":"gzip"}',
+      statusCode: 200,
+    );
+
+    try {
+      await dio.post(
+        'https://api.example.com/demo/gzip',
+        data: gzip.encode(utf8.encode('{"request":"gzip"}')),
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            Headers.contentTypeHeader: Headers.jsonContentType,
+            Headers.contentEncodingHeader: 'gzip',
+          },
+        ),
+      );
+    } catch (_) {
+      // Expected to stay silent if the temporary adapter changes behavior.
+    } finally {
+      dio.httpClientAdapter = previousAdapter;
+    }
+  }
 }
 
 class DetailsPage extends StatelessWidget {
@@ -645,6 +707,38 @@ class _SlowMockAdapter implements HttpClientAdapter {
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
         'x-request-id': ['demo-slow-request'],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _GzipMockAdapter implements HttpClientAdapter {
+  final Duration delay;
+  final String body;
+  final int statusCode;
+
+  _GzipMockAdapter({
+    required this.delay,
+    required this.body,
+    required this.statusCode,
+  });
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    await Future<void>.delayed(delay);
+    return ResponseBody.fromBytes(
+      gzip.encode(utf8.encode(body)),
+      statusCode,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+        Headers.contentEncodingHeader: ['gzip'],
       },
     );
   }

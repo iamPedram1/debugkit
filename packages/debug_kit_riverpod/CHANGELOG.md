@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+- Added structured Riverpod value serialization for `AsyncValue`, `toJson()`, `toMap()`, iterables, and custom serializer output.
+
+### Changed
+- Updated the adapter to support `debug_kit ^0.11.0`.
+- Improved provider previews so complex models no longer collapse to `Instance of ...` when structured data is available.
+
 ## 0.4.0
 
 ### Added

@@ -64,6 +64,15 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
         sanitizerConfig: _controller.config.sanitizer,
       );
 
+  Object? _serializeValue(dynamic value) => RiverpodLogHelpers.serializeValue(
+        value,
+        valueSerializer: config.valueSerializer,
+        maxSerializationDepth: config.maxSerializationDepth,
+        maxSerializedEntries: config.maxSerializedEntries,
+        maxValuePreviewLength: config.maxValuePreviewLength,
+        sanitizerConfig: _controller.config.sanitizer,
+      );
+
   void _recordStateEvent({
     required String providerName,
     required String providerType,
@@ -93,6 +102,12 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
           'provider_name': providerName,
           'provider_type': providerType,
           'event_type': eventType.name,
+          if (previousValuePreview != null)
+            'previous_preview': previousValuePreview,
+          if (nextValuePreview != null) 'next_preview': nextValuePreview,
+          if (nextValuePreview != null) 'value_preview': nextValuePreview,
+          if (diffPreview != null) 'diff_preview': diffPreview,
+          if (changes.isNotEmpty) 'changes_count': changes.length.toString(),
         },
       ),
     );
@@ -193,7 +208,7 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
       if (!_shouldTrackProvider(providerName)) return;
       final providerType = _providerTypeFor(context.provider);
       final nextPreview = config.includeValuePreview && value != null
-          ? _safePreview(value)
+          ? _safePreview(_serializeValue(value))
           : null;
       final changes = value == null
           ? const <DebugStateDiffEntry>[]
@@ -203,6 +218,9 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
               maxDepth: config.maxDiffDepth,
               maxEntries: config.maxDiffEntries,
               maxValuePreviewLength: config.maxValuePreviewLength,
+              valueSerializer: config.valueSerializer,
+              maxSerializationDepth: config.maxSerializationDepth,
+              maxSerializedEntries: config.maxSerializedEntries,
               sanitizerConfig: _controller.config.sanitizer,
             );
       final diffPreview = RiverpodLogHelpers.summarizeChanges(changes);
@@ -268,10 +286,10 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
       final providerType = _providerTypeFor(context.provider);
       final previousPreview =
           config.includeValuePreview && previousValue != null
-              ? _safePreview(previousValue)
+              ? _safePreview(_serializeValue(previousValue))
               : null;
       final nextPreview = config.includeValuePreview && newValue != null
-          ? _safePreview(newValue)
+          ? _safePreview(_serializeValue(newValue))
           : null;
       final changes = RiverpodLogHelpers.buildStateDiffEntries(
         previousValue,
@@ -279,6 +297,9 @@ base class DebugKitRiverpodObserver extends ProviderObserver {
         maxDepth: config.maxDiffDepth,
         maxEntries: config.maxDiffEntries,
         maxValuePreviewLength: config.maxValuePreviewLength,
+        valueSerializer: config.valueSerializer,
+        maxSerializationDepth: config.maxSerializationDepth,
+        maxSerializedEntries: config.maxSerializedEntries,
         sanitizerConfig: _controller.config.sanitizer,
       );
       final diffPreview = RiverpodLogHelpers.summarizeChanges(changes);

@@ -3,6 +3,7 @@ import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_network_endpoint_stats.dart';
 import '../../core/models/debug_network_transaction.dart';
+import '../../core/models/debug_state_event.dart';
 import '../../core/models/debug_trace.dart';
 import '../../core/models/debug_network_summary.dart';
 import '../../utils/network/debug_network_transaction_builder.dart';
@@ -29,9 +30,16 @@ class DebugLogExportFormatter {
   /// - [digest]: optional [DebugErrorDigest] appended as a final section.
   static String formatLogs(
     List<DebugLogEntry> logs, {
+    List<DebugStateEvent>? stateEvents,
     List<DebugTrace>? traces,
     DebugErrorDigest? digest,
     DebugNetworkSummary? networkSummary,
+    bool includeLogs = true,
+    bool includeStateEvents = true,
+    bool includeTraces = true,
+    bool includeNetworkSummary = true,
+    bool includeNetworkTransactions = true,
+    bool includeDigest = true,
   }) {
     final buffer = StringBuffer();
     final now = DateTime.now();
@@ -39,19 +47,29 @@ class DebugLogExportFormatter {
 
     buffer.writeln('DebugKit Logs');
     buffer.writeln('Exported: ${dateFormat.format(now)}');
-    buffer.writeln('Total   : ${logs.length} entries');
+    buffer.writeln('Total   : ${includeLogs ? logs.length : 0} entries');
     buffer.writeln(
         '============================================================');
     buffer.writeln();
 
-    for (final entry in logs) {
-      buffer.writeln(formatEntry(entry));
+    if (includeLogs) {
+      for (final entry in logs) {
+        buffer.writeln(formatEntry(entry));
+        buffer.writeln(
+            '------------------------------------------------------------');
+      }
+    }
+
+    if (includeStateEvents && stateEvents != null && stateEvents.isNotEmpty) {
+      buffer.writeln();
       buffer.writeln(
-          '------------------------------------------------------------');
+          '============================================================');
+      buffer.writeln();
+      buffer.write(_StateExportFormatter.formatStateEvents(stateEvents));
     }
 
     // Append traces section if provided
-    if (traces != null && traces.isNotEmpty) {
+    if (includeTraces && traces != null && traces.isNotEmpty) {
       buffer.writeln();
       buffer.writeln(
           '============================================================');
@@ -66,7 +84,9 @@ class DebugLogExportFormatter {
       }
     }
 
-    if (networkSummary != null && !networkSummary.isEmpty) {
+    if (includeNetworkSummary &&
+        networkSummary != null &&
+        !networkSummary.isEmpty) {
       buffer.writeln();
       buffer.writeln(
           '============================================================');
@@ -76,7 +96,9 @@ class DebugLogExportFormatter {
       ));
     }
 
-    final networkTransactions = DebugNetworkTransactionBuilder.build(logs);
+    final networkTransactions = includeNetworkTransactions
+        ? DebugNetworkTransactionBuilder.build(logs)
+        : const <DebugNetworkTransaction>[];
     if (networkTransactions.isNotEmpty) {
       buffer.writeln();
       buffer.writeln(
@@ -90,7 +112,7 @@ class DebugLogExportFormatter {
     }
 
     // Append error digest section if provided
-    if (digest != null && !digest.isEmpty) {
+    if (includeDigest && digest != null && !digest.isEmpty) {
       buffer.writeln();
       buffer.writeln(
           '============================================================');
@@ -169,6 +191,77 @@ class DebugLogExportFormatter {
       buffer.writeln(entry.stackTrace);
     }
 
+    return buffer.toString();
+  }
+}
+
+class _StateExportFormatter {
+  static final _dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss.SSS');
+
+  static String formatStateEvents(List<DebugStateEvent> events) {
+    final buffer = StringBuffer();
+    buffer.writeln('State Events');
+    buffer.writeln('Total     : ${events.length}');
+    buffer.writeln(
+        '============================================================');
+    buffer.writeln();
+
+    for (final event in events) {
+      buffer.writeln(formatStateEvent(event));
+      buffer.writeln(
+          '------------------------------------------------------------');
+    }
+
+    return buffer.toString();
+  }
+
+  static String formatStateEvent(DebugStateEvent event) {
+    final buffer = StringBuffer();
+    buffer.write('[${event.eventType.label.toUpperCase()}][STATE] ');
+    buffer.write(event.name);
+    if (event.type != null && event.type!.trim().isNotEmpty) {
+      buffer.write('  (${event.type})');
+    }
+    buffer.writeln();
+    buffer.writeln('  Source    : ${event.source}');
+    buffer.writeln('  Timestamp : ${_dateFormat.format(event.timestamp)}');
+    if (event.previousValuePreview != null) {
+      buffer.writeln('  Previous  : ${event.previousValuePreview}');
+    }
+    if (event.nextValuePreview != null) {
+      buffer.writeln('  Next      : ${event.nextValuePreview}');
+    }
+    if (event.diffPreview != null) {
+      buffer.writeln('  Diff      : ${event.diffPreview}');
+    }
+    if (event.changes.isNotEmpty) {
+      buffer.writeln('  Changes   :');
+      for (final change in event.changes) {
+        buffer.writeln('    - ${change.path} (${change.type.label})');
+        if (change.previousValuePreview != null) {
+          buffer.writeln('      Previous: ${change.previousValuePreview}');
+        }
+        if (change.nextValuePreview != null) {
+          buffer.writeln('      Next    : ${change.nextValuePreview}');
+        }
+      }
+    }
+    if (event.metadata != null && event.metadata!.isNotEmpty) {
+      buffer.writeln('  Metadata  :');
+      final keys = event.metadata!.keys.toList()..sort();
+      for (final key in keys) {
+        buffer.writeln('    $key=${event.metadata![key]}');
+      }
+    }
+    if (event.error != null) {
+      buffer.writeln('  Error     : ${event.error}');
+    }
+    if (event.stackTrace != null) {
+      buffer.writeln('  Stack     :');
+      for (final line in event.stackTrace!.split('\n').take(10)) {
+        buffer.writeln('    $line');
+      }
+    }
     return buffer.toString();
   }
 }

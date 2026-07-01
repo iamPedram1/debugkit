@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show gzip;
 
 import 'package:debug_kit/debug_kit.dart';
 import 'package:dio/dio.dart';
@@ -151,47 +152,171 @@ class DioLogSanitizerHelpers {
   }
 
   /// Builds a sanitized body preview for opt-in capture.
-  static String? buildBodyPreview(
+  static ({String? preview, String? skipReason}) buildBodyPreview(
     dynamic body, {
     required bool captureBody,
-    required int maxCaptureBytes,
+    required bool prettyPrintJson,
+    required bool decodeGzipBodies,
+    required int maxBodyBytes,
+    required int maxPreviewChars,
+    String? contentType,
+    String? contentEncoding,
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
+  }) {
+    if (!captureBody || body == null) {
+      return (preview: null, skipReason: 'body capture disabled');
+    }
+
+    if (body is FormData || body is MultipartFile || body is Stream) {
+      return (preview: null, skipReason: 'multipart or streamed payload');
+    }
+    if (body is List<int>) {
+      return _previewFromBytes(
+        body,
+        captureBody: captureBody,
+        prettyPrintJson: prettyPrintJson,
+        decodeGzipBodies: decodeGzipBodies,
+        maxBodyBytes: maxBodyBytes,
+        maxPreviewChars: maxPreviewChars,
+        contentType: contentType,
+        contentEncoding: contentEncoding,
+        config: config,
+      );
+    }
+
+    late final String previewText;
+    if (body is String) {
+      previewText = body;
+    } else if (body is Map || body is List || body is num || body is bool) {
+      try {
+        final sanitized =
+            DebugLogSanitizer.sanitizePayload(body, config: config);
+        previewText = prettyPrintJson
+            ? const JsonEncoder.withIndent('  ').convert(sanitized)
+            : jsonEncode(sanitized);
+      } catch (_) {
+        previewText = body.toString();
+      }
+    } else {
+      previewText = body.toString();
+    }
+
+    if (previewText.length > maxBodyBytes) {
+      return (preview: null, skipReason: 'body exceeds $maxBodyBytes bytes');
+    }
+
+    return _buildTextPreview(
+      previewText,
+      prettyPrintJson: prettyPrintJson,
+      maxPreviewChars: maxPreviewChars,
+      config: config,
+    );
+  }
+
+  static ({String? preview, String? skipReason}) _previewFromBytes(
+    List<int> bytes, {
+    required bool captureBody,
+    required bool prettyPrintJson,
+    required bool decodeGzipBodies,
+    required int maxBodyBytes,
+    required int maxPreviewChars,
+    String? contentType,
+    String? contentEncoding,
+    DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
+  }) {
+    if (bytes.length > maxBodyBytes) {
+      return (preview: null, skipReason: 'body exceeds $maxBodyBytes bytes');
+    }
+
+    final decoded = _decodeBytes(
+      bytes,
+      decodeGzipBodies: decodeGzipBodies,
+      contentEncoding: contentEncoding,
+    );
+    if (decoded == null) {
+      return (
+        preview: null,
+        skipReason: decodeGzipBodies
+            ? 'binary payload or gzip body could not be decoded'
+            : 'binary payload',
+      );
+    }
+
+    return _buildTextPreview(
+      decoded,
+      prettyPrintJson: prettyPrintJson,
+      maxPreviewChars: maxPreviewChars,
+      config: config,
+    );
+  }
+
+  static String? _decodeBytes(
+    List<int> bytes, {
+    required bool decodeGzipBodies,
+    String? contentEncoding,
+  }) {
+    var working = bytes;
+    final encoding = contentEncoding?.toLowerCase() ?? '';
+    final looksGzip = encoding.contains('gzip') ||
+        (bytes.length > 2 && bytes[0] == 0x1f && bytes[1] == 0x8b);
+    if (decodeGzipBodies && looksGzip) {
+      try {
+        working = gzip.decode(bytes);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    try {
+      return utf8.decode(working);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static ({String? preview, String? skipReason}) _buildTextPreview(
+    String text, {
+    required bool prettyPrintJson,
     required int maxPreviewChars,
     DebugKitSanitizerConfig config = const DebugKitSanitizerConfig(),
   }) {
-    if (!captureBody || body == null) return null;
+    final normalized = _maybePrettyPrintJson(
+      text,
+      prettyPrintJson: prettyPrintJson,
+    );
 
-    if (body is FormData || body is MultipartFile || body is Stream) {
-      return null;
-    }
-    if (body is List<int>) {
-      return null;
-    }
-
-    String? preview;
-    if (body is String) {
-      preview = body;
-    } else if (body is Map || body is List || body is num || body is bool) {
-      try {
-        preview = jsonEncode(
-          DebugLogSanitizer.sanitizePayload(body, config: config),
-        );
-      } catch (_) {
-        preview = body.toString();
-      }
-    } else {
-      preview = body.toString();
+    if (normalized.isEmpty) {
+      return (preview: null, skipReason: 'empty body');
     }
 
-    if (preview.isEmpty) return null;
-    final previewText = preview;
-    if (previewText.length > maxCaptureBytes) return null;
-
-    final sanitized =
-        DebugLogSanitizer.sanitizeMessage(previewText, config: config);
+    final sanitized = DebugLogSanitizer.sanitizeMessage(
+      normalized,
+      config: config,
+    );
     if (sanitized.length > maxPreviewChars) {
-      return '${sanitized.substring(0, maxPreviewChars)}…';
+      return (
+        preview: '${sanitized.substring(0, maxPreviewChars)}…',
+        skipReason: null,
+      );
     }
-    return sanitized;
+    return (preview: sanitized, skipReason: null);
+  }
+
+  static String _maybePrettyPrintJson(
+    String text, {
+    required bool prettyPrintJson,
+  }) {
+    if (!prettyPrintJson) return text;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return text;
+    if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return text;
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      return const JsonEncoder.withIndent('  ').convert(decoded);
+    } catch (_) {
+      return text;
+    }
   }
 
   static String _buildPreview(

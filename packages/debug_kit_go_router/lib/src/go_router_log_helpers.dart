@@ -20,4 +20,30 @@ class GoRouterLogHelpers {
       return path; // Fail silently on malformed routes
     }
   }
+
+  /// Returns a readable route label for navigation logs.
+  ///
+  /// Prefers a sanitized route name/path when available and falls back to the
+  /// runtime type for unnamed routes.
+  static String routeLabel({
+    String? routeName,
+    required String routeType,
+  }) {
+    final cleanedName = _clean(routeName);
+    if (cleanedName != null) {
+      return sanitizeRoutePath(cleanedName);
+    }
+
+    final cleanedType = _clean(routeType);
+    if (cleanedType != null) return cleanedType;
+
+    return 'UnnamedRoute';
+  }
+
+  static String? _clean(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return trimmed;
+  }
 }

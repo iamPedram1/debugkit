@@ -3,6 +3,8 @@
 /// The observer records generic state events into DebugKit's dedicated State
 /// tab by default. Mirroring those changes into the Logs tab is opt-in so
 /// Riverpod updates no longer flood the main console.
+typedef DebugKitRiverpodValueSerializer = Object? Function(Object? value);
+
 class DebugKitRiverpodConfig {
   /// Creates a [DebugKitRiverpodConfig].
   const DebugKitRiverpodConfig({
@@ -16,6 +18,9 @@ class DebugKitRiverpodConfig {
     this.mirrorErrorsToLogs = true,
     this.watchedProviders = const {},
     this.includeValuePreview = false,
+    this.valueSerializer,
+    this.maxSerializationDepth = 5,
+    this.maxSerializedEntries = 100,
     this.maxValuePreviewLength = 500,
     this.maxDiffDepth = 5,
     this.maxDiffEntries = 50,
@@ -70,6 +75,20 @@ class DebugKitRiverpodConfig {
   ///
   /// When `true`, previews are sanitized and truncated before storage.
   final bool includeValuePreview;
+
+  /// Optional custom serializer used before DebugKit falls back to defaults.
+  ///
+  /// Return a JSON-like object such as a `Map`, `List`, primitive, or `null`.
+  /// If the serializer throws, DebugKit silently falls back to the built-in
+  /// serializer pipeline.
+  final DebugKitRiverpodValueSerializer? valueSerializer;
+
+  /// Maximum recursion depth when converting provider values to structured
+  /// JSON-like data.
+  final int maxSerializationDepth;
+
+  /// Maximum number of entries to serialize from a single `Map` or `Iterable`.
+  final int maxSerializedEntries;
 
   /// Maximum preview length in characters.
   final int maxValuePreviewLength;

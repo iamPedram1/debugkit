@@ -72,8 +72,12 @@ class DebugKitDioInterceptor extends Interceptor {
     final requestBodyPreview = DioLogSanitizerHelpers.buildBodyPreview(
       options.data,
       captureBody: config.captureRequestBody,
-      maxCaptureBytes: config.maxCaptureBytes,
+      prettyPrintJson: config.prettyPrintJson,
+      decodeGzipBodies: config.decodeGzipBodies,
+      maxBodyBytes: config.maxBodyBytes,
       maxPreviewChars: config.maxBodyPreviewChars,
+      contentType: options.contentType,
+      contentEncoding: _readHeader(options.headers, 'content-encoding'),
       config: sanitizerConfig,
     );
     final path = options.uri.path.isEmpty ? '/' : options.uri.path;
@@ -96,7 +100,10 @@ class DebugKitDioInterceptor extends Interceptor {
       'requestId': requestId,
       if (requestHeadersPreview != null)
         'requestHeadersPreview': requestHeadersPreview,
-      if (requestBodyPreview != null) 'requestBodyPreview': requestBodyPreview,
+      if (requestBodyPreview.preview != null)
+        'requestBodyPreview': requestBodyPreview.preview!,
+      if (requestBodyPreview.skipReason != null)
+        'requestBodySkipReason': requestBodyPreview.skipReason!,
     };
 
     _controller.log(
@@ -169,8 +176,12 @@ class DebugKitDioInterceptor extends Interceptor {
       final responseBodyPreview = DioLogSanitizerHelpers.buildBodyPreview(
         response.data,
         captureBody: config.captureResponseBody,
-        maxCaptureBytes: config.maxCaptureBytes,
+        prettyPrintJson: config.prettyPrintJson,
+        decodeGzipBodies: config.decodeGzipBodies,
+        maxBodyBytes: config.maxBodyBytes,
         maxPreviewChars: config.maxBodyPreviewChars,
+        contentType: _readHeader(response.headers.map, 'content-type'),
+        contentEncoding: _readHeader(response.headers.map, 'content-encoding'),
         config: sanitizerConfig,
       );
 
@@ -198,8 +209,10 @@ class DebugKitDioInterceptor extends Interceptor {
             if (durationMs != null) 'durationMs': durationMs.toString(),
             if (responseHeadersPreview != null)
               'responseHeadersPreview': responseHeadersPreview,
-            if (responseBodyPreview != null)
-              'responseBodyPreview': responseBodyPreview,
+            if (responseBodyPreview.preview != null)
+              'responseBodyPreview': responseBodyPreview.preview!,
+            if (responseBodyPreview.skipReason != null)
+              'responseBodySkipReason': responseBodyPreview.skipReason!,
             ...backendMetadata,
           },
         );
@@ -225,8 +238,10 @@ class DebugKitDioInterceptor extends Interceptor {
             if (durationMs != null) 'duration_ms': durationMs.toString(),
             if (responseHeadersPreview != null)
               'responseHeadersPreview': responseHeadersPreview,
-            if (responseBodyPreview != null)
-              'responseBodyPreview': responseBodyPreview,
+            if (responseBodyPreview.preview != null)
+              'responseBodyPreview': responseBodyPreview.preview!,
+            if (responseBodyPreview.skipReason != null)
+              'responseBodySkipReason': responseBodyPreview.skipReason!,
             ...backendMetadata,
           },
         );
@@ -288,8 +303,14 @@ class DebugKitDioInterceptor extends Interceptor {
           ? DioLogSanitizerHelpers.buildBodyPreview(
               err.response!.data,
               captureBody: config.captureResponseBody,
-              maxCaptureBytes: config.maxCaptureBytes,
+              prettyPrintJson: config.prettyPrintJson,
+              decodeGzipBodies: config.decodeGzipBodies,
+              maxBodyBytes: config.maxBodyBytes,
               maxPreviewChars: config.maxBodyPreviewChars,
+              contentType:
+                  _readHeader(err.response!.headers.map, 'content-type'),
+              contentEncoding:
+                  _readHeader(err.response!.headers.map, 'content-encoding'),
               config: sanitizerConfig,
             )
           : null;
@@ -337,8 +358,10 @@ class DebugKitDioInterceptor extends Interceptor {
             'error_message': errorMessage,
             if (responseHeadersPreview != null)
               'responseHeadersPreview': responseHeadersPreview,
-            if (responseBodyPreview != null)
-              'responseBodyPreview': responseBodyPreview,
+            if (responseBodyPreview?.preview != null)
+              'responseBodyPreview': responseBodyPreview!.preview!,
+            if (responseBodyPreview?.skipReason != null)
+              'responseBodySkipReason': responseBodyPreview!.skipReason!,
             ...backendMetadata,
           },
         );
@@ -372,8 +395,10 @@ class DebugKitDioInterceptor extends Interceptor {
             if (durationMs != null) 'durationMs': durationMs.toString(),
             if (responseHeadersPreview != null)
               'responseHeadersPreview': responseHeadersPreview,
-            if (responseBodyPreview != null)
-              'responseBodyPreview': responseBodyPreview,
+            if (responseBodyPreview?.preview != null)
+              'responseBodyPreview': responseBodyPreview!.preview!,
+            if (responseBodyPreview?.skipReason != null)
+              'responseBodySkipReason': responseBodyPreview!.skipReason!,
             ...backendMetadata,
           },
         );
@@ -381,5 +406,25 @@ class DebugKitDioInterceptor extends Interceptor {
     }
 
     super.onError(err, handler);
+  }
+
+  String? _readHeader(Map<dynamic, dynamic> headers, String name) {
+    for (final entry in headers.entries) {
+      if (entry.key.toString().toLowerCase() != name.toLowerCase()) {
+        continue;
+      }
+      final value = entry.value;
+      if (value is String && value.trim().isNotEmpty) return value;
+      if (value is Iterable && value.isNotEmpty) {
+        final first = value.first;
+        if (first != null && first.toString().trim().isNotEmpty) {
+          return first.toString();
+        }
+      }
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString();
+      }
+    }
+    return null;
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/controller/debug_kit_controller.dart';
 import '../../core/models/debug_log_entry.dart';
+import '../../core/models/debug_state_event.dart';
 import '../../core/models/debug_trace.dart';
 import '../../core/models/debug_network_summary.dart';
 import '../../utils/filtering/debug_log_filter.dart';
@@ -92,21 +93,12 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
               ),
               IconButton(
                 icon: const Icon(Icons.share, size: 22),
-                tooltip: _filterState.hasActiveFilters
-                    ? 'Export filtered logs'
-                    : 'Export logs',
-                onPressed: () => _shareLogs(
+                tooltip: 'Export selected sections',
+                onPressed: () => _showExportDialog(
                   _filterState.hasActiveFilters
                       ? filteredLogs
                       : allLogs.toList(),
                   allTraces.toList(),
-                  networkSummary: DebugNetworkSummaryBuilder.build(
-                    _filterState.hasActiveFilters
-                        ? filteredLogs
-                        : allLogs.toList(),
-                    slowRequestThresholdMs:
-                        DebugKitController().config.slowRequestThresholdMs,
-                  ),
                 ),
               ),
               IconButton(
@@ -324,14 +316,16 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
       slowRequestThresholdMs:
           DebugKitController().config.slowRequestThresholdMs,
     );
+    final stateEvents = DebugKitController().stateStore.events.toList();
     await DebugLogFileExporter.exportToClipboard(logs,
+        stateEvents: stateEvents,
         traces: traces,
         digest: digest.isEmpty ? null : digest,
         networkSummary: summary.isEmpty ? null : summary);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('All logs copied to clipboard'),
+          content: Text('Selected export copied to clipboard'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -341,35 +335,65 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
   Future<void> _shareLogs(
     List<DebugLogEntry> logs,
     List<DebugTrace> traces, {
+    required List<DebugStateEvent> stateEvents,
     DebugNetworkSummary? networkSummary,
+    bool includeLogs = true,
+    bool includeStateEvents = true,
+    bool includeTraces = true,
+    bool includeNetworkSummary = true,
+    bool includeNetworkTransactions = true,
+    bool includeDigest = true,
   }) async {
-    if (logs.isEmpty) {
+    final digest = DebugKitController().buildErrorDigest();
+    final hasSelectedContent = (includeLogs && logs.isNotEmpty) ||
+        (includeStateEvents && stateEvents.isNotEmpty) ||
+        (includeTraces && traces.isNotEmpty) ||
+        (includeNetworkSummary &&
+            networkSummary != null &&
+            !networkSummary.isEmpty) ||
+        (includeNetworkTransactions && logs.isNotEmpty) ||
+        (includeDigest && !digest.isEmpty);
+
+    if (!hasSelectedContent) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No logs to export'),
+            content: Text('No exportable content selected'),
             duration: Duration(seconds: 2),
           ),
         );
       }
       return;
     }
-    final digest = DebugKitController().buildErrorDigest();
     try {
       await DebugLogFileExporter.shareLogs(logs,
+          stateEvents: stateEvents,
           traces: traces,
           digest: digest.isEmpty ? null : digest,
-          networkSummary: networkSummary);
+          networkSummary: networkSummary,
+          includeLogs: includeLogs,
+          includeStateEvents: includeStateEvents,
+          includeTraces: includeTraces,
+          includeNetworkSummary: includeNetworkSummary,
+          includeNetworkTransactions: includeNetworkTransactions,
+          includeDigest: includeDigest);
     } catch (_) {
       try {
         await DebugLogFileExporter.exportToClipboard(logs,
+            stateEvents: stateEvents,
             traces: traces,
             digest: digest.isEmpty ? null : digest,
-            networkSummary: networkSummary);
+            networkSummary: networkSummary,
+            includeLogs: includeLogs,
+            includeStateEvents: includeStateEvents,
+            includeTraces: includeTraces,
+            includeNetworkSummary: includeNetworkSummary,
+            includeNetworkTransactions: includeNetworkTransactions,
+            includeDigest: includeDigest);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Share failed — logs copied to clipboard'),
+              content: Text('Share failed — export copied to clipboard'),
               duration: Duration(seconds: 3),
             ),
           );
@@ -385,6 +409,47 @@ class _DebugKitConsoleScreenState extends State<DebugKitConsoleScreen>
         }
       }
     }
+  }
+
+  Future<void> _showExportDialog(
+    List<DebugLogEntry> logs,
+    List<DebugTrace> traces,
+  ) async {
+    final stateEvents = DebugKitController().stateStore.events.toList();
+    final digest = DebugKitController().buildErrorDigest();
+    final summary = DebugNetworkSummaryBuilder.build(
+      logs,
+      slowRequestThresholdMs:
+          DebugKitController().config.slowRequestThresholdMs,
+    );
+    final selection = await showDialog<_ExportSelection>(
+      context: context,
+      builder: (ctx) => const _ExportDialog(
+        initialSelection: _ExportSelection(
+          includeLogs: true,
+          includeStateEvents: true,
+          includeTraces: true,
+          includeNetworkSummary: true,
+          includeNetworkTransactions: true,
+          includeDigest: true,
+        ),
+      ),
+    );
+
+    if (selection == null) return;
+
+    await _shareLogs(
+      logs,
+      traces,
+      stateEvents: stateEvents,
+      networkSummary: summary.isEmpty ? null : summary,
+      includeLogs: selection.includeLogs,
+      includeStateEvents: selection.includeStateEvents,
+      includeTraces: selection.includeTraces,
+      includeNetworkSummary: selection.includeNetworkSummary,
+      includeNetworkTransactions: selection.includeNetworkTransactions,
+      includeDigest: selection.includeDigest && !digest.isEmpty,
+    );
   }
 
   void _confirmClearLogs() {
@@ -512,6 +577,137 @@ class _TraceListTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ExportSelection {
+  final bool includeLogs;
+  final bool includeStateEvents;
+  final bool includeTraces;
+  final bool includeNetworkSummary;
+  final bool includeNetworkTransactions;
+  final bool includeDigest;
+
+  const _ExportSelection({
+    required this.includeLogs,
+    required this.includeStateEvents,
+    required this.includeTraces,
+    required this.includeNetworkSummary,
+    required this.includeNetworkTransactions,
+    required this.includeDigest,
+  });
+
+  _ExportSelection copyWith({
+    bool? includeLogs,
+    bool? includeStateEvents,
+    bool? includeTraces,
+    bool? includeNetworkSummary,
+    bool? includeNetworkTransactions,
+    bool? includeDigest,
+  }) {
+    return _ExportSelection(
+      includeLogs: includeLogs ?? this.includeLogs,
+      includeStateEvents: includeStateEvents ?? this.includeStateEvents,
+      includeTraces: includeTraces ?? this.includeTraces,
+      includeNetworkSummary:
+          includeNetworkSummary ?? this.includeNetworkSummary,
+      includeNetworkTransactions:
+          includeNetworkTransactions ?? this.includeNetworkTransactions,
+      includeDigest: includeDigest ?? this.includeDigest,
+    );
+  }
+}
+
+class _ExportDialog extends StatefulWidget {
+  final _ExportSelection initialSelection;
+
+  const _ExportDialog({required this.initialSelection});
+
+  @override
+  State<_ExportDialog> createState() => _ExportDialogState();
+}
+
+class _ExportDialogState extends State<_ExportDialog> {
+  late _ExportSelection _selection;
+
+  @override
+  void initState() {
+    super.initState();
+    _selection = widget.initialSelection;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF222222),
+      title: const Text(
+        'Export sections',
+        style: TextStyle(color: Colors.white, fontSize: 16),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildCheck('Logs', _selection.includeLogs, (value) {
+              setState(
+                  () => _selection = _selection.copyWith(includeLogs: value));
+            }),
+            _buildCheck('State', _selection.includeStateEvents, (value) {
+              setState(() =>
+                  _selection = _selection.copyWith(includeStateEvents: value));
+            }),
+            _buildCheck('Traces', _selection.includeTraces, (value) {
+              setState(
+                  () => _selection = _selection.copyWith(includeTraces: value));
+            }),
+            _buildCheck('Network summary', _selection.includeNetworkSummary,
+                (value) {
+              setState(() => _selection =
+                  _selection.copyWith(includeNetworkSummary: value));
+            }),
+            _buildCheck(
+                'Network requests', _selection.includeNetworkTransactions,
+                (value) {
+              setState(() => _selection = _selection.copyWith(
+                    includeNetworkTransactions: value,
+                  ));
+            }),
+            _buildCheck('Error digest', _selection.includeDigest, (value) {
+              setState(
+                  () => _selection = _selection.copyWith(includeDigest: value));
+            }),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _selection),
+          child: const Text('Export'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCheck(
+    String label,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return CheckboxListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
+      title: Text(
+        label,
+        style: const TextStyle(color: Colors.white),
+      ),
+      value: value,
+      onChanged: (next) => onChanged(next ?? false),
     );
   }
 }

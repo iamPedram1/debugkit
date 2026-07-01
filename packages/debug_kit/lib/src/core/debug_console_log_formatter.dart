@@ -332,8 +332,9 @@ class DebugConsoleLogFormatter {
     DebugConsolePrintFormat format, {
     required bool colorizeConsoleOutput,
   }) {
-    final from = entry.metadata?['previous_route_path'];
-    final to = entry.metadata?['route_path'];
+    final from = entry.metadata?['previous_route_label'] ??
+        entry.metadata?['previous_route_path'];
+    final to = entry.metadata?['route_label'] ?? entry.metadata?['route_path'];
     final action = entry.metadata?['action'];
     final name = entry.metadata?['route_name'] ?? entry.metadata?['name'];
     final argumentsPreview =
@@ -419,9 +420,12 @@ class DebugConsoleLogFormatter {
   }) {
     final provider = entry.metadata?['provider_name'] ?? 'provider';
     final eventType = entry.metadata?['event_type'] ?? 'updated';
-    final previousPreview = entry.metadata?['previous_preview'];
-    final nextPreview =
-        entry.metadata?['next_preview'] ?? entry.metadata?['value_preview'];
+    final previousPreview =
+        entry.metadata?['previous_preview'] ??
+        entry.metadata?['previous_value_preview'];
+    final nextPreview = entry.metadata?['next_preview'] ??
+        entry.metadata?['next_value_preview'] ??
+        entry.metadata?['value_preview'];
     final isFailure = entry.level == DebugLogLevel.error ||
         eventType.toLowerCase().contains('failure');
     final message = isFailure ? '$provider failed' : '$provider updated';

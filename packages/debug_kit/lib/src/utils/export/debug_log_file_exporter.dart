@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/debug_error_digest.dart';
 import '../../core/models/debug_log_entry.dart';
+import '../../core/models/debug_state_event.dart';
 import '../../core/models/debug_trace.dart';
 import '../../core/models/debug_network_summary.dart';
 import 'debug_log_export_formatter.dart';
@@ -37,12 +38,28 @@ class DebugLogFileExporter {
   /// - [digest]: optional error digest appended as a final section.
   static Future<void> exportToClipboard(
     List<DebugLogEntry> logs, {
+    List<DebugStateEvent>? stateEvents,
     List<DebugTrace>? traces,
     DebugErrorDigest? digest,
     DebugNetworkSummary? networkSummary,
+    bool includeLogs = true,
+    bool includeStateEvents = true,
+    bool includeTraces = true,
+    bool includeNetworkSummary = true,
+    bool includeNetworkTransactions = true,
+    bool includeDigest = true,
   }) async {
     final content = DebugLogExportFormatter.formatLogs(logs,
-        traces: traces, digest: digest, networkSummary: networkSummary);
+        stateEvents: stateEvents,
+        traces: traces,
+        digest: digest,
+        networkSummary: networkSummary,
+        includeLogs: includeLogs,
+        includeStateEvents: includeStateEvents,
+        includeTraces: includeTraces,
+        includeNetworkSummary: includeNetworkSummary,
+        includeNetworkTransactions: includeNetworkTransactions,
+        includeDigest: includeDigest);
     await Clipboard.setData(ClipboardData(text: content));
   }
 
@@ -54,12 +71,28 @@ class DebugLogFileExporter {
   /// - [digest]: optional error digest appended as a final section.
   static Future<void> shareLogs(
     List<DebugLogEntry> logs, {
+    List<DebugStateEvent>? stateEvents,
     List<DebugTrace>? traces,
     DebugErrorDigest? digest,
     DebugNetworkSummary? networkSummary,
+    bool includeLogs = true,
+    bool includeStateEvents = true,
+    bool includeTraces = true,
+    bool includeNetworkSummary = true,
+    bool includeNetworkTransactions = true,
+    bool includeDigest = true,
   }) async {
     final content = DebugLogExportFormatter.formatLogs(logs,
-        traces: traces, digest: digest, networkSummary: networkSummary);
+        stateEvents: stateEvents,
+        traces: traces,
+        digest: digest,
+        networkSummary: networkSummary,
+        includeLogs: includeLogs,
+        includeStateEvents: includeStateEvents,
+        includeTraces: includeTraces,
+        includeNetworkSummary: includeNetworkSummary,
+        includeNetworkTransactions: includeNetworkTransactions,
+        includeDigest: includeDigest);
     final directory = await getTemporaryDirectory();
     final fileName = buildFileName(DateTime.now());
     final file = File('${directory.path}/$fileName');

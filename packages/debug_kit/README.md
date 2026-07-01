@@ -18,7 +18,7 @@ DebugKit provides a searchable, filterable log viewer directly inside your app. 
 - **State Tab**: A dedicated, state-management-agnostic timeline for provider and state changes so Riverpod, Bloc, Provider, and future adapters stay out of the main Logs tab. Structured Map/List updates can show inline changed-field previews in the list, with full details available on tap.
 - **Security First**: Automatic sanitization and smart masking of sensitive data (Tokens, API Keys, Passwords, PEM Private Keys, Mnemonics).
 - **Performance Hardened**: Bounded in-memory log store (default 300) with zero overhead when disabled.
-- **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. No request/response bodies are included by default.
+- **Export Anywhere**: Copy logs to clipboard or share them as a sanitized `.txt` file via the platform share sheet. Export categories are selectable, and request/response bodies are still excluded by default.
 - **Trace System**: Named async traces with timeline, health analysis, and correlation to logs, network, navigation, and state events.
 - **Manual Logging API**: Easy-to-use API for application-level logs and user actions.
 
@@ -36,7 +36,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.10.2
+  debug_kit: ^0.11.0
 ```
 
 ## 5-Minute Setup
@@ -188,7 +188,7 @@ DebugKit.log.userAction('Tapped checkout button');
 
 ### 4. Record State Events
 
-Adapters can send framework-agnostic state events into the dedicated State tab. For JSON-like `Map` / `List` state, DebugKit can show structured changed paths and inline diff snippets instead of just whole-object previews. For arbitrary Dart objects, it falls back to sanitized truncated previews unless the adapter provides structured data. You can also record one manually from app code when you want to annotate a state change:
+Adapters can send framework-agnostic state events into the dedicated State tab. For JSON-like `Map` / `List` state, DebugKit can show structured changed paths and inline diff snippets instead of just whole-object previews. Riverpod adapters can now serialize `AsyncValue` wrappers, `toJson()` / `toMap()` models, and custom serializer output into readable structured changes. For arbitrary Dart objects, it falls back to sanitized truncated previews unless the adapter provides structured data. You can also record one manually from app code when you want to annotate a state change:
 
 ```dart
 DebugKit.state.record(

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+### Changed
+- Updated the adapter to support `debug_kit ^0.11.0`.
+- Improved route metadata so unnamed routes fall back to readable route labels instead of `unknown`.
+
 ## 0.3.0
 
 ### Changed

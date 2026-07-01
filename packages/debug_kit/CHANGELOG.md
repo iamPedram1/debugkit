@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+### Added
+- Added selectable export sections for logs, state events, traces, network summaries, network transactions, and error digests.
+- Added state-event export output so the State tab can be shared as sanitized text.
+
+### Changed
+- Updated the Riverpod State tab to prefer structured, diffable values when adapters provide `AsyncValue`, `toJson()`, `toMap()`, or custom serialized data.
+- Improved GoRouter navigation labels so unnamed routes fall back to readable route types instead of `unknown`.
+- Improved Dio body previews so JSON bodies can be pretty-printed and gzip-decoded when explicitly enabled.
+
 ## 0.10.2
 
 ### Fixed

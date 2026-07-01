@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+- Added opt-in pretty-printed JSON body previews for request and response payloads.
+- Added gzip-aware body preview decoding for inspectable compressed payloads.
+- Added body skip reasons so the Network Inspector can explain why a preview is unavailable.
+
+### Changed
+- Updated the adapter to support `debug_kit ^0.11.0`.
+
 ## 0.5.0
 
 ### Changed

@@ -17,6 +17,67 @@ class SensitiveObject {
   String toString() => 'SensitiveObject(token: secret123)';
 }
 
+class BalanceModel {
+  final int balance;
+
+  const BalanceModel(this.balance);
+
+  Map<String, Object?> toJson() => {'balance': balance};
+}
+
+class BalanceMapModel {
+  final int balance;
+
+  const BalanceMapModel(this.balance);
+
+  Map<String, Object?> toMap() => {'balance': balance};
+}
+
+class JsonBalanceNotifier extends Notifier<BalanceModel> {
+  @override
+  BalanceModel build() => const BalanceModel(120);
+
+  void updateBalance(int balance) => state = BalanceModel(balance);
+}
+
+class MapBalanceNotifier extends Notifier<BalanceMapModel> {
+  @override
+  BalanceMapModel build() => const BalanceMapModel(44);
+
+  void updateBalance(int balance) => state = BalanceMapModel(balance);
+}
+
+class CustomSerializedModel {
+  final String secret;
+
+  const CustomSerializedModel(this.secret);
+}
+
+final asyncLoadingProvider = Provider<AsyncValue<BalanceModel>>(
+    (ref) => const AsyncLoading<BalanceModel>());
+
+final asyncErrorProvider = Provider<AsyncValue<BalanceModel>>((ref) {
+  return AsyncError<BalanceModel>(
+    Exception('async failure'),
+    StackTrace.fromString('stack_trace_line'),
+  );
+});
+
+final asyncDataProvider =
+    Provider<AsyncValue<int>>((ref) => const AsyncData<int>(7));
+
+final jsonBalanceProvider = NotifierProvider<JsonBalanceNotifier, BalanceModel>(
+    JsonBalanceNotifier.new);
+
+final mapBalanceProvider =
+    NotifierProvider<MapBalanceNotifier, BalanceMapModel>(
+  MapBalanceNotifier.new,
+);
+
+final customSerializerProvider = Provider<CustomSerializedModel>(
+  (ref) => const CustomSerializedModel('secret-token-123'),
+);
+
 class NestedMapNotifier extends Notifier<Map<String, Object?>> {
   @override
   Map<String, Object?> build() {
@@ -192,6 +253,121 @@ void main() {
     expect(event.changes.single.nextValuePreview, 'active');
     expect(event.diffPreview, contains('profile.metadata.status'));
     expect(controller.store.logs, isEmpty);
+  });
+
+  test('AsyncValue providers serialize to structured state data', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(
+        includeValuePreview: true,
+      ),
+    );
+    final container = createContainer(observer);
+
+    expect(
+        container.read(asyncLoadingProvider), isA<AsyncValue<BalanceModel>>());
+
+    final event = controller.stateStore.events.first;
+    expect(event.nextValuePreview, contains('asyncState'));
+    expect(event.nextValuePreview, contains('loading'));
+    expect(event.changes.single.path, 'asyncState');
+    expect(event.changes.single.nextValuePreview, 'loading');
+  });
+
+  test('AsyncError providers serialize error previews safely', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(
+        includeValuePreview: true,
+      ),
+    );
+    final container = createContainer(observer);
+
+    expect(container.read(asyncErrorProvider), isA<AsyncValue<BalanceModel>>());
+
+    final event = controller.stateStore.events.first;
+    expect(event.nextValuePreview, contains('asyncState'));
+    expect(event.nextValuePreview, contains('error'));
+    expect(event.nextValuePreview, contains('async failure'));
+    expect(event.nextValuePreview, contains('stack_trace_line'));
+  });
+
+  test('AsyncData providers serialize primitive values directly', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(
+        includeValuePreview: true,
+      ),
+    );
+    final container = createContainer(observer);
+
+    expect(container.read(asyncDataProvider), isA<AsyncValue<int>>());
+
+    final event = controller.stateStore.events.first;
+    expect(event.nextValuePreview, contains('asyncState'));
+    expect(event.nextValuePreview, contains('data'));
+    expect(event.nextValuePreview, contains('7'));
+  });
+
+  test('toJson and toMap values become structured diffs', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: const DebugKitRiverpodConfig(
+        includeValuePreview: true,
+      ),
+    );
+    final container = createContainer(observer);
+
+    final jsonNotifier = container.read(jsonBalanceProvider.notifier);
+    final mapNotifier = container.read(mapBalanceProvider.notifier);
+    DebugKit.clearStateEvents();
+
+    jsonNotifier.updateBalance(135);
+    mapNotifier.updateBalance(52);
+
+    expect(controller.stateStore.events, hasLength(2));
+    final jsonEvent = controller.stateStore.events.firstWhere(
+      (event) => event.nextValuePreview?.contains('135') ?? false,
+    );
+    final mapEvent = controller.stateStore.events.firstWhere(
+      (event) => event.nextValuePreview?.contains('52') ?? false,
+    );
+
+    expect(jsonEvent.nextValuePreview, contains('balance'));
+    expect(jsonEvent.changes.single.path, 'balance');
+    expect(jsonEvent.changes.single.previousValuePreview, '120');
+    expect(jsonEvent.changes.single.nextValuePreview, '135');
+    expect(mapEvent.nextValuePreview, contains('balance'));
+    expect(mapEvent.changes.single.path, 'balance');
+    expect(mapEvent.changes.single.previousValuePreview, '44');
+    expect(mapEvent.changes.single.nextValuePreview, '52');
+  });
+
+  test('custom valueSerializer transforms fallback previews', () {
+    final observer = DebugKitRiverpodObserver(
+      controller: controller,
+      config: DebugKitRiverpodConfig(
+        includeValuePreview: true,
+        valueSerializer: (value) {
+          if (value is CustomSerializedModel) {
+            return {
+              'masked': 'custom:${value.secret.substring(0, 6)}',
+            };
+          }
+          return value;
+        },
+      ),
+    );
+    final container = createContainer(observer);
+
+    expect(
+      container.read(customSerializerProvider),
+      isA<CustomSerializedModel>(),
+    );
+
+    final event = controller.stateStore.events.first;
+    expect(event.nextValuePreview, contains('masked'));
+    expect(event.nextValuePreview, isNot(contains('secret-token-123')));
   });
 
   test('watchedProviders filters state events but not failures', () {
