@@ -420,8 +420,7 @@ class DebugConsoleLogFormatter {
   }) {
     final provider = entry.metadata?['provider_name'] ?? 'provider';
     final eventType = entry.metadata?['event_type'] ?? 'updated';
-    final previousPreview =
-        entry.metadata?['previous_preview'] ??
+    final previousPreview = entry.metadata?['previous_preview'] ??
         entry.metadata?['previous_value_preview'];
     final nextPreview = entry.metadata?['next_preview'] ??
         entry.metadata?['next_value_preview'] ??

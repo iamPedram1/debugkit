@@ -1,6 +1,6 @@
 name: debug_kit_riverpod
 description: "Riverpod provider observer adapter for DebugKit. Records provider state events into the State tab with sanitization and optional log mirroring."
-version: 0.5.0
+version: 0.5.1
 repository: https://github.com/iamPedram1/debugkit
 issue_tracker: https://github.com/iamPedram1/debugkit/issues
 topics:

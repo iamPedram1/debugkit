@@ -10,8 +10,13 @@ import 'debug_kit_button.dart';
 /// runApp(const DebugKitOverlay(child: MyApp()));
 /// ```
 class DebugKitOverlay extends StatelessWidget {
+  /// The application subtree that DebugKit should wrap.
   final Widget child;
 
+  /// Creates an overlay wrapper for the host app.
+  ///
+  /// When DebugKit is disabled, or the default overlay button is disabled,
+  /// [child] is returned unchanged.
   const DebugKitOverlay({
     super.key,
     required this.child,

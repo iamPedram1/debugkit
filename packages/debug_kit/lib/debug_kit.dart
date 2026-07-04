@@ -4,8 +4,6 @@
 /// the log console, trace system, and adapter integrations.
 ///
 /// ```dart
-/// import 'package:debug_kit/debug_kit.dart';
-///
 /// void main() {
 ///   DebugKit.init(enabled: kDebugMode);
 ///   runApp(const MyApp());
@@ -81,6 +79,9 @@ export 'src/ui/overlay/debug_kit_overlay.dart';
 /// ```
 class DebugKit {
   static final DebugKitController _controller = DebugKitController();
+
+  /// Static-only facade; DebugKit is not meant to be instantiated.
+  DebugKit._();
 
   /// Initializes DebugKit with the supplied configuration.
   ///

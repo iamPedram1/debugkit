@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+- Added a package-level example for pub.dev.
+- Added missing public API documentation comments.
+- Tightened the Dio lower-bound dependency constraint to match the APIs used by the adapter.
+
 ## 0.6.0
 
 ### Added

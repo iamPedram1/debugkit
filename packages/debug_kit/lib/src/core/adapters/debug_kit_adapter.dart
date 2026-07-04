@@ -30,6 +30,12 @@ import '../controller/debug_kit_controller.dart';
 /// }
 /// ```
 abstract class DebugKitAdapter {
+  /// Creates an adapter instance.
+  ///
+  /// Implementations should attach external hooks in [attach], not in the
+  /// constructor, so disabled DebugKit stays cheap.
+  const DebugKitAdapter();
+
   /// Called by [DebugKitController.init] when DebugKit is enabled.
   ///
   /// The adapter should install its hooks (interceptors, observers, etc.) on

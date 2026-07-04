@@ -36,7 +36,7 @@ Add `debug_kit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.11.0
+  debug_kit: ^0.11.1
 ```
 
 ## 5-Minute Setup
@@ -243,6 +243,8 @@ DebugKit relies on separate optional adapter packages to log automated events wi
 - [`debug_kit_riverpod`](https://pub.dev/packages/debug_kit_riverpod) — Riverpod state observer that records provider changes in the State tab
 
 Check out the full [Example App](https://github.com/iamPedram1/debugkit/tree/main/examples/debug_kit_example) to see them all working together.
+This package also includes a minimal package-level example in `example/main.dart`
+for quick copy-paste setup.
 
 ## Repeated Log Grouping
 

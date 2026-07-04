@@ -5,6 +5,10 @@
 /// Riverpod updates no longer flood the main console.
 typedef DebugKitRiverpodValueSerializer = Object? Function(Object? value);
 
+/// Controls which Riverpod provider events DebugKit records.
+///
+/// Defaults record provider lifecycle events into the State tab, mirror errors
+/// to Logs, and avoid value previews unless explicitly enabled.
 class DebugKitRiverpodConfig {
   /// Creates a [DebugKitRiverpodConfig].
   const DebugKitRiverpodConfig({

@@ -26,6 +26,8 @@ import 'dio_log_sanitizer_helpers.dart';
 /// correctly associated even when the response arrives in a different Zone.
 class DebugKitDioInterceptor extends Interceptor {
   final DebugKitController _controller;
+
+  /// Safe opt-in capture settings used by this interceptor.
   final DebugKitDioConfig config;
 
   /// Per-interceptor counter used to generate unique `request_id` strings.

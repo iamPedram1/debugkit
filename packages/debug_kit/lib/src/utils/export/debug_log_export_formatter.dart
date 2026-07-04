@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import '../../core/models/debug_error_digest.dart';
+import '../../core/models/debug_error_digest_entry.dart';
 import '../../core/models/debug_log_entry.dart';
 import '../../core/models/debug_network_endpoint_stats.dart';
 import '../../core/models/debug_network_transaction.dart';
@@ -510,8 +511,7 @@ class DebugErrorDigestExportFormatter {
   ///   Requests   : dio_1, dio_8
   ///   Hints      : HTTP 401 — check authentication/authorization
   /// ```
-  static String formatDigestEntry(entry) {
-    // entry is DebugErrorDigestEntry (imported via DebugErrorDigest)
+  static String formatDigestEntry(DebugErrorDigestEntry entry) {
     final buffer = StringBuffer();
 
     buffer.write('[${entry.severity.label}][${entry.source.label}] ');

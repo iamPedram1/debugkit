@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+
+- Added a package-level example for pub.dev.
+- Added missing public API documentation comments.
+- Fixed static analysis issues reported by pub.dev.
+- Migrated file sharing export code away from deprecated `Share.shareXFiles`.
+
 ## 0.11.0
 
 ### Added

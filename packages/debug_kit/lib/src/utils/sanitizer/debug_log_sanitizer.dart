@@ -7,6 +7,12 @@ import '../../core/models/debug_kit_sanitizer_config.dart';
 /// into the store unless `dangerouslyDisableSanitizer` is intentionally
 /// enabled for trusted local debugging.
 class DebugLogSanitizer {
+  /// Creates a sanitizer utility instance.
+  ///
+  /// All sanitizer operations are exposed as static methods, so constructing
+  /// this class is rarely needed.
+  const DebugLogSanitizer();
+
   static const _redactedPrivateKey = '[REDACTED PRIVATE KEY]';
   static const _redactedMnemonic = '[REDACTED MNEMONIC]';
 

@@ -28,6 +28,10 @@ class DebugKitDioConfig {
   @Deprecated('Use maxBodyBytes instead.')
   final int maxCaptureBytes;
 
+  /// Creates safe preview settings for the Dio adapter.
+  ///
+  /// Body and header previews are disabled by default. Enable them explicitly
+  /// when you want sanitized previews in the Network Inspector.
   const DebugKitDioConfig({
     this.captureRequestHeaders = false,
     this.captureResponseHeaders = false,

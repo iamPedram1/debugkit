@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- Added a package-level example for pub.dev.
+- Added missing public API documentation comments.
+
 ## 0.5.0
 
 ### Added

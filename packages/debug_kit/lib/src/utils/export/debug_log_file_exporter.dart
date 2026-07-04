@@ -99,9 +99,11 @@ class DebugLogFileExporter {
 
     await file.writeAsString(content);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'DebugKit Logs Export',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'DebugKit Logs Export',
+      ),
     );
   }
 }
