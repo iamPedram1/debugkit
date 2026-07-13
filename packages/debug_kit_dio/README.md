@@ -10,8 +10,8 @@ Add both `debug_kit` and `debug_kit_dio` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  debug_kit: ^0.11.1
-  debug_kit_dio: ^0.6.1
+  debug_kit: ^0.11.2
+  debug_kit_dio: ^0.6.2
 ```
 
 ## Setup
@@ -98,6 +98,30 @@ DebugKit.init(
 );
 ```
 
+## Console Lifecycle
+
+By default, each request prints two Flutter console lines: a `started` line
+on request, and a final result line on response/error. Use
+`networkConsoleLifecycleMode` to reduce noise for frequent endpoints — the
+in-app Network tab always records the full lifecycle regardless of this
+setting.
+
+```dart
+dio.interceptors.add(
+  DebugKitDioInterceptor(
+    DebugKit.controller,
+    config: const DebugKitDioConfig(
+      networkConsoleLifecycleMode:
+          DebugKitNetworkConsoleLifecycleMode.finalOnly,
+    ),
+  ),
+);
+```
+
+- `startAndFinish` (default): prints `started` + final result. Prior behavior.
+- `finalOnly`: prints only one final success/error line per request.
+- `none`: no console output for network requests; Network tab only.
+
 Defaults stay safe:
 
 - `captureRequestHeaders: false`
@@ -134,6 +158,7 @@ Zero overhead when DebugKit is disabled (`enabled: false`). The interceptor chec
 
 | `debug_kit_dio` | `debug_kit` |
 |---|---|
+| 0.6.2 | ^0.11.2 |
 | 0.6.1 | ^0.11.0 |
 | 0.6.0 | ^0.11.0 |
 

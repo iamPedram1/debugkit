@@ -116,6 +116,8 @@ class DebugKitDioInterceptor extends Interceptor {
       traceId: traceId,
       traceName: traceName,
       metadata: baseMetadata,
+      mirrorToConsole: config.networkConsoleLifecycleMode ==
+          DebugKitNetworkConsoleLifecycleMode.startAndFinish,
     );
 
     // Record the request start as a network trace event
@@ -218,7 +220,9 @@ class DebugKitDioInterceptor extends Interceptor {
             ...backendMetadata,
           },
         );
-      });
+      },
+          mirrorToConsole: config.networkConsoleLifecycleMode !=
+              DebugKitNetworkConsoleLifecycleMode.none);
 
       // Record the response as a network trace event
       if (traceId != null) {
@@ -367,7 +371,9 @@ class DebugKitDioInterceptor extends Interceptor {
             ...backendMetadata,
           },
         );
-      });
+      },
+          mirrorToConsole: config.networkConsoleLifecycleMode !=
+              DebugKitNetworkConsoleLifecycleMode.none);
 
       // Record the failure as a network trace event with an error field
       if (traceId != null) {

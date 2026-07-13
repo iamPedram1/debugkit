@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.2
+
+### Added
+- Added `DebugKitNetworkConsoleLifecycleMode` and `DebugKitDioConfig.networkConsoleLifecycleMode` to control Flutter console mirroring of Dio requests independently of the in-app Network tab.
+  - `startAndFinish` (default): prints a `started` line and a final result line, matching prior behavior.
+  - `finalOnly`: prints only one final success/error line per request.
+  - `none`: prints nothing to the console for network requests; the Network tab still records the full lifecycle.
+
+### Changed
+- Requires `debug_kit ^0.11.2`.
+
 ## 0.6.1
 
 - Added a package-level example for pub.dev.

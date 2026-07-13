@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.2
+
+- Added an optional `mirrorToConsole` parameter to `DebugKitController.log()` and `updateLogByRequestId()`, letting adapters suppress individual console lines while still recording/updating the in-app entry. Used by `debug_kit_dio`'s new network console lifecycle modes.
+
 ## 0.11.1
 
 - Added a package-level example for pub.dev.

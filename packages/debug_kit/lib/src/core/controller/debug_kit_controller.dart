@@ -233,6 +233,10 @@ class DebugKitController extends ChangeNotifier {
   /// - [traceId]: explicit trace ID; falls back to Zone value if omitted.
   /// - [traceName]: trace display name; falls back to Zone value if omitted.
   /// - [traceStep]: optional step counter within the trace.
+  /// - [mirrorToConsole]: when `false`, records the entry without printing
+  ///   it to the Flutter console (the in-app log tab is still updated).
+  ///   Used by adapters that want to skip the "started" console line while
+  ///   still keeping console output for the final result.
   void log({
     required String message,
     required DebugLogLevel level,
@@ -244,6 +248,7 @@ class DebugKitController extends ChangeNotifier {
     String? traceId,
     String? traceName,
     int? traceStep,
+    bool mirrorToConsole = true,
   }) {
     if (!_config.enabled) return;
 
@@ -286,7 +291,9 @@ class DebugKitController extends ChangeNotifier {
     );
 
     _store.addLog(entry);
-    _consolePrinter.printLogEntry(entry);
+    if (mirrorToConsole) {
+      _consolePrinter.printLogEntry(entry);
+    }
 
     // Mirror as a log event on the active trace
     if (resolvedTraceId != null) {
@@ -479,16 +486,20 @@ class DebugKitController extends ChangeNotifier {
   /// No-op when DebugKit is disabled or no matching entry is found.
   /// Used by the Dio adapter to finalize a pending log entry with the response
   /// status code and duration.
+  ///
+  /// [mirrorToConsole]: when `false`, the update is applied without printing
+  /// a console line for it.
   void updateLogByRequestId(
     String requestId,
-    DebugLogEntry Function(DebugLogEntry) update,
-  ) {
+    DebugLogEntry Function(DebugLogEntry) update, {
+    bool mirrorToConsole = true,
+  }) {
     if (!_config.enabled) return;
     final entry = _store.getEntryByRequestId(requestId);
     if (entry != null) {
       _store.updateEntry(entry.id, update);
       final updatedEntry = _store.getEntryById(entry.id);
-      if (updatedEntry != null) {
+      if (updatedEntry != null && mirrorToConsole) {
         _consolePrinter.printLogEntry(updatedEntry);
       }
     }

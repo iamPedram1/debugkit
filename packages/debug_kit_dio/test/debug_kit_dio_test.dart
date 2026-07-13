@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io' show gzip;
 import 'dart:async';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 import 'package:debug_kit/debug_kit.dart';
@@ -646,6 +646,174 @@ void main() {
       expect(controller.store.logs[1].repeatCount, 1);
       expect(controller.store.logs[2].source, DebugLogSource.dio);
       expect(controller.store.logs[2].repeatCount, 1);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Network console lifecycle modes
+  // ---------------------------------------------------------------------------
+
+  group('Network console lifecycle modes', () {
+    late List<String> printed;
+    late DebugPrintCallback originalDebugPrint;
+
+    setUp(() {
+      printed = [];
+      originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) printed.add(message);
+      };
+      // Re-init: DebugConsolePrinter captures debugPrint at construction time,
+      // so the controller built in the outer setUp still points at the
+      // original sink.
+      controller.init(enabled: true);
+    });
+
+    tearDown(() {
+      debugPrint = originalDebugPrint;
+    });
+
+    test('default mode prints started + final result', () async {
+      dio.httpClientAdapter = MockAdapter(
+        ResponseBody.fromString('{}', 200),
+      );
+      dio.interceptors.add(DebugKitDioInterceptor(controller));
+
+      await dio.get('https://api.example.com/users');
+
+      expect(printed.where((m) => m.contains('started')).length, 1);
+      expect(printed.where((m) => m.contains('200')).length, 1);
+      expect(controller.store.logs.length, 1);
+    });
+
+    test('startAndFinish prints started + final result', () async {
+      dio.httpClientAdapter = MockAdapter(
+        ResponseBody.fromString('{}', 200),
+      );
+      dio.interceptors.add(
+        DebugKitDioInterceptor(
+          controller,
+          config: const DebugKitDioConfig(
+            networkConsoleLifecycleMode:
+                DebugKitNetworkConsoleLifecycleMode.startAndFinish,
+          ),
+        ),
+      );
+
+      await dio.get('https://api.example.com/users');
+
+      expect(printed.where((m) => m.contains('started')).length, 1);
+      expect(printed.where((m) => m.contains('200')).length, 1);
+    });
+
+    test('finalOnly prints only the final success result', () async {
+      dio.httpClientAdapter = MockAdapter(
+        ResponseBody.fromString('{}', 200),
+      );
+      dio.interceptors.add(
+        DebugKitDioInterceptor(
+          controller,
+          config: const DebugKitDioConfig(
+            networkConsoleLifecycleMode:
+                DebugKitNetworkConsoleLifecycleMode.finalOnly,
+          ),
+        ),
+      );
+
+      await dio.get('https://api.example.com/users');
+
+      expect(printed.where((m) => m.contains('started')), isEmpty);
+      expect(printed.length, 1);
+      expect(printed.single, contains('200'));
+      expect(controller.store.logs.length, 1);
+      expect(controller.store.logs.first.message, contains('200'));
+    });
+
+    test('finalOnly prints only the final error result', () async {
+      dio.httpClientAdapter = ErrorMockAdapter();
+      dio.interceptors.add(
+        DebugKitDioInterceptor(
+          controller,
+          config: const DebugKitDioConfig(
+            networkConsoleLifecycleMode:
+                DebugKitNetworkConsoleLifecycleMode.finalOnly,
+          ),
+        ),
+      );
+
+      try {
+        await dio.get('https://api.example.com/users');
+      } catch (_) {}
+
+      expect(printed.where((m) => m.contains('started')), isEmpty);
+      expect(printed.length, 1);
+      expect(printed.single, contains('failed'));
+      expect(controller.store.logs.length, 1);
+    });
+
+    test('none prints no network console output', () async {
+      dio.httpClientAdapter = MockAdapter(
+        ResponseBody.fromString('{}', 200),
+      );
+      dio.interceptors.add(
+        DebugKitDioInterceptor(
+          controller,
+          config: const DebugKitDioConfig(
+            networkConsoleLifecycleMode:
+                DebugKitNetworkConsoleLifecycleMode.none,
+          ),
+        ),
+      );
+
+      await dio.get('https://api.example.com/users');
+
+      expect(printed, isEmpty);
+      // The Network tab is still recorded and updated.
+      expect(controller.store.logs.length, 1);
+      expect(controller.store.logs.first.message, contains('200'));
+    });
+
+    test('none mode still updates the Network tab entry on error', () async {
+      dio.httpClientAdapter = ErrorMockAdapter();
+      dio.interceptors.add(
+        DebugKitDioInterceptor(
+          controller,
+          config: const DebugKitDioConfig(
+            networkConsoleLifecycleMode:
+                DebugKitNetworkConsoleLifecycleMode.none,
+          ),
+        ),
+      );
+
+      try {
+        await dio.get('https://api.example.com/users');
+      } catch (_) {}
+
+      expect(printed, isEmpty);
+      expect(controller.store.logs.length, 1);
+      expect(controller.store.logs.first.level, DebugLogLevel.error);
+      expect(controller.store.logs.first.message, contains('failed'));
+    });
+
+    test('manual DebugKit app logs are unaffected by lifecycle mode', () async {
+      dio.httpClientAdapter = MockAdapter(
+        ResponseBody.fromString('{}', 200),
+      );
+      dio.interceptors.add(
+        DebugKitDioInterceptor(
+          controller,
+          config: const DebugKitDioConfig(
+            networkConsoleLifecycleMode:
+                DebugKitNetworkConsoleLifecycleMode.none,
+          ),
+        ),
+      );
+
+      controller.info('manual app log');
+      await dio.get('https://api.example.com/users');
+
+      expect(printed.where((m) => m.contains('manual app log')).length, 1);
+      expect(printed.where((m) => m.contains('200')), isEmpty);
     });
   });
 }
